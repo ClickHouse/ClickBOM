@@ -182,10 +182,10 @@ main() {
     local s3_key="${S3_KEY:-sbom.json}"
     
     # Temporary files
-#    local temp_dir
-#    temp_dir=$(mktemp -d)
-#    local original_sbom="$temp_dir/original_sbom.json"
-#    local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    local original_sbom="$temp_dir/original_sbom.json"
+    local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
     
     # Cleanup function
 #    cleanup() {

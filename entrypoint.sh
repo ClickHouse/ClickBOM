@@ -189,6 +189,7 @@ main() {
     fi
     local original_sbom="$temp_dir/original_sbom.json"
     local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
+    echo $temp_dir
     
     # Cleanup function
     cleanup() {

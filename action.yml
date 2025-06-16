@@ -1,0 +1,51 @@
+name: 'ClickBOM'
+description: 'Download SBOM from GitHub repository, convert to CycloneDX format, and upload to S3'
+author: 'Your Name'
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  aws-access-key-id:
+    description: 'AWS Access Key ID'
+    required: true
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key'
+    required: true
+  aws-region:
+    description: 'AWS region'
+    required: false
+    default: 'us-east-1'
+  s3-bucket:
+    description: 'S3 bucket name'
+    required: true
+  s3-key:
+    description: 'S3 object key/path'
+    required: false
+    default: 'sbom/cyclonedx-sbom.json'
+  repository:
+    description: 'Repository to download SBOM from (format: owner/repo)'
+    required: true
+  sbom-path:
+    description: 'Path to SBOM file in the repository'
+    required: false
+    default: 'sbom.json'
+  ref:
+    description: 'Git reference (branch, tag, or commit SHA)'
+    required: false
+    default: 'main'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+    AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+    AWS_DEFAULT_REGION: ${{ inputs.aws-region }}
+    S3_BUCKET: ${{ inputs.s3-bucket }}
+    S3_KEY: ${{ inputs.s3-key }}
+    REPOSITORY: ${{ inputs.repository }}
+    SBOM_PATH: ${{ inputs.sbom-path }}
+    REF: ${{ inputs.ref }}
+branding:
+  icon: 'list'
+  color: 'yellow'

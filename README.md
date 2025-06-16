@@ -8,7 +8,7 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
 | Name                  | Description                          | Default        | Required | Sensitive |
 | --------------------- | ------------------------------------ | -------------- | -------- | --------- |
-| github-token          | GitHub token for authentication      |                | true     | true      |
+| github-token          | GitHub token for authentication      |                | false    | true      |
 | ghapp-token           | GitHub App token for authentication  |                | false    | true      |
 | aws-access-key-id     | AWS access key ID for S3 uploads     |                | true     | true      |
 | aws-secret-access-key | AWS secret access key for S3 uploads |                | true     | true      |
@@ -19,6 +19,10 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 | sbom-path             | Path to SBOM file in the repository  | sbom.json      | false    | false     |
 | ref                   | Git reference (branch, tag, commit)  | main           | false    | false     |
 | clickhouse-url        | ClickHouse URL for uploads           |                | false    | false     |
+
+### Notes
+
+- Either `github-token` or `ghapp-token` must be provided for authentication to the GitHub API.
 
 ## Usage
 

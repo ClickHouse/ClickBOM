@@ -4,7 +4,7 @@ author: 'Your Name'
 inputs:
   github-token:
     description: 'GitHub token for API access'
-    required: true
+    required: false
   ghapp-token:
     description: 'GitHub App token for API access'
     required: false

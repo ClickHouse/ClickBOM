@@ -28,7 +28,7 @@ log_error() {
 
 # Validate required environment variables
 validate_env() {
-    local required_vars=("GITHUB_TOKEN" "AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "S3_BUCKET" "REPOSITORY")
+    local required_vars=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "S3_BUCKET" "REPOSITORY")
     
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then

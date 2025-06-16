@@ -14,6 +14,7 @@ jobs:
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        id: aws-creds
         with:
           role-to-assume: arn:aws:iam::576599896960:role/GitHubOpenIdConnect
           role-session-name: clickbom-test
@@ -22,4 +23,9 @@ jobs:
       - name: Test ClickBOM Action
         uses: ./
         id: test_clickbom
-      
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: clickhouse-sbom
+          s3-key: clickbom.json

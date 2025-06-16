@@ -4,7 +4,7 @@
 
 Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
-# Inputs
+## Inputs
 
 | Name                  | Description                          | Default        | Required | Sensitive |
 | --------------------- | ------------------------------------ | -------------- | -------- | --------- |
@@ -19,3 +19,40 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 | sbom-path             | Path to SBOM file in the repository  | sbom.json      | false    | false     |
 | ref                   | Git reference (branch, tag, commit)  | main           | false    | false     |
 | clickhouse-url        | ClickHouse URL for uploads           |                | false    | false     |
+
+## Usage
+
+### Same Repository
+
+Simple example of downloading the SBOM from the same repository and uploading it to S3.
+
+```yaml
+name: Upload SBOM
+on:
+  push:
+    branches:
+      - main
+jobs:
+  clickbom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
+          role-session-name: clickbom-session
+          aws-region: us-east-1
+
+      - name: Upload SBOM
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: my-sbom-bucket
+          s3-key: clickbom.json
+```

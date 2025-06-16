@@ -174,7 +174,7 @@ main() {
     log_info "Starting ClickBOM GitHub Action for SBOM processing"
     
     # Validate environment
-#    validate_env
+    validate_env
     
     # Set defaults for optional variables
 #    local sbom_path="${SBOM_PATH:-sbom.json}"

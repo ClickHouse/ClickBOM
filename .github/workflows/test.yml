@@ -9,6 +9,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::576599896960:role/GitHubOpenIdConnect
+          role-session-name: clickbom-test
+          aws-region: us-east-1
+
       - name: Test ClickBOM Action
         uses: ./
         id: test_clickbom

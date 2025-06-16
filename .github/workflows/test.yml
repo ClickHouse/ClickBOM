@@ -1,3 +1,4 @@
+# Once this repository is public, move this workflow to security-integrations
 on: [push]
 name: Test ClickBOM Action
 
@@ -29,3 +30,4 @@ jobs:
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: clickhouse-sbom
           s3-key: clickbom.json
+          repository: ${{ github.repository }}

@@ -47,12 +47,22 @@ download_sbom() {
     
     # GitHub API URL for file content
     local api_url="https://api.github.com/repos/$repo/dependency-graph/sbom"
+
+    # Determine which token to use
+    local auth_header=""
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        auth_header="Authorization: Bearer $GITHUB_TOKEN"
+    elif [[ -n "${GHAPP_TOKEN:-}" ]]; then
+        auth_header="Authorization: Bearer $GHAPP_TOKEN"
+    else
+        log_error "No valid GitHub token found. Set GITHUB_TOKEN or GHAPP_TOKEN."
+        exit 1
+    fi
     
-    # Download file metadata to get download URL
-    local response
+    # Download SBOM file
     if curl -L \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "$auth_header" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "$api_url" \
             -o "$output_file"; then

@@ -1,3 +1,5 @@
+[![Test ClickBOM Action](https://github.com/ClickHouse/ClickBOM/actions/workflows/test.yml/badge.svg)](https://github.com/ClickHouse/ClickBOM/actions/workflows/test.yml)
+
 # ClickBOM
 
 Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.

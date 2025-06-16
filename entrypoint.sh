@@ -41,40 +41,20 @@ validate_env() {
 # Download SBOM from GitHub repository
 download_sbom() {
     local repo="$1"
-    local sbom_path="$2"
-    local ref="$3"
-    local output_file="$4"
+    local output_file="$2"
     
-    log_info "Downloading SBOM from $repo at $ref:$sbom_path"
+    log_info "Downloading SBOM from $repo"
     
     # GitHub API URL for file content
-    local api_url="https://api.github.com/repos/$repo/contents/$sbom_path"
-    
-    # Add ref parameter if not default
-    if [[ "$ref" != "main" ]]; then
-        api_url="$api_url?ref=$ref"
-    fi
+    local api_url="https://api.github.com/repos/$repo/dependency-graph/sbom"
     
     # Download file metadata to get download URL
     local response
-    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-                   -H "Accept: application/vnd.github.v3+json" \
-                   "$api_url")
-    
-    # Check if API call was successful
-    if ! echo "$response" | jq -e '.download_url' > /dev/null 2>&1; then
-        log_error "Failed to get SBOM file information from GitHub API"
-        log_error "Response: $response"
-        exit 1
-    fi
-    
-    # Extract download URL
-    local download_url
-    download_url=$(echo "$response" | jq -r '.download_url')
-    
-    # Download the actual file
-    if curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            -L "$download_url" \
+    if curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api_url" \
             -o "$output_file"; then
         log_success "SBOM downloaded successfully"
     else
@@ -204,8 +184,10 @@ main() {
     local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
     
     # Download SBOM
-#    download_sbom "$REPOSITORY" "$sbom_path" "$ref" "$original_sbom"
-    
+    download_sbom "$REPOSITORY" "$original_sbom"
+
+    cat "$original_sbom"
+
     # Detect format
 #    local format
 #    format=$(detect_sbom_format "$original_sbom")

@@ -1,0 +1,15 @@
+on: [push]
+name: Test ClickBOM Action
+
+jobs:
+  test_clickbom:
+    runs-on: ubuntu-latest
+    name: Test ClickBOM Action
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test ClickBOM Action
+        uses: ./
+        id: test_clickbom
+      

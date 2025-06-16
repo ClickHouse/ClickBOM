@@ -183,7 +183,10 @@ main() {
     
     # Temporary files
     local temp_dir
-    temp_dir=$(mktemp -d)
+    if ! temp_dir=$(mktemp -d); then
+        log_error "Failed to create temporary directory"
+        exit 1
+    fi
     local original_sbom="$temp_dir/original_sbom.json"
     local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
     

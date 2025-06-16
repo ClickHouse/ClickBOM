@@ -65,4 +65,5 @@ jobs:
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
+          repository: ${{ github.repository }}
 ```

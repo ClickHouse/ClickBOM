@@ -177,9 +177,9 @@ main() {
     validate_env
     
     # Set defaults for optional variables
-#    local sbom_path="${SBOM_PATH:-sbom.json}"
-#    local ref="${REF:-main}"
-#    local s3_key="${S3_KEY:-sbom/cyclonedx-sbom.json}"
+    local sbom_path="${SBOM_PATH:-sbom.json}"
+    local ref="${REF:-main}"
+    local s3_key="${S3_KEY:-sbom.json}"
     
     # Temporary files
 #    local temp_dir

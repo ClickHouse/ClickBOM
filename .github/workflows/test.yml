@@ -4,6 +4,8 @@ name: Test ClickBOM Action
 jobs:
   test_clickbom:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     name: Test ClickBOM Action
     steps:
       - name: Checkout

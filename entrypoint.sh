@@ -182,7 +182,7 @@ main() {
     local s3_key="${S3_KEY:-sbom.json}"
     
     # Temporary files
-    local temp_dir
+    local temp_dir=""
     if ! temp_dir=$(mktemp -d); then
         log_error "Failed to create temporary directory"
         exit 1

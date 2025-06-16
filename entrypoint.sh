@@ -169,6 +169,17 @@ upload_to_s3() {
     fi
 }
 
+# Global variable for temp directory (so cleanup can access it)
+temp_dir=""
+
+# Cleanup function
+cleanup() {
+    if [[ -n "$temp_dir" && -d "$temp_dir" ]]; then
+        log_info "Cleaning up temporary files"
+        rm -rf "$temp_dir"
+    fi
+}
+
 # Main function
 main() {
     log_info "Starting ClickBOM GitHub Action for SBOM processing"
@@ -181,22 +192,16 @@ main() {
     local ref="${REF:-main}"
     local s3_key="${S3_KEY:-sbom.json}"
     
+    # Set up cleanup trap    
+    trap cleanup EXIT
+
     # Temporary files
-    local temp_dir=""
     if ! temp_dir=$(mktemp -d); then
         log_error "Failed to create temporary directory"
         exit 1
     fi
     local original_sbom="$temp_dir/original_sbom.json"
     local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
-    echo $temp_dir
-    
-    # Cleanup function
-    cleanup() {
-        log_info "Cleaning up temporary files"
-        rm -rf "$temp_dir"
-    }
-    trap cleanup EXIT
     
     # Download SBOM
 #    download_sbom "$REPOSITORY" "$sbom_path" "$ref" "$original_sbom"

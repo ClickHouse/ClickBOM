@@ -39,6 +39,7 @@ on:
       
 jobs:
   clickbom:
+    name: ClickBOM
     runs-on: ubuntu-latest
 
     permissions:

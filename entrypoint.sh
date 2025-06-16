@@ -188,11 +188,11 @@ main() {
     local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
     
     # Cleanup function
-#    cleanup() {
-#        log_info "Cleaning up temporary files"
-#        rm -rf "$temp_dir"
-#    }
-#    trap cleanup EXIT
+    cleanup() {
+        log_info "Cleaning up temporary files"
+        rm -rf "$temp_dir"
+    }
+    trap cleanup EXIT
     
     # Download SBOM
 #    download_sbom "$REPOSITORY" "$sbom_path" "$ref" "$original_sbom"

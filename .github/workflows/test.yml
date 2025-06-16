@@ -1,14 +1,16 @@
 # Once this repository is public, move this workflow to security-integrations
-on: [push]
 name: Test ClickBOM Action
+on: [push]
 
 jobs:
   test_clickbom:
+    name: Test ClickBOM Action
     runs-on: ubuntu-latest
+
     permissions:
       id-token: write
       contents: read
-    name: Test ClickBOM Action
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

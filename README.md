@@ -32,9 +32,14 @@ on:
   push:
     branches:
       - main
+      
 jobs:
   clickbom:
     runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2

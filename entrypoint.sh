@@ -216,7 +216,7 @@ main() {
     
 #    log_success "SBOM processing completed successfully!"
 #    log_info "CycloneDX SBOM available at: s3://$S3_BUCKET/$s3_key"
-#}
+}
 
 # Run main function
 main "$@"

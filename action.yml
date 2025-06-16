@@ -5,6 +5,9 @@ inputs:
   github-token:
     description: 'GitHub token for API access'
     required: true
+  ghapp-token:
+    description: 'GitHub App token for API access'
+    required: false
   aws-access-key-id:
     description: 'AWS Access Key ID'
     required: true
@@ -38,6 +41,7 @@ runs:
   image: 'Dockerfile'
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
+    GHAPP_TOKEN: ${{ inputs.ghapp-token }}
     AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
     AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
     AWS_DEFAULT_REGION: ${{ inputs.aws-region }}

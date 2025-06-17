@@ -37,7 +37,7 @@ jobs:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
-          sbom-format: spdx
+          sbom-format: spdxjson
           s3-bucket: clickhouse-sbom
           s3-key: clickbom.json
           repository: ${{ github.repository }}

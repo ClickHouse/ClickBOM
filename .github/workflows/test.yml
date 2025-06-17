@@ -33,3 +33,7 @@ jobs:
           s3-bucket: clickhouse-sbom
           s3-key: clickbom.json
           repository: ${{ github.repository }}
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}

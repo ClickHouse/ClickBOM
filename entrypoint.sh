@@ -251,6 +251,134 @@ upload_to_s3() {
     fi
 }
 
+# Create ClickHouse table if it doesn't exist, or truncate if it does
+setup_clickhouse_table() {
+    local table_name="$1"
+    
+    log_info "Setting up ClickHouse table: $table_name"
+    
+    # Build ClickHouse URL
+    local clickhouse_url="${CLICKHOUSE_URL}"
+    local auth_params=""
+    
+    if [[ -n "${CLICKHOUSE_USERNAME:-}" && "${CLICKHOUSE_USERNAME}" != "default" ]]; then
+        auth_params="--user ${CLICKHOUSE_USERNAME}"
+    fi
+    
+    if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
+        auth_params="${auth_params} --password ${CLICKHOUSE_PASSWORD}"
+    fi
+    
+    # Check if table exists
+    local table_exists
+    if table_exists=$(curl -s ${auth_params} --data "SELECT COUNT(*) FROM system.tables WHERE database='${CLICKHOUSE_DATABASE}' AND name='${table_name}'" "${clickhouse_url}"); then
+        if [[ "$table_exists" == "1" ]]; then
+            log_info "Table $table_name exists, truncating..."
+            if curl -s ${auth_params} --data "TRUNCATE TABLE ${CLICKHOUSE_DATABASE}.${table_name}" "${clickhouse_url}"; then
+                log_success "Table $table_name truncated"
+            else
+                log_error "Failed to truncate table $table_name"
+                exit 1
+            fi
+        else
+            log_info "Creating new table: $table_name"
+            local create_table_sql="
+            CREATE TABLE ${CLICKHOUSE_DATABASE}.${table_name} (
+                name String,
+                version String,
+                license String,
+                inserted_at DateTime DEFAULT now()
+            ) ENGINE = MergeTree()
+            ORDER BY (name, version, license);
+            "
+            
+            if curl -s ${auth_params} --data "$create_table_sql" "${clickhouse_url}"; then
+                log_success "Table $table_name created successfully"
+            else
+                log_error "Failed to create table $table_name"
+                exit 1
+            fi
+        fi
+    else
+        log_error "Failed to check if table exists"
+        exit 1
+    fi
+}
+
+insert_sbom_data() {
+    local sbom_file="$1"
+    local table_name="$2"
+    local sbom_format="$3"
+    
+    log_info "Extracting components from $sbom_format SBOM for ClickHouse"
+    
+    # Build ClickHouse URL
+    local clickhouse_url="${CLICKHOUSE_URL}"
+    local auth_params=""
+    
+    if [[ -n "${CLICKHOUSE_USERNAME:-}" && "${CLICKHOUSE_USERNAME}" != "default" ]]; then
+        auth_params="--user ${CLICKHOUSE_USERNAME}"
+    fi
+    
+    if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
+        auth_params="${auth_params} --password ${CLICKHOUSE_PASSWORD}"
+    fi
+    
+    # Create temporary file for data
+    local data_file="$temp_dir/clickhouse_data.tsv"
+    
+    # Extract data based on SBOM format
+    case "$sbom_format" in
+        "cyclonedx")
+            # Extract from CycloneDX format
+            jq -r '
+                .components[]? // empty |
+                [
+                    .name // "unknown",
+                    .version // "unknown", 
+                    (.licenses[]?.license.id // .licenses[]?.license.name // .licenses[]?.expression // "unknown")
+                ] | @tsv
+            ' "$sbom_file" > "$data_file"
+            ;;
+        "spdx"|"spdxjson")
+            # Extract from SPDX format
+            jq -r '
+                .packages[]? // empty |
+                select(.name != null) |
+                [
+                    .name // "unknown",
+                    .versionInfo // "unknown",
+                    (.licenseDeclared // .licenseConcluded // "unknown")
+                ] | @tsv
+            ' "$sbom_file" > "$data_file"
+            ;;
+        *)
+            log_error "Unsupported SBOM format for ClickHouse: $sbom_format"
+            exit 1
+            ;;
+    esac
+    
+    # Check if we have data to insert
+    if [[ ! -s "$data_file" ]]; then
+        log_warning "No component data found in SBOM"
+        return
+    fi
+    
+    local component_count=$(wc -l < "$data_file")
+    log_info "Found $component_count components to insert"
+    
+    # Insert data into ClickHouse
+    if curl -s ${auth_params} \
+           -H "Content-Type: text/tab-separated-values" \
+           --data-binary "@$data_file" \
+           "${clickhouse_url}/?query=INSERT%20INTO%20${CLICKHOUSE_DATABASE}.${table_name}%20(name,%20version,%20license)%20FORMAT%20TSV"; then
+        log_success "Inserted $component_count components into ClickHouse table $table_name"
+    else
+        log_error "Failed to insert data into ClickHouse"
+        exit 1
+    fi
+}
+
 # Global variable for temp directory (so cleanup can access it)
 temp_dir=""
 
@@ -317,6 +445,13 @@ main() {
 
     log_success "SBOM processing completed successfully!"
     log_info "SBOM available at: s3://$S3_BUCKET/$s3_key"
+
+    if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
+        local table_name=$(echo "$REPOSITORY" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')
+        setup_clickhouse_table "$table_name"
+        insert_sbom_data "$processed_sbom" "$table_name" "$desired_format"
+        log_info "Component data available in ClickHouse table: ${CLICKHOUSE_DATABASE}.${table_name}"
+    fi
 }
 
 # Run main function

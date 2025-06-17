@@ -35,10 +35,10 @@ inputs:
   clickhouse-url:
     description: 'ClickHouse URL for storing SBOM components data'
     required: false
-  clickhouse-port:
-    description: 'ClickHouse port'
-    required: false
-    default: '8123'
+  # clickhouse-port:
+  #   description: 'ClickHouse port'
+  #   required: false
+  #   default: '8123'
   clickhouse-database:
     description: 'ClickHouse database name'
     required: false
@@ -65,7 +65,7 @@ runs:
     REPOSITORY: ${{ inputs.repository }}
     SBOM_FORMAT: ${{ inputs.sbom-format }}
     CLICKHOUSE_URL: ${{ inputs.clickhouse-url }}
-    CLICKHOUSE_PORT: ${{ inputs.clickhouse-port }}
+    # CLICKHOUSE_PORT: ${{ inputs.clickhouse-port }}
     CLICKHOUSE_DATABASE: ${{ inputs.clickhouse-database }}
     CLICKHOUSE_USERNAME: ${{ inputs.clickhouse-username }}
     CLICKHOUSE_PASSWORD: ${{ inputs.clickhouse-password }}

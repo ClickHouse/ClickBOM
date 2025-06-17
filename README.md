@@ -8,30 +8,31 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
   - [Notes](#notes)
 - [Usage](#usage)
   - [Same Repository](#same-repository)
+  - [Same Repository with ClickHouse](#same-repository-with-clickhouse)
 
 ## Inputs
 
 | Name                  | Description                           | Default        | Required | Sensitive |
 | --------------------- | ------------------------------------- | -------------- | -------- | --------- |
-| github-token          | GitHub token for authentication       |                | false    | true      |
-| ghapp-token           | GitHub App token for authentication   |                | false    | true      |
-| aws-access-key-id     | AWS access key ID for S3 uploads      |                | true     | true      |
-| aws-secret-access-key | AWS secret access key for S3 uploads  |                | true     | true      |
-| aws-region            | AWS region for S3 uploads             | us-east-1      | false    | false     |
-| s3-bucket             | S3 bucket name for uploads            |                | false    | false     |
-| s3-key                | S3 key prefix for uploads             | sbom/sbom.json | false    | false     |
+| github-token          | GitHub Token                          |                | false    | true      |
+| ghapp-token           | GitHub App Token                      |                | false    | true      |
+| aws-access-key-id     | AWS Access Key ID                     |                | true     | true      |
+| aws-secret-access-key | AWS Secret Access Key                 |                | true     | true      |
+| aws-region            | AWS Region                            | us-east-1      | false    | false     |
+| s3-bucket             | S3 Bucket Name                        |                | false    | false     |
+| s3-key                | S3 Key Prefix                         | sbom/sbom.json | false    | false     |
 | repository            | Repository to download SBOM from      |                | true     | false     |
 | sbom-format           | Final SBOM format (spdx or cyclonedx) | cyclonedx      | false    | false     |
-| clickhouse-url        | ClickHouse URL for uploads            |                | false    | true      |
-| clickhouse-port       | ClickHouse port                       | 8123           | false    | false     |
-| clickhouse-database   | ClickHouse database name              | default        | false    | false     |
-| clickhouse-username   | ClickHouse username                   | default        | false    | false     |
-| clickhouse-password   | ClickHouse password                   | (empty)        | false    | true      |
+| clickhouse-url        | ClickHouse URL                        |                | false    | true      |
+| clickhouse-database   | ClickHouse Database Name              | default        | false    | false     |
+| clickhouse-username   | ClickHouse Username                   | default        | false    | false     |
+| clickhouse-password   | ClickHouse Password                   | (empty)        | false    | true      |
 
 ### Notes
 
 - Either `github-token` or `ghapp-token` must be provided for authentication to the GitHub API.
 - `sbom-format` specifies the format you want the final SBOM to be in. For example, GitHub only supports SPDX, settings this input to `cyclonedx` will convert the SBOM to CycloneDX format.
+- At the moment, ClickHouse ingestion is only supported over HTTP.
 
 ## Usage
 
@@ -76,4 +77,51 @@ jobs:
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
           repository: ${{ github.repository }}
+```
+
+### Same Repository with ClickHouse
+
+Downloads the SBOM from the same repository and uploads it to S3. Converts the SBOM to CycloneDX format. Also uploads the SBOM to ClickHouse.
+
+```yaml
+name: Upload SBOM
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  clickbom:
+    name: ClickBOM
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
+          role-session-name: clickbom-session
+          aws-region: us-east-1
+
+      - name: Upload SBOM
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: my-sbom-bucket
+          s3-key: clickbom.json
+          repository: ${{ github.repository }}
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
 ```

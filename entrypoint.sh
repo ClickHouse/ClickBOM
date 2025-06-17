@@ -290,6 +290,7 @@ main() {
 
     local original_sbom="$temp_dir/original_sbom.json"
     local extracted_sbom="$temp_dir/extracted_sbom.json"
+    local fixed_sbom="$temp_dir/fixed_sbom.json"
     local processed_sbom="$temp_dir/processed_sbom.json"
     
     # Download SBOM

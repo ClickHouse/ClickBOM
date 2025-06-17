@@ -1,4 +1,5 @@
 {
   "actions/checkout": "MIT",
-  "aws-actions/configure-aws-credentials": "MIT"
+  "aws-actions/configure-aws-credentials": "MIT",
+  "actions/create-github-app-token": "MIT"
 }

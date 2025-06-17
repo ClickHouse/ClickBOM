@@ -36,6 +36,24 @@ validate_env() {
             exit 1
         fi
     done
+
+    # Check that at least one GitHub token is set
+    if [[ -z "${GITHUB_TOKEN:-}" && -z "${GHAPP_TOKEN:-}" ]]; then
+        log_error "Either GITHUB_TOKEN or GHAPP_TOKEN must be set"
+        exit 1
+    fi
+
+    # Validate ClickHouse configuration if any ClickHouse parameter is provided
+    if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
+        local clickhouse_vars=("CLICKHOUSE_URL" "CLICKHOUSE_DATABASE" "CLICKHOUSE_USERNAME")
+        for var in "${clickhouse_vars[@]}"; do
+            if [[ -z "${!var:-}" ]]; then
+                log_error "If using ClickHouse, $var must be provided"
+                exit 1
+            fi
+        done
+        log_info "ClickHouse configuration validated"
+    fi
 }
 
 # Download SBOM from GitHub repository
@@ -167,16 +185,17 @@ convert_sbom() {
     local detected_format="$3"
     local desired_format="$4"
 
-    # If no desired format specified, keep original
-    if [[ -z "$desired_format" ]]; then
-        log_info "No format conversion requested, keeping original format ($detected_format)"
-        cp "$input_file" "$output_file"
-        return
-    fi
-
     # Normalize format names for comparison
     local detected_lower=$(echo "$detected_format" | tr '[:upper:]' '[:lower:]')
     local desired_lower=$(echo "$desired_format" | tr '[:upper:]' '[:lower:]')
+
+    # Map detected format to CLI input format
+    local cli_input_format="$detected_format"
+    case "$detected_lower" in
+        "spdxjson") cli_input_format="spdxjson" ;;
+        "cyclonedx") cli_input_format="json" ;;
+        *) cli_input_format="autodetect" ;;
+    esac
 
     # If already in desired format, no conversion needed
     if [[ "$detected_lower" == "$desired_lower" ]]; then
@@ -189,7 +208,7 @@ convert_sbom() {
     case "$desired_lower" in
         "cyclonedx")
             log_info "Converting $detected_format SBOM to CycloneDX format"
-            if cyclonedx convert --input-file "$input_file" --input-format "$detected_format" --output-version v1_6 --output-file "$output_file" --output-format json; then
+            if cyclonedx convert --input-file "$input_file" --input-format "$cli_input_format" --output-version v1_6 --output-file "$output_file" --output-format json; then
                 log_success "SBOM converted to CycloneDX format"
             else
                 log_error "Failed to convert SBOM to CycloneDX format"
@@ -198,7 +217,7 @@ convert_sbom() {
             ;;
         "spdx")
             log_info "Converting $detected_format SBOM to SPDX format"
-            if cyclonedx convert --input-file "$input_file" --output-file "$output_file" --output-format spdxjson; then
+            if cyclonedx convert --input-file "$input_file" --input-format "$cli_input_format" --output-file "$output_file" --output-format spdxjson; then
                 log_success "SBOM converted to SPDX format"
             else
                 log_error "Failed to convert SBOM to SPDX format"

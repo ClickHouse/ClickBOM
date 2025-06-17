@@ -32,6 +32,25 @@ inputs:
     description: 'Final SBOM format (spdx or cyclonedx)'
     required: false
     default: 'cyclonedx'
+  clickhouse-url:
+    description: 'ClickHouse URL for storing SBOM components data'
+    required: false
+  clickhouse-port:
+    description: 'ClickHouse port'
+    required: false
+    default: '8123'
+  clickhouse-database:
+    description: 'ClickHouse database name'
+    required: false
+    default: 'default'
+  clickhouse-username:
+    description: 'ClickHouse username'
+    required: false
+    default: 'default'
+  clickhouse-password:
+    description: 'ClickHouse password'
+    required: false
+    default: ''
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -45,6 +64,11 @@ runs:
     S3_KEY: ${{ inputs.s3-key }}
     REPOSITORY: ${{ inputs.repository }}
     SBOM_FORMAT: ${{ inputs.sbom-format }}
+    CLICKHOUSE_URL: ${{ inputs.clickhouse-url }}
+    CLICKHOUSE_PORT: ${{ inputs.clickhouse-port }}
+    CLICKHOUSE_DATABASE: ${{ inputs.clickhouse-database }}
+    CLICKHOUSE_USERNAME: ${{ inputs.clickhouse-username }}
+    CLICKHOUSE_PASSWORD: ${{ inputs.clickhouse-password }}
 branding:
   icon: 'list'
   color: 'yellow'

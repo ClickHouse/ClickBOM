@@ -22,7 +22,11 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 | s3-key                | S3 key prefix for uploads             | sbom/sbom.json | false    | false     |
 | repository            | Repository to download SBOM from      |                | true     | false     |
 | sbom-format           | Final SBOM format (spdx or cyclonedx) | cyclonedx      | false    | false     |
-| clickhouse-url        | ClickHouse URL for uploads            |                | false    | false     |
+| clickhouse-url        | ClickHouse URL for uploads            |                | false    | true      |
+| clickhouse-port       | ClickHouse port                       | 8123           | false    | false     |
+| clickhouse-database   | ClickHouse database name              | default        | false    | false     |
+| clickhouse-username   | ClickHouse username                   | default        | false    | false     |
+| clickhouse-password   | ClickHouse password                   | (empty)        | false    | true      |
 
 ### Notes
 

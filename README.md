@@ -129,7 +129,7 @@ jobs:
 
 ### Same Repository with GitHub App
 
-Downloads the SBOM from the same repository and uploads it to S3. Keeps the SBOM in SPDX format. Authenticates using a GitHub App.
+Downloads the SBOM from the same repository and uploads it to S3. Keeps the SBOM in SPDX format. Authenticates using a GitHub App. See [Creating a GitHub App](#creating-a-github-app).
 
 ```yaml
 name: Upload SBOM
@@ -181,6 +181,64 @@ jobs:
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
           clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
 ```
+
+### Multiple Repositories
+
+Downloads SBOMs from multiple repositories (must have GitHub App installed), Converts SBOMs to CycloneDX format, and uploads them to S3 and ClickHouse.
+
+```yaml
+name: Upload SBOM
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  clickbom:
+    name: ClickBOM
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Generate Token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
+          private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
+          role-session-name: clickbom-session
+          aws-region: us-east-1
+
+      - name: Upload SBOM
+        uses: ./
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: my-sbom-bucket
+          s3-key: clickbom.json
+          repository: ${{ github.repository }}
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
+```
+
+### Merging SBOMs Stored In S3
+
+
 
 ## Creating a GitHub App
 

@@ -4,6 +4,13 @@ on: [push]
 
 jobs:
   test_clickbom:
+    strategy:
+      matrix:
+        repository: [
+          "data-plane-application",
+          "control-plane",
+          "clickpipes-platform"
+        ]
     name: Test ClickBOM Action
     runs-on: ubuntu-latest
 
@@ -30,17 +37,16 @@ jobs:
           role-session-name: clickbom-test
           aws-region: us-east-1
 
-      - name: Test ClickBOM Action
+      - name: Test ClickBOM Action - ${{ matrix.repository }}
         uses: ./
         id: test_clickbom
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
-          sbom-format: spdxjson
           s3-bucket: clickhouse-sbom
-          s3-key: clickbom.json
-          repository: ${{ github.repository }}
+          s3-key: ${{ matrix.repository }}.json
+          repository: ClickHouse/${{ github.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}

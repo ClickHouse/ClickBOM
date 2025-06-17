@@ -21,7 +21,7 @@ inputs:
   s3-key:
     description: 'S3 object key/path'
     required: false
-    default: 'sbom/cyclonedx-sbom.json'
+    default: 'sbom.json'
   repository:
     description: 'Repository to download SBOM from (format: owner/repo)'
     required: true
@@ -29,6 +29,10 @@ inputs:
     description: 'Final SBOM format (spdxjson or cyclonedx)'
     required: false
     default: 'cyclonedx'
+  merge:
+    description: 'Merge SBOM files from S3 into one'
+    required: false
+    default: 'false'
   clickhouse-url:
     description: 'ClickHouse URL for storing SBOM components data'
     required: false
@@ -60,6 +64,7 @@ runs:
     S3_KEY: ${{ inputs.s3-key }}
     REPOSITORY: ${{ inputs.repository }}
     SBOM_FORMAT: ${{ inputs.sbom-format }}
+    MERGE: ${{ inputs.merge }}
     CLICKHOUSE_URL: ${{ inputs.clickhouse-url }}
     # CLICKHOUSE_PORT: ${{ inputs.clickhouse-port }}
     CLICKHOUSE_DATABASE: ${{ inputs.clickhouse-database }}

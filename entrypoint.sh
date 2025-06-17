@@ -253,7 +253,7 @@ main() {
     cat "$processed_sbom"
     
     # Validate the converted file
-    if ! jq . "$cyclonedx_sbom" > /dev/null 2>&1; then
+    if ! jq . "$processed_sbom" > /dev/null 2>&1; then
         log_error "Generated CycloneDX SBOM is not valid JSON"
         exit 1
     fi

@@ -286,9 +286,6 @@ main() {
     else
         convert_sbom "$extracted_sbom" "$processed_sbom" "$detected_format" "$desired_format"
     fi
-
-    cat "$extracted_sbom"
-    cat "$processed_sbom"
     
     # Validate the converted file
     if ! jq . "$processed_sbom" > /dev/null 2>&1; then
@@ -300,7 +297,7 @@ main() {
     upload_to_s3 "$processed_sbom" "$S3_BUCKET" "$s3_key"
 
     log_success "SBOM processing completed successfully!"
-    log_info "CycloneDX SBOM available at: s3://$S3_BUCKET/$s3_key"
+    log_info "SBOM available at: s3://$S3_BUCKET/$s3_key"
 }
 
 # Run main function

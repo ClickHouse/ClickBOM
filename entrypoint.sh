@@ -272,6 +272,15 @@ setup_clickhouse_table() {
         log_info "Using no authentication"
     fi
     
+    # Test connection first
+    log_info "Testing ClickHouse connection..."
+    if ! curl -s ${auth_params} --data "SELECT 1" "${clickhouse_url}" > /dev/null; then
+        log_error "ClickHouse connection test failed"
+        log_error "Please verify your ClickHouse credentials and URL"
+        return 1
+    fi
+    log_success "ClickHouse connection successful"
+
     # Check if table exists
     local table_exists
     if table_exists=$(curl -s ${auth_params} --data "SELECT COUNT(*) FROM system.tables WHERE database='${CLICKHOUSE_DATABASE}' AND name='${table_name}'" "${clickhouse_url}"); then
@@ -281,7 +290,7 @@ setup_clickhouse_table() {
                 log_success "Table $table_name truncated"
             else
                 log_error "Failed to truncate table $table_name"
-                exit 1
+                return 1
             fi
         else
             log_info "Creating new table: $table_name"
@@ -299,13 +308,14 @@ setup_clickhouse_table() {
                 log_success "Table $table_name created successfully"
             else
                 log_error "Failed to create table $table_name"
-                exit 1
+                return 1
             fi
         fi
     else
         log_error "Failed to check if table exists"
-        exit 1
+        return 1
     fi
+    return 0
 }
 
 insert_sbom_data() {
@@ -379,9 +389,10 @@ insert_sbom_data() {
            --data-binary "@$data_file" \
            "${clickhouse_url}/?query=INSERT%20INTO%20${CLICKHOUSE_DATABASE}.${table_name}%20(name,%20version,%20license)%20FORMAT%20TSV"; then
         log_success "Inserted $component_count components into ClickHouse table $table_name"
+        return 0
     else
         log_error "Failed to insert data into ClickHouse"
-        exit 1
+        return 1
     fi
 }
 
@@ -454,9 +465,20 @@ main() {
 
     if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
         local table_name=$(echo "$REPOSITORY" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')
-        setup_clickhouse_table "$table_name"
-        insert_sbom_data "$processed_sbom" "$table_name" "$desired_format"
-        log_info "Component data available in ClickHouse table: ${CLICKHOUSE_DATABASE}.${table_name}"
+        log_info "Starting ClickHouse operations for table: $table_name"
+        # Setup table with error handling
+        if ! setup_clickhouse_table "$table_name"; then
+            log_error "ClickHouse table setup failed, skipping data insertion"
+            exit 1
+        else
+            if ! insert_sbom_data "$processed_sbom" "$table_name" "$desired_format"; then
+                log_error "Data insertion into ClickHouse failed"
+                exit 1
+            else
+                log_info "Component data available in ClickHouse table: ${CLICKHOUSE_DATABASE}.${table_name}"
+                log_success "ClickHouse operations completed successfully!"
+            fi
+        fi
     fi
 }
 

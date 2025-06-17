@@ -26,7 +26,7 @@ inputs:
     description: 'Repository to download SBOM from (format: owner/repo)'
     required: true
   sbom-format:
-    description: 'Final SBOM format (spdx or cyclonedx)'
+    description: 'Final SBOM format (spdxjson or cyclonedx)'
     required: false
     default: 'cyclonedx'
   clickhouse-url:

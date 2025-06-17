@@ -161,7 +161,7 @@ detect_sbom_format() {
     fi
     
     log_warning "Unable to detect SBOM format, assuming SPDX"
-    echo "spdx"
+    echo "spdxjson"
 }
 
 # Convert SBOM to desired format
@@ -170,6 +170,13 @@ convert_sbom() {
     local output_file="$2"
     local detected_format="$3"
     local desired_format="$4"
+
+    # If no desired format specified, keep original
+    if [[ -z "$desired_format" ]]; then
+        log_info "No format conversion requested, keeping original format ($detected_format)"
+        cp "$input_file" "$output_file"
+        return
+    fi
 
     # Normalize format names for comparison
     local detected_lower=$(echo "$detected_format" | tr '[:upper:]' '[:lower:]')
@@ -201,7 +208,7 @@ convert_sbom() {
                 exit 1
             fi
             ;;
-        "spdx")
+        "spdxjson")
             log_info "Converting $detected_format SBOM to SPDX format"
             if cyclonedx convert --input-file "$input_file" --input-format "$cli_input_format" --output-file "$output_file" --output-format spdxjson; then
                 log_success "SBOM converted to SPDX format"
@@ -212,7 +219,7 @@ convert_sbom() {
             ;;
         *)
             log_error "Unsupported target format: $desired_format"
-            log_error "Supported formats: cyclonedx, spdx"
+            log_error "Supported formats: cyclonedx, spdxjson"
             exit 1
             ;;
     esac
@@ -369,7 +376,7 @@ insert_sbom_data() {
                 ] | @tsv
             ' "$sbom_file" > "$data_file"
             ;;
-        "spdx"|"spdxjson")
+        "spdxjson")
             # Extract from SPDX format
             jq -r '
                 .packages[]? // empty |
@@ -460,7 +467,7 @@ main() {
     log_info "Detected SBOM format: $detected_format"
 
     # Fix SPDX compatibility issues if needed
-    if [[ "$detected_format" == "spdxjson" && "$desired_format" == "cyclonedx" ]]; then
+    if [[ "$detected_format" == "spdxjson" ]]; then
         fix_spdx_compatibility "$extracted_sbom" "$fixed_sbom"
         convert_sbom "$fixed_sbom" "$processed_sbom" "$detected_format" "$desired_format"
     else

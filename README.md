@@ -14,20 +14,20 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
 ## Inputs
 
-| Name                  | Description                           | Default        | Required | Sensitive |
-| --------------------- | ------------------------------------- | -------------- | -------- | --------- |
-| github-token          | GitHub Token                          |                | false    | true      |
-| aws-access-key-id     | AWS Access Key ID                     |                | true     | true      |
-| aws-secret-access-key | AWS Secret Access Key                 |                | true     | true      |
-| aws-region            | AWS Region                            | us-east-1      | false    | false     |
-| s3-bucket             | S3 Bucket Name                        |                | false    | false     |
-| s3-key                | S3 Key Prefix                         | sbom/sbom.json | false    | false     |
-| repository            | Repository to download SBOM from      |                | true     | false     |
-| sbom-format           | Final SBOM format (spdx or cyclonedx) | cyclonedx      | false    | false     |
-| clickhouse-url        | ClickHouse URL                        |                | false    | true      |
-| clickhouse-database   | ClickHouse Database Name              | default        | false    | false     |
-| clickhouse-username   | ClickHouse Username                   | default        | false    | false     |
-| clickhouse-password   | ClickHouse Password                   | (empty)        | false    | true      |
+| Name                  | Description                         | Default        | Required | Sensitive |
+| --------------------- | ----------------------------------- | -------------- | -------- | --------- |
+| github-token          | GitHub Token                        |                | false    | true      |
+| aws-access-key-id     | AWS Access Key ID                   |                | true     | true      |
+| aws-secret-access-key | AWS Secret Access Key               |                | true     | true      |
+| aws-region            | AWS Region                          | us-east-1      | false    | false     |
+| s3-bucket             | S3 Bucket Name                      |                | false    | false     |
+| s3-key                | S3 Key Prefix                       | sbom/sbom.json | false    | false     |
+| repository            | Repository to download SBOM from    |                | true     | false     |
+| sbom-format           | SBOM format (spdxjson or cyclonedx) | cyclonedx      | false    | false     |
+| clickhouse-url        | ClickHouse URL                      |                | false    | true      |
+| clickhouse-database   | ClickHouse Database Name            | default        | false    | false     |
+| clickhouse-username   | ClickHouse Username                 | default        | false    | false     |
+| clickhouse-password   | ClickHouse Password                 | (empty)        | false    | true      |
 
 ### Notes
 
@@ -172,7 +172,7 @@ jobs:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
-          sbom-format: spdx
+          sbom-format: spdxjson
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
           repository: ${{ github.repository }}

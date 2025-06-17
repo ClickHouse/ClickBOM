@@ -94,7 +94,7 @@ detect_sbom_format() {
     fi
     
     # Check if it's SPDX format
-    if jq -e '.spdxVersion // .SPDXID' "$sbom_file" > /dev/null 2>&1; then
+    if jq -e '.spdxVersion // .SPDXID // .sbom.spdxVersion // .sbom.SPDXID' "$sbom_file" > /dev/null 2>&1; then
         echo "spdx"
         return
     fi

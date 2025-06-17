@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     wget \
     ca-certificates \
+    openjdk-11-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # Install AWS CLI
@@ -20,8 +21,10 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
     && ./aws/install \
     && rm -rf awscliv2.zip aws/
 
-# Install CycloneDX CLI for SBOM conversion
-RUN pip3 install cyclonedx-bom
+# Install CycloneDX CLI (Java-based tool for conversion)
+RUN wget -O /usr/local/bin/cyclonedx-cli.jar https://github.com/CycloneDX/cyclonedx-cli/releases/latest/download/cyclonedx-cli-0.25.1.jar \
+    && echo '#!/bin/bash\njava -jar /usr/local/bin/cyclonedx-cli.jar "$@"' > /usr/local/bin/cyclonedx \
+    && chmod +x /usr/local/bin/cyclonedx
 
 # Copy the main script
 COPY entrypoint.sh /entrypoint.sh

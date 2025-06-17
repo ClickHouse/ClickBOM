@@ -73,6 +73,26 @@ download_sbom() {
     fi
 }
 
+# Extract SBOM from wrapper if needed
+extract_sbom_from_wrapper() {
+    local input_file="$1"
+    local output_file="$2"
+    
+    # Check if the file has the .sbom wrapper structure
+    if jq -e '.sbom' "$input_file" > /dev/null 2>&1; then
+        log_info "Detected SBOM wrapper, extracting nested SBOM"
+        if jq '.sbom' "$input_file" > "$output_file"; then
+            log_success "SBOM extracted from wrapper"
+        else
+            log_error "Failed to extract SBOM from wrapper"
+            exit 1
+        fi
+    else
+        log_info "No wrapper detected, using SBOM as-is"
+        cp "$input_file" "$output_file"
+    fi
+}
+
 # Detect SBOM format
 detect_sbom_format() {
     local sbom_file="$1"
@@ -94,7 +114,7 @@ detect_sbom_format() {
     fi
     
     # Check if it's SPDX format
-    if jq -e '.spdxVersion // .SPDXID // .sbom.spdxVersion // .sbom.SPDXID' "$sbom_file" > /dev/null 2>&1; then
+    if jq -e '.spdxVersion // .SPDXID' "$sbom_file" > /dev/null 2>&1; then
         echo "spdx"
         return
     fi
@@ -210,19 +230,24 @@ main() {
         log_error "Failed to create temporary directory"
         exit 1
     fi
+
     local original_sbom="$temp_dir/original_sbom.json"
+    local extracted_sbom="$temp_dir/extracted_sbom.json"
     local processed_sbom="$temp_dir/processed_sbom.json"
     
     # Download SBOM
     download_sbom "$REPOSITORY" "$original_sbom"
 
+    # Extract SBOM from wrapper if needed
+    extract_sbom_from_wrapper "$original_sbom" "$extracted_sbom"
+
     # Detect format
     local detected_format
-    detected_format=$(detect_sbom_format "$original_sbom")
+    detected_format=$(detect_sbom_format "$extracted_sbom")
     log_info "Detected SBOM format: $detected_format"
 
     # Convert or copy SBOM based on desired format
-    convert_sbom "$original_sbom" "$processed_sbom" "$detected_format" "$desired_format"
+    convert_sbom "$extracted_sbom" "$processed_sbom" "$detected_format" "$desired_format"
 
     cat "$processed_sbom"
     

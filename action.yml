@@ -28,6 +28,10 @@ inputs:
   repository:
     description: 'Repository to download SBOM from (format: owner/repo)'
     required: true
+  sbom-format:
+    description: 'Final SBOM format (spdx or cyclonedx)'
+    required: false
+    default: 'cyclonedx'
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -40,8 +44,7 @@ runs:
     S3_BUCKET: ${{ inputs.s3-bucket }}
     S3_KEY: ${{ inputs.s3-key }}
     REPOSITORY: ${{ inputs.repository }}
-    SBOM_PATH: ${{ inputs.sbom-path }}
-    REF: ${{ inputs.ref }}
+    SBOM_FORMAT: ${{ inputs.sbom-format }}
 branding:
   icon: 'list'
   color: 'yellow'

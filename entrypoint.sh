@@ -178,9 +178,8 @@ main() {
     validate_env
     
     # Set defaults for optional variables
-    local sbom_path="${SBOM_PATH:-sbom.json}"
-    local ref="${REF:-main}"
     local s3_key="${S3_KEY:-sbom.json}"
+    local desired_format="${SBOM_FORMAT:-cyclonedx}"
     
     # Set up cleanup trap    
     trap cleanup EXIT
@@ -191,7 +190,7 @@ main() {
         exit 1
     fi
     local original_sbom="$temp_dir/original_sbom.json"
-    local cyclonedx_sbom="$temp_dir/cyclonedx_sbom.json"
+    local processed_sbom="$temp_dir/processed_sbom.json"
     
     # Download SBOM
     download_sbom "$REPOSITORY" "$original_sbom"

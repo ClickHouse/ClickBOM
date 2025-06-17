@@ -304,7 +304,7 @@ main() {
     log_info "Detected SBOM format: $detected_format"
 
     # Fix SPDX compatibility issues if needed
-    if [[ "$detected_format" == "spdx" && "$desired_format" == "cyclonedx" ]]; then
+    if [[ "$detected_format" == "spdxjson" && "$desired_format" == "cyclonedx" ]]; then
         fix_spdx_compatibility "$extracted_sbom" "$fixed_sbom"
         convert_sbom "$fixed_sbom" "$processed_sbom" "$detected_format" "$desired_format"
     else

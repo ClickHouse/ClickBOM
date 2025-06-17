@@ -322,21 +322,26 @@ map_unknown_licenses() {
     local input_file="$1"
     local output_file="$2"
     
-    log_info "Mapping unknown licenses"
+    log_info "Mapping unknown licenses using external JSON database"
     
-    jq --slurpfile mappings /license-mappings.json '
-        if type == "array" then
-            map(
-                if (.[2] == "unknown" or .[2] == "" or .[2] == null) and ($mappings[0][.[0]] != null) then
-                    [.[0], .[1], $mappings[0][.[0]]]
-                else
-                    .
-                end
-            )
-        else
-            .
-        end
-    ' "$input_file" > "$output_file"
+    # Convert JSON to TSV temporarily
+    local mappings_tsv="$temp_dir/mappings.tsv"
+    jq -r 'to_entries[] | [.key, .value] | @tsv' /license-mappings.json > "$mappings_tsv"
+    
+    # Use awk to apply mappings
+    awk -F'\t' '
+    BEGIN { OFS="\t" }
+    NR==FNR { licenses[$1] = $2; next }
+    {
+        name = $1; version = $2; license = $3
+        if (license == "unknown" || license == "" || license == "null") {
+            if (name in licenses) license = licenses[name]
+        }
+        print name, version, license
+    }
+    ' "$mappings_tsv" "$input_file" > "$output_file"
+    
+    log_success "License mapping completed"
 }
 
 insert_sbom_data() {

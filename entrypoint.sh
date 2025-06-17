@@ -218,12 +218,13 @@ upload_to_s3() {
     local local_file="$1"
     local s3_bucket="$2"
     local s3_key="$3"
+    local desired_format="${SBOM_FORMAT:-cyclonedx}"
     
-    log_info "Uploading CycloneDX SBOM to s3://$s3_bucket/$s3_key"
+    log_info "Uploading $desired_format SBOM to s3://$s3_bucket/$s3_key"
     
     if aws s3 cp "$local_file" "s3://$s3_bucket/$s3_key" \
         --content-type "application/json" \
-        --metadata "format=cyclonedx,source=github-action"; then
+        --metadata "format=$desired_format,source=github-action"; then
         log_success "SBOM uploaded successfully to S3"
     else
         log_error "Failed to upload SBOM to S3"
@@ -296,10 +297,10 @@ main() {
     fi
     
     # Upload to S3
-#    upload_to_s3 "$cyclonedx_sbom" "$S3_BUCKET" "$s3_key"
-    
-#    log_success "SBOM processing completed successfully!"
-#    log_info "CycloneDX SBOM available at: s3://$S3_BUCKET/$s3_key"
+    upload_to_s3 "$processed_sbom" "$S3_BUCKET" "$s3_key"
+
+    log_success "SBOM processing completed successfully!"
+    log_info "CycloneDX SBOM available at: s3://$S3_BUCKET/$s3_key"
 }
 
 # Run main function

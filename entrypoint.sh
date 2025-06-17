@@ -109,34 +109,59 @@ detect_sbom_format() {
     echo "spdx"
 }
 
-# Convert SBOM to CycloneDX format
-convert_to_cyclonedx() {
+# Convert SBOM to desired format
+convert_sbom() {
     local input_file="$1"
     local output_file="$2"
-    local format="$3"
-    
-    case "$format" in
+    local detected_format="$3"
+    local desired_format="$4"
+
+    # If no desired format specified, keep original
+    if [[ -z "$desired_format" ]]; then
+        log_info "No format conversion requested, keeping original format ($detected_format)"
+        cp "$input_file" "$output_file"
+        return
+    fi
+
+    # Normalize format names for comparison
+    local detected_lower=$(echo "$detected_format" | tr '[:upper:]' '[:lower:]')
+    local desired_lower=$(echo "$desired_format" | tr '[:upper:]' '[:lower:]')
+
+    # If already in desired format, no conversion needed
+    if [[ "$detected_lower" == "$desired_lower" ]]; then
+        log_info "SBOM is already in the desired format ($desired_format)"
+        cp "$input_file" "$output_file"
+        return
+    fi
+
+    # Perform conversion based on desired format
+    case "$desired_lower" in
         "cyclonedx")
-            log_info "SBOM is already in CycloneDX format"
-            cp "$input_file" "$output_file"
-            ;;
-        "spdx")
-            log_info "Converting SPDX SBOM to CycloneDX format"
             if cyclonedx-py convert --input-file "$input_file" --output-file "$output_file" --output-format json; then
                 log_success "SBOM converted to CycloneDX format"
             else
                 log_error "Failed to convert SBOM to CycloneDX format"
+                exit 1
+            fi
+            ;;
+        "spdx")
+            log_info "Converting $detected_format SBOM to SPDX format"
+            # Note: cyclonedx-py can convert TO CycloneDX but not FROM CycloneDX to SPDX
+            # You might need a different tool for CycloneDX -> SPDX conversion
+            if [[ "$detected_lower" == "cyclonedx" ]]; then
+                log_error "Conversion from CycloneDX to SPDX is not currently supported"
+                log_error "Consider using a different tool or keeping the original CycloneDX format"
+                exit 1
+            else
+                log_error "Conversion to SPDX format is not currently supported"
+                log_error "Only conversion to CycloneDX format is available"
                 exit 1
             fi
             ;;
         *)
-            log_warning "Unsupported format '$format', attempting conversion anyway"
-            if cyclonedx-py convert --input-file "$input_file" --output-file "$output_file" --output-format json; then
-                log_success "SBOM converted to CycloneDX format"
-            else
-                log_error "Failed to convert SBOM to CycloneDX format"
-                exit 1
-            fi
+            log_error "Unsupported target format: $desired_format"
+            log_error "Supported formats: cyclonedx, spdx (conversion to SPDX not implemented)"
+            exit 1
             ;;
     esac
 }
@@ -202,8 +227,8 @@ main() {
     detected_format=$(detect_sbom_format "$original_sbom")
     log_info "Detected SBOM format: $detected_format"
 
-    # Convert to CycloneDX
-#    convert_to_cyclonedx "$original_sbom" "$cyclonedx_sbom" "$format"
+    # Convert or copy SBOM based on desired format
+    convert_sbom "$original_sbom" "$processed_sbom" "$detected_format" "$desired_format"
     
     # Validate the converted file
 #    if ! jq . "$cyclonedx_sbom" > /dev/null 2>&1; then

@@ -4,6 +4,11 @@
 
 Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
+- [Inputs](#inputs)
+  - [Notes](#notes)
+- [Usage](#usage)
+  - [Same Repository](#same-repository)
+
 ## Inputs
 
 | Name                  | Description                           | Default        | Required | Sensitive |
@@ -28,7 +33,7 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
 ### Same Repository
 
-Simple example of downloading the SBOM from the same repository and uploading it to S3.
+Simple example of downloading the SBOM from the same repository and uploading it to S3. Converts the SBOM to CycloneDX format.
 
 ```yaml
 name: Upload SBOM

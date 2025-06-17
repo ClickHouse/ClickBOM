@@ -261,13 +261,15 @@ setup_clickhouse_table() {
     local clickhouse_url="${CLICKHOUSE_URL}"
     local auth_params=""
     
-    # Use basic auth if username/password provided
-    if [[ -n "${CLICKHOUSE_USERNAME:-}" && "${CLICKHOUSE_USERNAME}" != "default" ]]; then
-        if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
-            auth_params="-u ${CLICKHOUSE_USERNAME}:${CLICKHOUSE_PASSWORD}"
-        else
-            auth_params="-u ${CLICKHOUSE_USERNAME}:"
-        fi
+    # Use basic auth if username and password are provided
+    if [[ -n "${CLICKHOUSE_USERNAME:-}" ]] && [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
+        auth_params="-u ${CLICKHOUSE_USERNAME}:${CLICKHOUSE_PASSWORD}"
+        log_info "Using basic auth with username: ${CLICKHOUSE_USERNAME}"
+    elif [[ -n "${CLICKHOUSE_USERNAME:-}" ]]; then
+        auth_params="-u ${CLICKHOUSE_USERNAME}:"
+        log_info "Using basic auth with username only: ${CLICKHOUSE_USERNAME}"
+    else
+        log_info "Using no authentication"
     fi
     
     # Check if table exists
@@ -317,13 +319,15 @@ insert_sbom_data() {
     local clickhouse_url="${CLICKHOUSE_URL}"
     local auth_params=""
     
-    # Use basic auth if username/password provided
-    if [[ -n "${CLICKHOUSE_USERNAME:-}" && "${CLICKHOUSE_USERNAME}" != "default" ]]; then
-        if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
-            auth_params="-u ${CLICKHOUSE_USERNAME}:${CLICKHOUSE_PASSWORD}"
-        else
-            auth_params="-u ${CLICKHOUSE_USERNAME}:"
-        fi
+    # Use basic auth if username and password are provided
+    if [[ -n "${CLICKHOUSE_USERNAME:-}" ]] && [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
+        auth_params="-u ${CLICKHOUSE_USERNAME}:${CLICKHOUSE_PASSWORD}"
+        log_info "Using basic auth with username: ${CLICKHOUSE_USERNAME}"
+    elif [[ -n "${CLICKHOUSE_USERNAME:-}" ]]; then
+        auth_params="-u ${CLICKHOUSE_USERNAME}:"
+        log_info "Using basic auth with username only: ${CLICKHOUSE_USERNAME}"
+    else
+        log_info "Using no authentication"
     fi
     
     # Create temporary file for data

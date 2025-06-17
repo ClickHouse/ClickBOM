@@ -158,7 +158,7 @@ convert_sbom() {
     case "$desired_lower" in
         "cyclonedx")
             log_info "Converting $detected_format SBOM to CycloneDX format"
-            if cyclonedx convert --input-file "$input_file" --input-format "$detected_format" --output-version 1_6 --output-file "$output_file" --output-format json; then
+            if cyclonedx convert --input-file "$input_file" --input-format "$detected_format" --output-version v1_6 --output-file "$output_file" --output-format json; then
                 log_success "SBOM converted to CycloneDX format"
             else
                 log_error "Failed to convert SBOM to CycloneDX format"

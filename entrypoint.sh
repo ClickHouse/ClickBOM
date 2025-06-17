@@ -73,6 +73,37 @@ download_sbom() {
     fi
 }
 
+# Fix SPDX compatibility issues for CycloneDX conversion
+fix_spdx_compatibility() {
+    local input_file="$1"
+    local output_file="$2"
+    
+    log_info "Fixing SPDX compatibility issues for CycloneDX conversion"
+    
+    # Fix referenceCategory values that CycloneDX doesn't recognize
+    if jq '
+        # Walk through the JSON and fix referenceCategory values
+        walk(
+            if type == "object" and has("referenceCategory") then
+                .referenceCategory = (
+                    if .referenceCategory == "PACKAGE-MANAGER" then "PACKAGE_MANAGER"
+                    elif .referenceCategory == "PACKAGE-URL" then "PACKAGE_MANAGER"
+                    elif .referenceCategory == "SECURITY" then "SECURITY"
+                    elif .referenceCategory == "OTHER" then "OTHER"
+                    else "OTHER"
+                    end
+                )
+            else .
+            end
+        )
+    ' "$input_file" > "$output_file"; then
+        log_success "SPDX compatibility fixes applied"
+    else
+        log_error "Failed to apply SPDX compatibility fixes"
+        exit 1
+    fi
+}
+
 # Extract SBOM from wrapper if needed
 extract_sbom_from_wrapper() {
     local input_file="$1"
@@ -246,8 +277,13 @@ main() {
     detected_format=$(detect_sbom_format "$extracted_sbom")
     log_info "Detected SBOM format: $detected_format"
 
-    # Convert or copy SBOM based on desired format
-    convert_sbom "$extracted_sbom" "$processed_sbom" "$detected_format" "$desired_format"
+    # Fix SPDX compatibility issues if needed
+    if [[ "$detected_format" == "spdx" && "$desired_format" == "cyclonedx" ]]; then
+        fix_spdx_compatibility "$extracted_sbom" "$fixed_sbom"
+        convert_sbom "$fixed_sbom" "$processed_sbom" "$detected_format" "$desired_format"
+    else
+        convert_sbom "$extracted_sbom" "$processed_sbom" "$detected_format" "$desired_format"
+    fi
 
     cat "$extracted_sbom"
     cat "$processed_sbom"

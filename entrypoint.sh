@@ -198,10 +198,10 @@ main() {
     cat "$original_sbom"
 
     # Detect format
-#    local format
-#    format=$(detect_sbom_format "$original_sbom")
-#    log_info "Detected SBOM format: $format"
-    
+    local detected_format
+    detected_format=$(detect_sbom_format "$original_sbom")
+    log_info "Detected SBOM format: $detected_format"
+
     # Convert to CycloneDX
 #    convert_to_cyclonedx "$original_sbom" "$cyclonedx_sbom" "$format"
     

@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     wget \
     ca-certificates \
+    libicu70 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install AWS CLI

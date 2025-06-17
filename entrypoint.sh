@@ -249,13 +249,14 @@ main() {
     # Convert or copy SBOM based on desired format
     convert_sbom "$extracted_sbom" "$processed_sbom" "$detected_format" "$desired_format"
 
+    cat "$extracted_sbom"
     cat "$processed_sbom"
     
     # Validate the converted file
-#    if ! jq . "$cyclonedx_sbom" > /dev/null 2>&1; then
-#        log_error "Generated CycloneDX SBOM is not valid JSON"
-#        exit 1
-#    fi
+    if ! jq . "$cyclonedx_sbom" > /dev/null 2>&1; then
+        log_error "Generated CycloneDX SBOM is not valid JSON"
+        exit 1
+    fi
     
     # Upload to S3
 #    upload_to_s3 "$cyclonedx_sbom" "$S3_BUCKET" "$s3_key"

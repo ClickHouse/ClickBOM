@@ -216,8 +216,6 @@ main() {
     # Download SBOM
     download_sbom "$REPOSITORY" "$original_sbom"
 
-    cat "$original_sbom"
-
     # Detect format
     local detected_format
     detected_format=$(detect_sbom_format "$original_sbom")
@@ -225,6 +223,8 @@ main() {
 
     # Convert or copy SBOM based on desired format
     convert_sbom "$original_sbom" "$processed_sbom" "$detected_format" "$desired_format"
+
+    cat "$processed_sbom"
     
     # Validate the converted file
 #    if ! jq . "$cyclonedx_sbom" > /dev/null 2>&1; then

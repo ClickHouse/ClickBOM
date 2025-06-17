@@ -261,12 +261,13 @@ setup_clickhouse_table() {
     local clickhouse_url="${CLICKHOUSE_URL}"
     local auth_params=""
     
+    # Use basic auth if username/password provided
     if [[ -n "${CLICKHOUSE_USERNAME:-}" && "${CLICKHOUSE_USERNAME}" != "default" ]]; then
-        auth_params="--user ${CLICKHOUSE_USERNAME}"
-    fi
-    
-    if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
-        auth_params="${auth_params} --password ${CLICKHOUSE_PASSWORD}"
+        if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
+            auth_params="-u ${CLICKHOUSE_USERNAME}:${CLICKHOUSE_PASSWORD}"
+        else
+            auth_params="-u ${CLICKHOUSE_USERNAME}:"
+        fi
     fi
     
     # Check if table exists
@@ -316,12 +317,13 @@ insert_sbom_data() {
     local clickhouse_url="${CLICKHOUSE_URL}"
     local auth_params=""
     
+    # Use basic auth if username/password provided
     if [[ -n "${CLICKHOUSE_USERNAME:-}" && "${CLICKHOUSE_USERNAME}" != "default" ]]; then
-        auth_params="--user ${CLICKHOUSE_USERNAME}"
-    fi
-    
-    if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
-        auth_params="${auth_params} --password ${CLICKHOUSE_PASSWORD}"
+        if [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
+            auth_params="-u ${CLICKHOUSE_USERNAME}:${CLICKHOUSE_PASSWORD}"
+        else
+            auth_params="-u ${CLICKHOUSE_USERNAME}:"
+        fi
     fi
     
     # Create temporary file for data

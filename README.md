@@ -17,7 +17,6 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 | Name                  | Description                           | Default        | Required | Sensitive |
 | --------------------- | ------------------------------------- | -------------- | -------- | --------- |
 | github-token          | GitHub Token                          |                | false    | true      |
-| ghapp-token           | GitHub App Token                      |                | false    | true      |
 | aws-access-key-id     | AWS Access Key ID                     |                | true     | true      |
 | aws-secret-access-key | AWS Secret Access Key                 |                | true     | true      |
 | aws-region            | AWS Region                            | us-east-1      | false    | false     |
@@ -170,9 +169,10 @@ jobs:
       - name: Upload SBOM
         uses: ./
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          sbom-format: spdx
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
           repository: ${{ github.repository }}

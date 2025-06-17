@@ -1,3 +1,4 @@
 {
+  "actions/checkout": "MIT",
   "aws-actions/configure-aws-credentials": "MIT"
 }

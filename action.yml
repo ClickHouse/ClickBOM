@@ -28,14 +28,6 @@ inputs:
   repository:
     description: 'Repository to download SBOM from (format: owner/repo)'
     required: true
-  sbom-path:
-    description: 'Path to SBOM file in the repository'
-    required: false
-    default: 'sbom.json'
-  ref:
-    description: 'Git reference (branch, tag, or commit SHA)'
-    required: false
-    default: 'main'
 runs:
   using: 'docker'
   image: 'Dockerfile'

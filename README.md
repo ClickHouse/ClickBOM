@@ -6,23 +6,23 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
 ## Inputs
 
-| Name                  | Description                          | Default        | Required | Sensitive |
-| --------------------- | ------------------------------------ | -------------- | -------- | --------- |
-| github-token          | GitHub token for authentication      |                | false    | true      |
-| ghapp-token           | GitHub App token for authentication  |                | false    | true      |
-| aws-access-key-id     | AWS access key ID for S3 uploads     |                | true     | true      |
-| aws-secret-access-key | AWS secret access key for S3 uploads |                | true     | true      |
-| aws-region            | AWS region for S3 uploads            | us-east-1      | false    | false     |
-| s3-bucket             | S3 bucket name for uploads           |                | false    | false     |
-| s3-key                | S3 key prefix for uploads            | sbom/sbom.json | false    | false     |
-| repository            | Repository to download SBOM from     |                | true     | false     |
-| sbom-path             | Path to SBOM file in the repository  | sbom.json      | false    | false     |
-| ref                   | Git reference (branch, tag, commit)  | main           | false    | false     |
-| clickhouse-url        | ClickHouse URL for uploads           |                | false    | false     |
+| Name                  | Description                           | Default        | Required | Sensitive |
+| --------------------- | ------------------------------------- | -------------- | -------- | --------- |
+| github-token          | GitHub token for authentication       |                | false    | true      |
+| ghapp-token           | GitHub App token for authentication   |                | false    | true      |
+| aws-access-key-id     | AWS access key ID for S3 uploads      |                | true     | true      |
+| aws-secret-access-key | AWS secret access key for S3 uploads  |                | true     | true      |
+| aws-region            | AWS region for S3 uploads             | us-east-1      | false    | false     |
+| s3-bucket             | S3 bucket name for uploads            |                | false    | false     |
+| s3-key                | S3 key prefix for uploads             | sbom/sbom.json | false    | false     |
+| repository            | Repository to download SBOM from      |                | true     | false     |
+| sbom-format           | Final SBOM format (spdx or cyclonedx) | cyclonedx      | false    | false     |
+| clickhouse-url        | ClickHouse URL for uploads            |                | false    | false     |
 
 ### Notes
 
 - Either `github-token` or `ghapp-token` must be provided for authentication to the GitHub API.
+- `sbom-format` specifies the format you want the final SBOM to be in. For example, GitHub only supports SPDX, settings this input to `cyclonedx` will convert the SBOM to CycloneDX format.
 
 ## Usage
 

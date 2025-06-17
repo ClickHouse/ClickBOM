@@ -80,16 +80,9 @@ fix_spdx_compatibility() {
     
     log_info "Fixing SPDX compatibility issues for CycloneDX conversion"
     
-    # Show what we're fixing
-    log_info "Original referenceCategory values:"
-    jq -r '.packages[]?.externalRefs[]?.referenceCategory // empty' "$input_file" | sort | uniq | while read -r category; do
-        log_info "  - $category"
-    done
-    
     # Fix referenceCategory values that CycloneDX doesn't recognize
     # Based on SPDX 2.2 spec, valid values are: SECURITY, PACKAGE_MANAGER, PERSISTENT_ID, OTHER
     if jq '
-        # Walk through the JSON and fix referenceCategory values
         walk(
             if type == "object" and has("referenceCategory") then
                 .referenceCategory = (
@@ -105,25 +98,6 @@ fix_spdx_compatibility() {
         )
     ' "$input_file" > "$output_file"; then
         log_success "SPDX compatibility fixes applied"
-        
-        # Show what we fixed
-        log_info "Fixed referenceCategory values:"
-        jq -r '.packages[]?.externalRefs[]?.referenceCategory // empty' "$output_file" | sort | uniq | while read -r category; do
-            log_info "  - $category"
-        done
-        
-        # Test if the fixed file can be parsed by trying a simple jq query
-        if ! jq '.packages[0].externalRefs[0].referenceCategory // "none"' "$output_file" > /dev/null 2>&1; then
-            log_warning "Fixed file still seems problematic, trying fallback approach"
-            
-            # Fallback: Remove externalRefs entirely
-            if jq 'walk(if type == "object" and has("externalRefs") then del(.externalRefs) else . end)' "$input_file" > "$output_file"; then
-                log_warning "Removed externalRefs as fallback"
-            else
-                log_error "Fallback approach also failed"
-                exit 1
-            fi
-        fi
     else
         log_error "Failed to apply SPDX compatibility fixes"
         exit 1

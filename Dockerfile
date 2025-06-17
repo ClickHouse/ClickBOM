@@ -29,5 +29,8 @@ RUN wget -O /usr/local/bin/cyclonedx "https://github.com/CycloneDX/cyclonedx-cli
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy license mappings
+COPY license-mappings.json /license-mappings.json
+
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]

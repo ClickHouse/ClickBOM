@@ -318,6 +318,27 @@ setup_clickhouse_table() {
     return 0
 }
 
+map_unknown_licenses() {
+    local input_file="$1"
+    local output_file="$2"
+    
+    log_info "Mapping unknown licenses"
+    
+    jq --slurpfile mappings /license-mappings.json '
+        if type == "array" then
+            map(
+                if (.[2] == "unknown" or .[2] == "" or .[2] == null) and ($mappings[0][.[0]] != null) then
+                    [.[0], .[1], $mappings[0][.[0]]]
+                else
+                    .
+                end
+            )
+        else
+            .
+        end
+    ' "$input_file" > "$output_file"
+}
+
 insert_sbom_data() {
     local sbom_file="$1"
     local table_name="$2"
@@ -342,6 +363,7 @@ insert_sbom_data() {
     
     # Create temporary file for data
     local data_file="$temp_dir/clickhouse_data.tsv"
+    local mapped_data_file="$temp_dir/clickhouse_data_mapped.tsv"
     
     # Extract data based on SBOM format
     case "$sbom_format" in
@@ -379,14 +401,17 @@ insert_sbom_data() {
         log_warning "No component data found in SBOM"
         return
     fi
+
+    # Map unknown licenses
+    map_unknown_licenses "$data_file" "$mapped_data_file"
     
-    local component_count=$(wc -l < "$data_file")
-    log_info "Found $component_count components to insert"
+    local component_count=$(wc -l < "$mapped_data_file")
+    log_info "Found $component_count components to insert (with license mapping applied)"
     
     # Insert data into ClickHouse
     if curl -s ${auth_params} \
            -H "Content-Type: text/tab-separated-values" \
-           --data-binary "@$data_file" \
+           --data-binary "@$mapped_data_file" \
            "${clickhouse_url}/?query=INSERT%20INTO%20${CLICKHOUSE_DATABASE}.${table_name}%20(name,%20version,%20license)%20FORMAT%20TSV"; then
         log_success "Inserted $component_count components into ClickHouse table $table_name"
         return 0

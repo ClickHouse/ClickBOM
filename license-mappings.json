@@ -1,0 +1,4 @@
+{
+  "actions/checkout": "MIT",
+  "aws-actions/configure-aws-credentials": "Apache-2.0"
+}

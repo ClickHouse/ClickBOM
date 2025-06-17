@@ -28,20 +28,14 @@ log_error() {
 
 # Validate required environment variables
 validate_env() {
-    local required_vars=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "S3_BUCKET" "REPOSITORY")
-    
+    local required_vars=("GITHUB_TOKEN" "AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "S3_BUCKET" "REPOSITORY")
+
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
             log_error "Required environment variable $var is not set"
             exit 1
         fi
     done
-
-    # Check that at least one GitHub token is set
-    if [[ -z "${GITHUB_TOKEN:-}" && -z "${GHAPP_TOKEN:-}" ]]; then
-        log_error "Either GITHUB_TOKEN or GHAPP_TOKEN must be set"
-        exit 1
-    fi
 
     # Validate ClickHouse configuration if any ClickHouse parameter is provided
     if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
@@ -66,16 +60,8 @@ download_sbom() {
     # GitHub API URL for file content
     local api_url="https://api.github.com/repos/$repo/dependency-graph/sbom"
 
-    # Determine which token to use
-    local auth_header=""
-    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        auth_header="Authorization: Bearer $GITHUB_TOKEN"
-    elif [[ -n "${GHAPP_TOKEN:-}" ]]; then
-        auth_header="Authorization: Bearer $GHAPP_TOKEN"
-    else
-        log_error "No valid GitHub token found. Set GITHUB_TOKEN or GHAPP_TOKEN."
-        exit 1
-    fi
+    # Authentication header
+    local auth_header="Authorization: Bearer $GITHUB_TOKEN"
     
     # Download SBOM file
     if curl -L \

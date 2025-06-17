@@ -9,6 +9,8 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 - [Usage](#usage)
   - [Same Repository](#same-repository)
   - [Same Repository with ClickHouse](#same-repository-with-clickhouse)
+  - [Same Repository with GitHub App](#same-repository-with-github-app)
+- [Creating a GitHub App](#creating-a-github-app)
 
 ## Inputs
 
@@ -125,3 +127,64 @@ jobs:
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
           clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
 ```
+
+### Same Repository with GitHub App
+
+Downloads the SBOM from the same repository and uploads it to S3. Keeps the SBOM in SPDX format. Authenticates using a GitHub App.
+
+```yaml
+name: Upload SBOM
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  clickbom:
+    name: ClickBOM
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Generate Token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
+          private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
+          role-session-name: clickbom-session
+          aws-region: us-east-1
+
+      - name: Upload SBOM
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: my-sbom-bucket
+          s3-key: clickbom.json
+          repository: ${{ github.repository }}
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
+```
+
+## Creating a GitHub App
+
+- Follow the instructions [here](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) to create a GitHub App.
+- Make sure to give the app `Read access` to `Contents` and `Metadata`.
+- Install the app on the repositories you want to use it with.
+- Generate a private key for the app and save it somewhere secure, i.e. GitHub Secrets.

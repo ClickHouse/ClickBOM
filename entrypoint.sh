@@ -28,7 +28,12 @@ log_error() {
 
 # Validate required environment variables
 validate_env() {
-    local required_vars=("GITHUB_TOKEN" "AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "S3_BUCKET" "REPOSITORY")
+    local required_vars=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "S3_BUCKET" "REPOSITORY")
+
+    # Add REPOSITORY requirement only if not in merge mode
+    if [[ "${MERGE:-false}" != "true" ]]; then
+        required_vars+=("REPOSITORY")
+    fi
 
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
@@ -57,22 +62,50 @@ download_sbom() {
     
     log_info "Downloading SBOM from $repo"
     
-    # GitHub API URL for file content
+    # GitHub API URL for SBOM
     local api_url="https://api.github.com/repos/$repo/dependency-graph/sbom"
 
     # Authentication header
     local auth_header="Authorization: Bearer $GITHUB_TOKEN"
     
-    # Download SBOM file
+    # Download SBOM file with optimizations for large files
+    log_info "Starting SBOM download (may take time for large files)..."
+
     if curl -L \
+            --max-time 300 \
+            --connect-timeout 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-max-time 180 \
+            --progress-bar \
+            --compressed \
             -H "Accept: application/vnd.github+json" \
             -H "$auth_header" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "$api_url" \
             -o "$output_file"; then
-        log_success "SBOM downloaded successfully"
+        # Verify the download
+        if [[ -f "$output_file" && -s "$output_file" ]]; then
+            local file_size
+            file_size=$(du -h "$output_file" | cut -f1)
+            log_success "SBOM downloaded successfully ($file_size)"
+            
+            # Quick validation that it's JSON
+            if ! jq . "$output_file" > /dev/null 2>&1; then
+                log_error "Downloaded file is not valid JSON"
+                exit 1
+            fi
+        else
+            log_error "Downloaded file is empty or missing"
+            exit 1
+        fi
     else
         log_error "Failed to download SBOM file"
+        log_error "This could be due to:"
+        log_error "  - Network timeout (file too large)"
+        log_error "  - Authentication issues"
+        log_error "  - Repository doesn't have dependency graph enabled"
+        log_error "  - SBOM not available for this repository"
         exit 1
     fi
 }
@@ -244,6 +277,120 @@ upload_to_s3() {
     fi
 }
 
+# Download all CycloneDX SBOMs from S3 bucket and merge them
+merge_cyclonedx_sboms() {
+    local output_file="$1"
+    
+    log_info "Merging all CycloneDX SBOMs from S3 bucket: $S3_BUCKET"
+    
+    # Create temporary directory for downloaded SBOMs
+    local download_dir="$temp_dir/sboms"
+    mkdir -p "$download_dir"
+    
+    # List all JSON files in the S3 bucket
+    log_info "Listing CycloneDX SBOMs in S3 bucket..."
+    local s3_files
+    if ! s3_files=$(aws s3 ls "s3://$S3_BUCKET" --recursive | grep '\.json$' | awk '{print $4}'); then
+        log_error "Failed to list files in S3 bucket"
+        exit 1
+    fi
+    
+    if [[ -z "$s3_files" ]]; then
+        log_error "No JSON files found in S3 bucket: $S3_BUCKET"
+        exit 1
+    fi
+    
+    # Download and validate CycloneDX SBOMs
+    local cyclonedx_files=()
+    local file_count=0
+    
+    while IFS= read -r s3_key; do
+        [[ -z "$s3_key" ]] && continue
+        
+        local filename=$(basename "$s3_key")
+        local local_file="$download_dir/$filename"
+        
+        log_info "Downloading: s3://$S3_BUCKET/$s3_key"
+        
+        if aws s3 cp "s3://$S3_BUCKET/$s3_key" "$local_file"; then
+            # Check if it's a valid CycloneDX SBOM
+            if jq -e '.bomFormat == "CycloneDX"' "$local_file" > /dev/null 2>&1; then
+                cyclonedx_files+=("$local_file")
+                ((file_count++))
+                log_success "Valid CycloneDX SBOM: $filename"
+            else
+                log_warning "Skipping non-CycloneDX file: $filename"
+            fi
+        else
+            log_warning "Failed to download: $s3_key"
+        fi
+    done <<< "$s3_files"
+    
+    if [[ $file_count -eq 0 ]]; then
+        log_error "No valid CycloneDX SBOMs found in S3 bucket"
+        exit 1
+    fi
+    
+    log_info "Found $file_count CycloneDX SBOMs to merge"
+    
+    # Create the merged SBOM structure
+    log_info "Creating merged CycloneDX SBOM..."
+    
+    # Start with the first SBOM as base
+    local base_sbom="${cyclonedx_files[0]}"
+    cp "$base_sbom" "$output_file"
+    
+    # Extract metadata from base SBOM
+    local merged_metadata
+    merged_metadata=$(jq '{
+        bomFormat: .bomFormat,
+        specVersion: .specVersion,
+        serialNumber: ("urn:uuid:" + (now | tostring | @base64 | .[0:8] + "-" + .[8:12] + "-" + .[12:16] + "-" + .[16:20] + "-" + .[20:32])),
+        version: 1,
+        metadata: {
+            timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+            tools: [{
+                vendor: "ClickBOM",
+                name: "cyclonedx-merge", 
+                version: "1.0.0"
+            }],
+            component: {
+                type: "application",
+                name: "merged-sbom",
+                version: "1.0.0"
+            }
+        }
+    }' <<< '{}')
+    
+    # Merge all components from all SBOMs
+    local all_components="$temp_dir/all_components.json"
+    
+    # Collect all components
+    for sbom_file in "${cyclonedx_files[@]}"; do
+        jq -r '.components[]? // empty' "$sbom_file" 2>/dev/null || true
+    done | jq -s '.' > "$all_components"
+    
+    # Remove duplicates based on name+version combination
+    local unique_components="$temp_dir/unique_components.json"
+    jq 'unique_by(.name + "@" + (.version // "unknown"))' "$all_components" > "$unique_components"
+    
+    # Create final merged SBOM
+    jq --slurpfile meta <(echo "$merged_metadata") \
+       --slurpfile comps "$unique_components" \
+       '$meta[0] + {components: $comps[0]}' <<< '{}' > "$output_file"
+    
+    # Validate the merged SBOM
+    if ! jq . "$output_file" > /dev/null 2>&1; then
+        log_error "Generated merged SBOM is not valid JSON"
+        exit 1
+    fi
+    
+    local component_count
+    component_count=$(jq '.components | length' "$output_file")
+    
+    log_success "Successfully merged $file_count SBOMs into one with $component_count unique components"
+}
+
 # Create ClickHouse table if it doesn't exist, or truncate if it does
 setup_clickhouse_table() {
     local table_name="$1"
@@ -315,7 +462,7 @@ map_unknown_licenses() {
     local input_file="$1"
     local output_file="$2"
     
-    log_info "Mapping unknown licenses using external JSON database"
+    log_info "Mapping unknown licenses using JSON mappings"
     
     # Convert JSON to TSV temporarily
     local mappings_tsv="$temp_dir/mappings.tsv"
@@ -355,8 +502,6 @@ insert_sbom_data() {
     elif [[ -n "${CLICKHOUSE_USERNAME:-}" ]]; then
         auth_params="-u ${CLICKHOUSE_USERNAME}:"
         log_info "Using basic auth with username only: ${CLICKHOUSE_USERNAME}"
-    else
-        log_info "Using no authentication"
     fi
     
     # Create temporary file for data
@@ -390,7 +535,7 @@ insert_sbom_data() {
             ;;
         *)
             log_error "Unsupported SBOM format for ClickHouse: $sbom_format"
-            exit 1
+            return 1
             ;;
     esac
     
@@ -440,6 +585,7 @@ main() {
     # Set defaults for optional variables
     local s3_key="${S3_KEY:-sbom.json}"
     local desired_format="${SBOM_FORMAT:-cyclonedx}"
+    local merge_mode="${MERGE:-false}"
     
     # Set up cleanup trap    
     trap cleanup EXIT
@@ -450,56 +596,82 @@ main() {
         exit 1
     fi
 
-    local original_sbom="$temp_dir/original_sbom.json"
-    local extracted_sbom="$temp_dir/extracted_sbom.json"
-    local fixed_sbom="$temp_dir/fixed_sbom.json"
-    local processed_sbom="$temp_dir/processed_sbom.json"
-    
-    # Download SBOM
-    download_sbom "$REPOSITORY" "$original_sbom"
+    if [[ "$merge_mode" == "true" ]]; then
+        log_info "Running in MERGE mode - merging all CycloneDX SBOMs from S3"
+        
+        local merged_sbom="$temp_dir/merged_sbom.json"
 
-    # Extract SBOM from wrapper if needed
-    extract_sbom_from_wrapper "$original_sbom" "$extracted_sbom"
-
-    # Detect format
-    local detected_format
-    detected_format=$(detect_sbom_format "$extracted_sbom")
-    log_info "Detected SBOM format: $detected_format"
-
-    # Fix SPDX compatibility issues if needed
-    if [[ "$detected_format" == "spdxjson" ]]; then
-        fix_spdx_compatibility "$extracted_sbom" "$fixed_sbom"
-        convert_sbom "$fixed_sbom" "$processed_sbom" "$detected_format" "$desired_format"
-    else
-        convert_sbom "$extracted_sbom" "$processed_sbom" "$detected_format" "$desired_format"
-    fi
-    
-    # Validate the converted file
-    if ! jq . "$processed_sbom" > /dev/null 2>&1; then
-        log_error "Generated CycloneDX SBOM is not valid JSON"
-        exit 1
-    fi
-    
-    # Upload to S3
-    upload_to_s3 "$processed_sbom" "$S3_BUCKET" "$s3_key"
-
-    log_success "SBOM processing completed successfully!"
-    log_info "SBOM available at: s3://$S3_BUCKET/$s3_key"
-
-    if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
-        local table_name=$(echo "$REPOSITORY" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')
-        log_info "Starting ClickHouse operations for table: $table_name"
-        # Setup table with error handling
-        if ! setup_clickhouse_table "$table_name"; then
-            log_error "ClickHouse table setup failed, skipping data insertion"
+        # Merge all CycloneDX SBOMs from S3
+        merge_cyclonedx_sboms "$merged_sbom"
+        
+        # Validate the merged file
+        if ! jq . "$merged_sbom" > /dev/null 2>&1; then
+            log_error "Merged CycloneDX SBOM is not valid JSON"
             exit 1
+        fi
+        
+        # Upload merged SBOM back to S3
+        upload_to_s3 "$merged_sbom" "$S3_BUCKET" "$s3_key"
+        
+        log_success "SBOM merging and upload completed successfully!"
+        log_info "Merged SBOM available at: s3://$S3_BUCKET/$s3_key"
+        exit 0
+    else
+        log_info "Running in NORMAL mode - processing GitHub SBOM"
+
+        local original_sbom="$temp_dir/original_sbom.json"
+        local extracted_sbom="$temp_dir/extracted_sbom.json"
+        local fixed_sbom="$temp_dir/fixed_sbom.json"
+        local processed_sbom="$temp_dir/processed_sbom.json"
+    
+        # Download SBOM
+        download_sbom "$REPOSITORY" "$original_sbom"
+
+        # Extract SBOM from wrapper if needed
+        extract_sbom_from_wrapper "$original_sbom" "$extracted_sbom"
+
+        # Detect format
+        local detected_format
+        detected_format=$(detect_sbom_format "$extracted_sbom")
+        log_info "Detected SBOM format: $detected_format"
+
+        # Fix SPDX compatibility issues if needed
+        if [[ "$detected_format" == "spdxjson" ]]; then
+            fix_spdx_compatibility "$extracted_sbom" "$fixed_sbom"
+            convert_sbom "$fixed_sbom" "$processed_sbom" "$detected_format" "$desired_format"
         else
-            if ! insert_sbom_data "$processed_sbom" "$table_name" "$desired_format"; then
-                log_error "Data insertion into ClickHouse failed"
+            convert_sbom "$extracted_sbom" "$processed_sbom" "$detected_format" "$desired_format"
+        fi
+    
+        # Validate the converted file
+        if ! jq . "$processed_sbom" > /dev/null 2>&1; then
+            log_error "Generated CycloneDX SBOM is not valid JSON"
+            exit 1
+        fi
+    
+        # Upload to S3
+        upload_to_s3 "$processed_sbom" "$S3_BUCKET" "$s3_key"
+
+        log_success "SBOM processing completed successfully!"
+        log_info "SBOM available at: s3://$S3_BUCKET/$s3_key"
+
+        # ClickHouse operations (only in normal mode)
+        if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
+            local table_name=$(echo "$REPOSITORY" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')
+            log_info "Starting ClickHouse operations for table: $table_name"
+            # Setup table with error handling
+            if ! setup_clickhouse_table "$table_name"; then
+                log_error "ClickHouse table setup failed, skipping data insertion"
                 exit 1
             else
-                log_info "Component data available in ClickHouse table: ${CLICKHOUSE_DATABASE}.${table_name}"
-                log_success "ClickHouse operations completed successfully!"
+                # Insert SBOM data into ClickHouse
+                if ! insert_sbom_data "$processed_sbom" "$table_name" "$desired_format"; then
+                    log_error "Failed to insert SBOM data into ClickHouse"
+                    exit 1
+                else
+                    log_info "Component data available in ClickHouse table: ${CLICKHOUSE_DATABASE}.${table_name}"
+                    log_success "ClickHouse operations completed successfully!"
+                fi
             fi
         fi
     fi

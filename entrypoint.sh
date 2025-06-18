@@ -91,9 +91,24 @@ download_sbom() {
             file_size=$(du -h "$output_file" | cut -f1)
             log_success "SBOM downloaded successfully ($file_size)"
             
+            # Debug: Show first few lines of downloaded content
+            log_info "First 200 characters of downloaded content:"
+            head -c 200 "$output_file" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
+            echo ""
+            
             # Quick validation that it's JSON
             if ! jq . "$output_file" > /dev/null 2>&1; then
                 log_error "Downloaded file is not valid JSON"
+                log_error "Content preview:"
+                head -n 5 "$output_file" || cat "$output_file"
+                exit 1
+            fi
+            
+            # Check if it looks like an error response
+            if jq -e '.message' "$output_file" > /dev/null 2>&1; then
+                local error_message
+                error_message=$(jq -r '.message' "$output_file")
+                log_error "GitHub API returned error: $error_message"
                 exit 1
             fi
         else

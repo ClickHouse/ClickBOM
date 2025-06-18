@@ -77,7 +77,8 @@ download_sbom() {
             --retry 3 \
             --retry-delay 5 \
             --retry-max-time 180 \
-            --progress-bar \
+            --silent \
+            --show-error \
             --compressed \
             -H "Accept: application/vnd.github+json" \
             -H "$auth_header" \

@@ -195,6 +195,13 @@ on:
       
 jobs:
   clickbom:
+    strategy:
+      matrix:
+        repository: [
+          "repository-one",
+          "repository-two",
+          "repository-three"
+        ]
     name: ClickBOM
     runs-on: ubuntu-latest
 

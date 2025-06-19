@@ -239,7 +239,7 @@ jobs:
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository_owner }}/${{ github.repository }}
+          repository: ${{ github.repository_owner }}/${{ matrix.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}

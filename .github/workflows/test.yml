@@ -28,6 +28,8 @@ jobs:
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
+          owner: ClickHouse
+          repositories: ${{ matrix.repository }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4

@@ -77,7 +77,7 @@ jobs:
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository }}
+          repository: ${{ github.repository_owner }}/${{ github.repository }}
 ```
 
 ### Same Repository with ClickHouse
@@ -120,7 +120,7 @@ jobs:
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository }}
+          repository: ${{ github.repository_owner }}/${{ github.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
@@ -175,7 +175,7 @@ jobs:
           sbom-format: spdxjson
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository }}
+          repository: ${{ github.repository_owner }}/${{ github.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
@@ -196,6 +196,7 @@ on:
 jobs:
   clickbom:
     strategy:
+      fail-fast: false
       matrix:
         repository: [
           "repository-one",
@@ -219,6 +220,8 @@ jobs:
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ matrix.repository }}
 
       - name: Configure AWS Credentials
         id: aws-creds
@@ -236,7 +239,7 @@ jobs:
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository }}
+          repository: ${{ github.repository_owner }}/${{ github.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}

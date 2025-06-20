@@ -92,4 +92,8 @@ jobs:
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: clickhouse-sbom
           s3-key: clickhouse.json
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
           merge: true

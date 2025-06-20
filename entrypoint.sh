@@ -306,15 +306,17 @@ merge_cyclonedx_sboms() {
     # List all JSON files in the S3 bucket
     log_info "Listing CycloneDX SBOMs in S3 bucket..."
     local s3_files
-    if ! s3_files=$(aws s3 ls "s3://$S3_BUCKET" --recursive | grep '\.json$' | awk '{print $4}'); then
-        log_error "Failed to list files in S3 bucket"
+    
+    # Debug: Show raw S3 ls output
+    log_info "Raw S3 listing for bucket: $S3_BUCKET"
+    if ! aws s3 ls "s3://$S3_BUCKET" --recursive; then
+        log_error "Failed to list files in S3 bucket: $S3_BUCKET"
+        log_error "Check bucket name and AWS permissions"
         exit 1
     fi
     
-    if [[ -z "$s3_files" ]]; then
-        log_error "No JSON files found in S3 bucket: $S3_BUCKET"
-        exit 1
-    fi
+    # Extract JSON files
+    if ! s3_files=$(aws s3 ls "s3://$S3_BUCKET" --recursive | grep '\.json
     
     # Download and validate CycloneDX SBOMs
     local cyclonedx_files=()

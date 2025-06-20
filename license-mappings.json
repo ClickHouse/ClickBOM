@@ -1,5 +1,6 @@
 {
   "4d63.com/gocheckcompilerdirectives": "MIT",
+  "4d63.com/gochecknoglobals": "MIT",
   "actions/checkout": "MIT",
   "aws-actions/configure-aws-credentials": "MIT",
   "actions/create-github-app-token": "MIT"

@@ -319,31 +319,55 @@ merge_cyclonedx_sboms() {
     # Download and validate CycloneDX SBOMs
     local cyclonedx_files=()
     local file_count=0
+    local total_files=0
     
     while IFS= read -r s3_key; do
         [[ -z "$s3_key" ]] && continue
+        ((total_files++))
         
         local filename=$(basename "$s3_key")
         local local_file="$download_dir/$filename"
-        
-        log_info "Downloading: s3://$S3_BUCKET/$s3_key"
-        
+
+        log_info "Downloading ($total_files): s3://$S3_BUCKET/$s3_key"
+
         if aws s3 cp "s3://$S3_BUCKET/$s3_key" "$local_file"; then
             # Check if it's a valid CycloneDX SBOM
-            if jq -e '.bomFormat == "CycloneDX"' "$local_file" > /dev/null 2>&1; then
+            log_info "Validating CycloneDX format for: $filename"
+
+            # First check if it's valid JSON
+            if ! jq . "$local_file" > /dev/null 2>&1; then
+                log_warning "Skipping $filename - not valid JSON"
+                continue
+            fi
+
+            # Check if it has bomFormat field
+            local bom_format
+            bom_format=$(jq -r '.bomFormat // "missing"' "$local_file" 2>/dev/null)
+            log_info "File $filename has bomFormat: $bom_format"
+
+            # Check if it's CycloneDX
+            if [[ "$bom_format" == "CycloneDX" ]]; then
                 cyclonedx_files+=("$local_file")
                 ((file_count++))
                 log_success "Valid CycloneDX SBOM: $filename"
             else
-                log_warning "Skipping non-CycloneDX file: $filename"
+                log_warning "Skipping $filename - bomFormat is '$bom_format', not 'CycloneDX'"
+                
+                # Debug: Show first few lines of the file
+                log_info "First 200 characters of $filename:"
+                head -c 200 "$local_file" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
+                echo ""
             fi
         else
             log_warning "Failed to download: $s3_key"
         fi
     done <<< "$s3_files"
-    
+
+    log_info "Downloaded $total_files files, found $file_count valid CycloneDX SBOMs"
+
     if [[ $file_count -eq 0 ]]; then
         log_error "No valid CycloneDX SBOMs found in S3 bucket"
+        log_error "Check that your S3 bucket contains CycloneDX format SBOMs"
         exit 1
     fi
     

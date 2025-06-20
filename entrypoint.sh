@@ -531,7 +531,7 @@ insert_sbom_data() {
             jq -r '.components[0] | {name: .name, version: .version, licenses: .licenses}' "$sbom_file" 2>/dev/null || echo "No components found"
             # Extract from CycloneDX format
             jq -r '
-                . as $comp |
+                .components[]? // empty |
                 [
                     .name // "unknown",
                     .version // "unknown", 

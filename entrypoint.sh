@@ -539,6 +539,11 @@ insert_sbom_data() {
                         if (.licenses | length) > 0 then
                             .licenses[0] | 
                             (.license.id // .license.name // .id // .name // .expression // "unknown")
+                        # Then try SPDX properties (from SPDX->CycloneDX conversion)
+                        elif (.properties | length) > 0 then
+                            (.properties[] | select(.name == "spdx:license-concluded") | .value) //
+                            (.properties[] | select(.name == "spdx:license-declared") | .value) //
+                            "unknown"
                         else
                             "unknown"
                         end

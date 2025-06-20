@@ -315,7 +315,7 @@ merge_cyclonedx_sboms() {
         exit 1
     fi
 
-    # Extract JSON files (excluding vulns/ directory and any other non-SBOM files)
+    # Extract JSON files (excluding vulns/ directory and target S3_KEY file)
     log_info "Extracting JSON file paths..."
     
     # Debug: Show the filtering process step by step
@@ -329,7 +329,7 @@ merge_cyclonedx_sboms() {
     
     s3_files=$(echo "$json_files" | grep -v 'vulns/' || true)
     log_info "JSON files after excluding vulns/: $(echo "$s3_files" | wc -l) files"
-
+    
     # Also exclude the target S3_KEY file to avoid processing the merged output
     local s3_key_basename=$(basename "${S3_KEY:-sbom.json}")
     s3_files=$(echo "$s3_files" | grep -v "^${s3_key_basename}$" || true)
@@ -342,7 +342,7 @@ merge_cyclonedx_sboms() {
     done
 
     if [[ -z "$s3_files" ]] || [[ "$(echo "$s3_files" | wc -l)" -eq 0 ]]; then
-        log_error "No JSON files found in S3 bucket (excluding vulns/ directory)"
+        log_error "No JSON files found in S3 bucket (excluding vulns/ directory and target file)"
         log_error "Available files were:"
         echo "$all_files" | head -10
         exit 1
@@ -364,46 +364,82 @@ merge_cyclonedx_sboms() {
     log_info "Processing ${#files_array[@]} files..."
     
     for s3_key in "${files_array[@]}"; do
-        echo "Processing file: $s3_key"
-        [[ -z "$s3_key" ]] && continue
-        ((total_files++))
+        echo "DEBUG: Processing file: '$s3_key'"
         
-        local filename=$(basename "$s3_key")
+        # Skip empty entries
+        if [[ -z "$s3_key" ]]; then
+            echo "DEBUG: Skipping empty s3_key"
+            continue
+        fi
+        
+        # Safely increment counter
+        total_files=$((total_files + 1))
+        
+        local filename
+        filename=$(basename "$s3_key" 2>/dev/null) || {
+            log_warning "Failed to get basename for: $s3_key"
+            continue
+        }
+        
         local local_file="$download_dir/${filename}"
 
         log_info "Downloading ($total_files/${#files_array[@]}): s3://$S3_BUCKET/$s3_key"
 
-        if aws s3 cp "s3://$S3_BUCKET/$s3_key" "$local_file" 2>/dev/null; then
+        # Try to download the file
+        if aws s3 cp "s3://$S3_BUCKET/$s3_key" "$local_file"; then
             log_success "Downloaded: $filename"
             
             # Check if it's a valid CycloneDX SBOM
             log_info "Validating CycloneDX format for: $filename"
 
             # First check if it's valid JSON
-            if ! jq empty "$local_file" 2>/dev/null; then
+            if jq empty "$local_file" >/dev/null 2>&1; then
+                log_info "JSON validation passed for: $filename"
+            else
                 log_warning "Skipping $filename - not valid JSON"
                 continue
             fi
 
             # Check if it has bomFormat field or CycloneDX structure
             local bom_format
-            bom_format=$(jq -r '.bomFormat // "missing"' "$local_file" 2>/dev/null || echo "missing")
+            bom_format=$(jq -r '.bomFormat // "missing"' "$local_file" 2>/dev/null)
+            
+            # Handle jq failure
+            if [[ $? -ne 0 ]]; then
+                log_warning "Failed to read bomFormat from $filename"
+                bom_format="missing"
+            fi
+            
             log_info "File $filename has bomFormat: $bom_format"
 
             # Check if it's CycloneDX (also check for metadata.component as backup)
-            if [[ "$bom_format" == "CycloneDX" ]] || jq -e '.metadata.component' "$local_file" >/dev/null 2>&1; then
+            local is_cyclonedx=false
+            
+            if [[ "$bom_format" == "CycloneDX" ]]; then
+                is_cyclonedx=true
+            elif jq -e '.metadata.component' "$local_file" >/dev/null 2>&1; then
+                is_cyclonedx=true
+                log_info "Detected CycloneDX via metadata.component field"
+            fi
+            
+            if [[ "$is_cyclonedx" == "true" ]]; then
                 cyclonedx_files+=("$local_file")
-                ((file_count++))
+                file_count=$((file_count + 1))
                 log_success "Valid CycloneDX SBOM: $filename"
             else
                 log_warning "Skipping $filename - bomFormat is '$bom_format', not 'CycloneDX'"
                 
                 # Debug: Show structure of the file to understand why it's not recognized
                 log_info "File structure preview for $filename:"
-                jq -r 'keys[]' "$local_file" 2>/dev/null | head -5 || echo "Unable to read keys"
+                if jq -r 'keys[]' "$local_file" 2>/dev/null | head -5; then
+                    echo "Keys shown above"
+                else
+                    echo "Unable to read keys from file"
+                fi
             fi
         else
-            log_warning "Failed to download: $s3_key"
+            log_error "Failed to download: s3://$S3_BUCKET/$s3_key"
+            log_error "AWS CLI exit code: $?"
             continue
         fi
     done
@@ -419,7 +455,9 @@ merge_cyclonedx_sboms() {
         for file in "$download_dir"/*; do
             if [[ -f "$file" ]]; then
                 local fname=$(basename "$file")
-                log_info "- $fname: $(jq -r '.bomFormat // .spdxVersion // "unknown_format"' "$file" 2>/dev/null || echo "invalid_json")"
+                local format_info
+                format_info=$(jq -r '.bomFormat // .spdxVersion // "unknown_format"' "$file" 2>/dev/null) || format_info="invalid_json"
+                log_info "- $fname: $format_info"
             fi
         done
         exit 1
@@ -458,7 +496,12 @@ EOF
     
     # Generate a UUID-like serial number and timestamp
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    local serial_number="urn:uuid:$(uuidgen 2>/dev/null || openssl rand -hex 16 | sed 's/\(.{8}\)\(.{4}\)\(.{4}\)\(.{4}\)\(.{12}\)/\1-\2-\3-\4-\5/')"
+    local serial_number
+    if command -v uuidgen >/dev/null 2>&1; then
+        serial_number="urn:uuid:$(uuidgen)"
+    else
+        serial_number="urn:uuid:$(openssl rand -hex 16 | sed 's/\(.{8}\)\(.{4}\)\(.{4}\)\(.{4}\)\(.{12}\)/\1-\2-\3-\4-\5/')"
+    fi
     
     # Update metadata with actual values
     merged_metadata=$(echo "$merged_metadata" | jq --arg ts "$timestamp" --arg sn "$serial_number" '
@@ -476,28 +519,43 @@ EOF
     # Collect all components
     for sbom_file in "${cyclonedx_files[@]}"; do
         local component_count
-        component_count=$(jq '.components | length' "$sbom_file" 2>/dev/null || echo "0")
+        component_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || component_count=0
         log_info "Processing $(basename "$sbom_file"): $component_count components"
         
         # Extract components and append to collection
         if [[ "$component_count" -gt 0 ]]; then
             local temp_components="$temp_dir/temp_components_$(basename "$sbom_file").json"
-            jq '.components[]' "$sbom_file" > "$temp_components" 2>/dev/null || continue
-            
-            # Merge with existing components
-            jq -s 'flatten' "$all_components" "$temp_components" > "$temp_dir/merged_temp.json"
-            mv "$temp_dir/merged_temp.json" "$all_components"
+            if jq '.components[]' "$sbom_file" > "$temp_components" 2>/dev/null; then
+                # Merge with existing components
+                if jq -s 'flatten' "$all_components" "$temp_components" > "$temp_dir/merged_temp.json"; then
+                    mv "$temp_dir/merged_temp.json" "$all_components"
+                else
+                    log_warning "Failed to merge components from $(basename "$sbom_file")"
+                fi
+            else
+                log_warning "Failed to extract components from $(basename "$sbom_file")"
+            fi
         fi
     done
     
     # Remove duplicates based on name+version+purl combination (more reliable deduplication)
     log_info "Removing duplicate components..."
     local unique_components="$temp_dir/unique_components.json"
-    jq 'unique_by((.name // "unknown") + "@" + (.version // "unknown") + "#" + (.purl // ""))' "$all_components" > "$unique_components"
+    if jq 'unique_by((.name // "unknown") + "@" + (.version // "unknown") + "#" + (.purl // ""))' "$all_components" > "$unique_components"; then
+        log_success "Deduplication completed"
+    else
+        log_error "Failed to deduplicate components"
+        exit 1
+    fi
     
     # Create final merged SBOM
     log_info "Assembling final merged SBOM..."
-    echo "$merged_metadata" | jq --slurpfile comps "$unique_components" '. + {components: $comps[0]}' > "$output_file"
+    if echo "$merged_metadata" | jq --slurpfile comps "$unique_components" '. + {components: $comps[0]}' > "$output_file"; then
+        log_success "Final SBOM assembled"
+    else
+        log_error "Failed to assemble final SBOM"
+        exit 1
+    fi
     
     # Validate the merged SBOM
     if ! jq . "$output_file" > /dev/null 2>&1; then
@@ -520,7 +578,8 @@ EOF
     log_info "Merge summary:"
     for sbom_file in "${cyclonedx_files[@]}"; do
         local fname=$(basename "$sbom_file" .json)
-        local comp_count=$(jq '.components | length' "$sbom_file" 2>/dev/null || echo "0")
+        local comp_count
+        comp_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || comp_count=0
         log_info "  - $fname: $comp_count components"
     done
 }

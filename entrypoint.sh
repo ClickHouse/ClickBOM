@@ -364,6 +364,7 @@ merge_cyclonedx_sboms() {
     log_info "Processing ${#files_array[@]} files..."
     
     for s3_key in "${files_array[@]}"; do
+        echo "Processing file: $s3_key"
         [[ -z "$s3_key" ]] && continue
         ((total_files++))
         

@@ -536,6 +536,19 @@ insert_sbom_data() {
                     .name // "unknown",
                     .version // "unknown", 
                     (
+                        # Debug: log what we are checking for this component
+                        (if $comp.name == "@adobe/css-tools" then 
+                            ($comp | {
+                                name: .name,
+                                licenses_length: (.licenses | length),
+                                licenses_first_keys: (if (.licenses | length) > 0 then (.licenses[0] | keys | length) else 0 end),
+                                spdx_license_concluded: (.properties[] | select(.name == "spdx:license-concluded") | .value // "NOT_FOUND"),
+                                spdx_license_declared: (.properties[] | select(.name == "spdx:license-declared") | .value // "NOT_FOUND")
+                            } | @json | debug)
+                        else 
+                            empty 
+                        end) as $debug |
+
                         # Try to extract license from multiple sources
                         (
                             # First: Try standard CycloneDX licenses array with content

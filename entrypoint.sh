@@ -527,13 +527,22 @@ insert_sbom_data() {
     # Extract data based on SBOM format
     case "$sbom_format" in
         "cyclonedx")
+            log_info "Sample CycloneDX component with license:"
+            jq -r '.components[0] | {name: .name, version: .version, licenses: .licenses}' "$sbom_file" 2>/dev/null || echo "No components found"
             # Extract from CycloneDX format
             jq -r '
                 .components[]? // empty |
                 [
                     .name // "unknown",
                     .version // "unknown", 
-                    (.licenses[]?.license.id // .licenses[]?.license.name // .licenses[]?.expression // "unknown")
+                    (
+                        if (.licenses | length) > 0 then
+                            .licenses[0] | 
+                            (.license.id // .license.name // .id // .name // .expression // "unknown")
+                        else
+                            "unknown"
+                        end
+                    )
                 ] | @tsv
             ' "$sbom_file" > "$data_file"
             ;;
@@ -545,7 +554,7 @@ insert_sbom_data() {
                 [
                     .name // "unknown",
                     .versionInfo // "unknown",
-                    (.licenseDeclared // .licenseConcluded // "unknown")
+                    (.licenseConcluded // .licenseDeclared // "unknown")
                 ] | @tsv
             ' "$sbom_file" > "$data_file"
             ;;

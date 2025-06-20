@@ -7,9 +7,14 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+ORANGE='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Logging functions
+log_debug() {
+    echo -e "${ORANGE}[DEBUG]${NC} $1"
+}
+
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -364,11 +369,11 @@ merge_cyclonedx_sboms() {
     log_info "Processing ${#files_array[@]} files..."
     
     for s3_key_to_merge in "${files_array[@]}"; do
-        echo "DEBUG: Processing file: '$s3_key_to_merge'"
+        log_debug "Processing file: '$s3_key_to_merge'"
 
         # Skip empty entries
         if [[ -z "$s3_key_to_merge" ]]; then
-            echo "DEBUG: Skipping empty s3_key_to_merge"
+            log_debug "Skipping empty s3_key_to_merge"
             continue
         fi
         
@@ -430,7 +435,7 @@ merge_cyclonedx_sboms() {
                 log_warning "Skipping $filename - bomFormat is '$bom_format', not 'CycloneDX'"
                 
                 # Debug: Show structure of the file to understand why it's not recognized
-                log_info "File structure preview for $filename:"
+                log_debug "File structure preview for $filename:"
                 if jq -r 'keys[]' "$local_file" 2>/dev/null | head -5; then
                     echo "Keys shown above"
                 else

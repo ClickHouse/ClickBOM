@@ -315,6 +315,9 @@ merge_cyclonedx_sboms() {
         exit 1
     fi
 
+    # Extract JSON files
+    s3_files=$(aws s3 ls "s3://$S3_BUCKET" --recursive | grep '\.json$' | awk '{print $4}' || true)
+
     # Download and validate CycloneDX SBOMs
     local cyclonedx_files=()
     local file_count=0

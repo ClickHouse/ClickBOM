@@ -536,17 +536,33 @@ insert_sbom_data() {
                     .name // "unknown",
                     .version // "unknown", 
                     (
-                        if (.licenses | length) > 0 then
-                            .licenses[0] | 
-                            (.license.id // .license.name // .id // .name // .expression // "unknown")
-                        # Then try SPDX properties (from SPDX->CycloneDX conversion)
-                        elif (.properties | length) > 0 then
-                            (.properties[] | select(.name == "spdx:license-concluded") | .value) //
-                            (.properties[] | select(.name == "spdx:license-declared") | .value) //
-                            "unknown"
-                        else
-                            "unknown"
-                        end
+                        # Try to extract license from multiple sources
+                        (
+                            # First: Try standard CycloneDX licenses array with content
+                            if (.licenses | length) > 0 and (.licenses[0] | keys | length) > 0 then
+                                .licenses[0] | (.license.id // .license.name // .id // .name // .expression)
+                            else
+                                null
+                            end
+                        ) //
+                        (
+                            # Second: Try SPDX properties for license-concluded
+                            if (.properties | length) > 0 then
+                                (.properties[] | select(.name == "spdx:license-concluded") | .value)
+                            else
+                                null
+                            end
+                        ) //
+                        (
+                            # Third: Try SPDX properties for license-declared
+                            if (.properties | length) > 0 then
+                                (.properties[] | select(.name == "spdx:license-declared") | .value)
+                            else
+                                null
+                            end
+                        ) //
+                        # Final fallback
+                        "unknown"
                     )
                 ] | @tsv
             ' "$sbom_file" > "$data_file"

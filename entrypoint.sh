@@ -363,12 +363,12 @@ merge_cyclonedx_sboms() {
     
     log_info "Processing ${#files_array[@]} files..."
     
-    for s3_key in "${files_array[@]}"; do
-        echo "DEBUG: Processing file: '$s3_key'"
-        
+    for s3_key_to_merge in "${files_array[@]}"; do
+        echo "DEBUG: Processing file: '$s3_key_to_merge'"
+
         # Skip empty entries
-        if [[ -z "$s3_key" ]]; then
-            echo "DEBUG: Skipping empty s3_key"
+        if [[ -z "$s3_key_to_merge" ]]; then
+            echo "DEBUG: Skipping empty s3_key_to_merge"
             continue
         fi
         
@@ -376,17 +376,17 @@ merge_cyclonedx_sboms() {
         total_files=$((total_files + 1))
         
         local filename
-        filename=$(basename "$s3_key" 2>/dev/null) || {
-            log_warning "Failed to get basename for: $s3_key"
+        filename=$(basename "$s3_key_to_merge" 2>/dev/null) || {
+            log_warning "Failed to get basename for: $s3_key_to_merge"
             continue
         }
         
         local local_file="$download_dir/${filename}"
 
-        log_info "Downloading ($total_files/${#files_array[@]}): s3://$S3_BUCKET/$s3_key"
+        log_info "Downloading ($total_files/${#files_array[@]}): s3://$S3_BUCKET/$s3_key_to_merge"
 
         # Try to download the file
-        if aws s3 cp "s3://$S3_BUCKET/$s3_key" "$local_file"; then
+        if aws s3 cp "s3://$S3_BUCKET/$s3_key_to_merge" "$local_file"; then
             log_success "Downloaded: $filename"
             
             # Check if it's a valid CycloneDX SBOM
@@ -438,7 +438,7 @@ merge_cyclonedx_sboms() {
                 fi
             fi
         else
-            log_error "Failed to download: s3://$S3_BUCKET/$s3_key"
+            log_error "Failed to download: s3://$S3_BUCKET/$s3_key_to_merge"
             log_error "AWS CLI exit code: $?"
             continue
         fi

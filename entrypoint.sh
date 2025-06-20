@@ -316,10 +316,30 @@ merge_cyclonedx_sboms() {
     fi
 
     # Extract JSON files (excluding vulns/ directory and any other non-SBOM files)
-    s3_files=$(aws s3 ls "s3://$S3_BUCKET" --recursive | grep '\.json$' | grep -v '^.*vulns/' | awk '{print $4}' || true)
+    log_info "Extracting JSON file paths..."
+    
+    # Debug: Show the filtering process step by step
+    local all_files
+    all_files=$(aws s3 ls "s3://$S3_BUCKET" --recursive | awk '{print $4}' || true)
+    log_info "All files found: $(echo "$all_files" | wc -l) files"
+    
+    local json_files
+    json_files=$(echo "$all_files" | grep '\.json$' || true)
+    log_info "JSON files found: $(echo "$json_files" | wc -l) files"
+    
+    s3_files=$(echo "$json_files" | grep -v 'vulns/' || true)
+    log_info "JSON files after excluding vulns/: $(echo "$s3_files" | wc -l) files"
+    
+    # Debug: Show what files we're going to process
+    log_info "Files to process:"
+    echo "$s3_files" | while IFS= read -r file; do
+        [[ -n "$file" ]] && log_info "  - $file"
+    done
 
-    if [[ -z "$s3_files" ]]; then
+    if [[ -z "$s3_files" ]] || [[ "$(echo "$s3_files" | wc -l)" -eq 0 ]]; then
         log_error "No JSON files found in S3 bucket (excluding vulns/ directory)"
+        log_error "Available files were:"
+        echo "$all_files" | head -10
         exit 1
     fi
 
@@ -328,21 +348,33 @@ merge_cyclonedx_sboms() {
     local file_count=0
     local total_files=0
     
-    while IFS= read -r s3_key; do
+    log_info "Starting download loop..."
+    
+    # Use a different approach to avoid issues with the while loop
+    local files_array=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && files_array+=("$line")
+    done <<< "$s3_files"
+    
+    log_info "Processing ${#files_array[@]} files..."
+    
+    for s3_key in "${files_array[@]}"; do
         [[ -z "$s3_key" ]] && continue
         ((total_files++))
         
         local filename=$(basename "$s3_key")
-        local local_file="$download_dir/$filename"
+        local local_file="$download_dir/${filename}"
 
-        log_info "Downloading ($total_files): s3://$S3_BUCKET/$s3_key"
+        log_info "Downloading ($total_files/${#files_array[@]}): s3://$S3_BUCKET/$s3_key"
 
-        if aws s3 cp "s3://$S3_BUCKET/$s3_key" "$local_file"; then
+        if aws s3 cp "s3://$S3_BUCKET/$s3_key" "$local_file" 2>/dev/null; then
+            log_success "Downloaded: $filename"
+            
             # Check if it's a valid CycloneDX SBOM
             log_info "Validating CycloneDX format for: $filename"
 
             # First check if it's valid JSON
-            if ! jq . "$local_file" > /dev/null 2>&1; then
+            if ! jq empty "$local_file" 2>/dev/null; then
                 log_warning "Skipping $filename - not valid JSON"
                 continue
             fi
@@ -353,7 +385,7 @@ merge_cyclonedx_sboms() {
             log_info "File $filename has bomFormat: $bom_format"
 
             # Check if it's CycloneDX (also check for metadata.component as backup)
-            if [[ "$bom_format" == "CycloneDX" ]] || jq -e '.metadata.component' "$local_file" > /dev/null 2>&1; then
+            if [[ "$bom_format" == "CycloneDX" ]] || jq -e '.metadata.component' "$local_file" >/dev/null 2>&1; then
                 cyclonedx_files+=("$local_file")
                 ((file_count++))
                 log_success "Valid CycloneDX SBOM: $filename"
@@ -368,7 +400,7 @@ merge_cyclonedx_sboms() {
             log_warning "Failed to download: $s3_key"
             continue
         fi
-    done <<< "$s3_files"
+    done
 
     log_info "Downloaded $total_files files, found $file_count valid CycloneDX SBOMs"
 

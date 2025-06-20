@@ -329,6 +329,11 @@ merge_cyclonedx_sboms() {
     
     s3_files=$(echo "$json_files" | grep -v 'vulns/' || true)
     log_info "JSON files after excluding vulns/: $(echo "$s3_files" | wc -l) files"
+
+    # Also exclude the target S3_KEY file to avoid processing the merged output
+    local s3_key_basename=$(basename "${S3_KEY:-sbom.json}")
+    s3_files=$(echo "$s3_files" | grep -v "^${s3_key_basename}$" || true)
+    log_info "JSON files after excluding target file ($s3_key_basename): $(echo "$s3_files" | wc -l) files"
     
     # Debug: Show what files we're going to process
     log_info "Files to process:"

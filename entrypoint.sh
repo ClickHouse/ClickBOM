@@ -532,6 +532,7 @@ insert_sbom_data() {
             # Extract from CycloneDX format
             jq -r '
                 .components[]? // empty |
+                . as $comp |
                 [
                     .name // "unknown",
                     .version // "unknown", 

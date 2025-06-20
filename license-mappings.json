@@ -4,5 +4,6 @@
   "actions/checkout": "MIT",
   "aws-actions/configure-aws-credentials": "MIT",
   "actions/create-github-app-token": "MIT",
-  "CycloneDX/gh-gomod-generate-sbom": "Apache-2.0"
+  "CycloneDX/gh-gomod-generate-sbom": "Apache-2.0",
+  "RoryCrispin/gh-action-bump-version": "MIT"
 }

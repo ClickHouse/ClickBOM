@@ -314,10 +314,7 @@ merge_cyclonedx_sboms() {
         log_error "Check bucket name and AWS permissions"
         exit 1
     fi
-    
-    # Extract JSON files
-    if ! s3_files=$(aws s3 ls "s3://$S3_BUCKET" --recursive | grep '\.json
-    
+
     # Download and validate CycloneDX SBOMs
     local cyclonedx_files=()
     local file_count=0

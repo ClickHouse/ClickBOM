@@ -4,6 +4,8 @@
   "actions/cache": "MIT",
   "actions/cache/restore": "MIT",
   "actions/checkout": "MIT",
+  "actions/download-artifact": "MIT",
+  "actions/github-script": "MIT",
   "aws-actions/configure-aws-credentials": "MIT",
   "actions/create-github-app-token": "MIT",
   "CycloneDX/gh-gomod-generate-sbom": "Apache-2.0",

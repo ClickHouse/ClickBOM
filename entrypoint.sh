@@ -843,6 +843,26 @@ main() {
         
         log_success "SBOM merging and upload completed successfully!"
         log_info "Merged SBOM available at: s3://$S3_BUCKET/$s3_key"
+
+        # ClickHouse operations
+        if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
+            local table_name=$(echo "$s3_key" | sed 's|\.json|_merged|g' | tr '[:upper:]' '[:lower:]')
+            log_info "Starting ClickHouse operations for table: $table_name"
+            # Setup table with error handling
+            if ! setup_clickhouse_table "$table_name"; then
+                log_error "ClickHouse table setup failed, skipping data insertion"
+                exit 1
+            else
+                # Insert SBOM data into ClickHouse
+                if ! insert_sbom_data "$merged_sbom" "$table_name" "$desired_format"; then
+                    log_error "Failed to insert SBOM data into ClickHouse"
+                    exit 1
+                else
+                    log_info "Component data available in ClickHouse table: ${CLICKHOUSE_DATABASE}.${table_name}"
+                    log_success "ClickHouse operations completed successfully!"
+                fi
+            fi
+        fi
         exit 0
     else
         log_info "Running in NORMAL mode - processing GitHub SBOM"
@@ -883,7 +903,7 @@ main() {
         log_success "SBOM processing completed successfully!"
         log_info "SBOM available at: s3://$S3_BUCKET/$s3_key"
 
-        # ClickHouse operations (only in normal mode)
+        # ClickHouse operations
         if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
             local table_name=$(echo "$REPOSITORY" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')
             log_info "Starting ClickHouse operations for table: $table_name"

@@ -210,7 +210,6 @@ EOF
                     -H "wss-refresh-token: $refresh_token" \
                     -H "Content-Type: application/json" \
                     -H "Accept: application/json" \
-                    -d '{}' \
                     "$MEND_BASE_URL/api/v3.0/accessToken")
                 
                 log_debug "Response (POST empty body): $jwt_response"

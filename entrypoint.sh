@@ -406,6 +406,7 @@ download_mend_report() {
     # Download the report with retry logic
     local max_attempts=3
     local attempt=1
+    local download_file="$temp_dir/mend_download_$report_uuid.zip"
     
     while [[ $attempt -le $max_attempts ]]; do
         log_info "Download attempt $attempt/$max_attempts"
@@ -421,30 +422,106 @@ download_mend_report() {
             -H "Authorization: Bearer $MEND_JWT_TOKEN" \
             -H "Accept: application/json" \
             "$MEND_BASE_URL/api/v3.0/orgs/$MEND_ORG_UUID/reports/download/$report_uuid" \
-            -o "$output_file"; then
+            -o "$download_file"; then
             
             # Verify the download
-            if [[ -f "$output_file" && -s "$output_file" ]]; then
+            if [[ -f "$download_file" && -s "$download_file" ]]; then
                 local file_size
-                file_size=$(du -h "$output_file" | cut -f1)
+                file_size=$(du -h "$download_file" | cut -f1)
                 log_success "Mend SBOM downloaded successfully ($file_size)"
                 
-                # Validate JSON format
-                if jq . "$output_file" > /dev/null 2>&1; then
-                    log_success "Downloaded SBOM is valid JSON"
+                # Check if it's a ZIP file (most common for Mend reports)
+                local file_type
+                file_type=$(file -b "$download_file" 2>/dev/null || echo "unknown")
+                log_debug "Downloaded file type: $file_type"
+                
+                if [[ "$file_type" =~ "Zip archive" ]] || [[ "$file_type" =~ "zip" ]] || head -c 2 "$download_file" | xxd | grep -q "504b"; then
+                    log_info "Downloaded file is a ZIP archive, extracting..."
                     
-                    # Log some basic info about the SBOM
-                    local sbom_info
-                    if sbom_info=$(jq -r '.bomFormat // .spdxVersion // "unknown"' "$output_file" 2>/dev/null); then
-                        log_info "SBOM format detected: $sbom_info"
+                    # Create extraction directory
+                    local extract_dir="$temp_dir/mend_extract_$report_uuid"
+                    mkdir -p "$extract_dir"
+                    
+                    # Extract the ZIP file
+                    if unzip -q "$download_file" -d "$extract_dir"; then
+                        log_success "ZIP file extracted successfully"
+                        
+                        # Find JSON files in the extracted content
+                        local json_files
+                        json_files=$(find "$extract_dir" -name "*.json" -type f)
+                        
+                        if [[ -n "$json_files" ]]; then
+                            # Use the first JSON file found (should be the SBOM)
+                            local sbom_file
+                            sbom_file=$(echo "$json_files" | head -n 1)
+                            log_info "Found SBOM file: $(basename "$sbom_file")"
+                            
+                            # Copy the extracted JSON to our output file
+                            if cp "$sbom_file" "$output_file"; then
+                                log_success "SBOM extracted and copied successfully"
+                                
+                                # Validate JSON format
+                                if jq . "$output_file" > /dev/null 2>&1; then
+                                    log_success "Extracted SBOM is valid JSON"
+                                    
+                                    # Log some basic info about the SBOM
+                                    local sbom_info
+                                    if sbom_info=$(jq -r '.bomFormat // .spdxVersion // "unknown"' "$output_file" 2>/dev/null); then
+                                        log_info "SBOM format detected: $sbom_info"
+                                    fi
+                                    
+                                    # Cleanup
+                                    rm -rf "$extract_dir" "$download_file"
+                                    return 0
+                                else
+                                    log_error "Extracted file is not valid JSON"
+                                    log_error "Content preview:"
+                                    head -n 5 "$output_file"
+                                fi
+                            else
+                                log_error "Failed to copy extracted SBOM file"
+                            fi
+                        else
+                            log_error "No JSON files found in extracted ZIP"
+                            log_info "Extracted files:"
+                            find "$extract_dir" -type f | head -10
+                        fi
+                        
+                        # Cleanup extraction directory
+                        rm -rf "$extract_dir"
+                    else
+                        log_error "Failed to extract ZIP file"
+                        log_error "ZIP file might be corrupted"
                     fi
                     
-                    return 0
+                    # Cleanup download file
+                    rm -f "$download_file"
                 else
-                    log_error "Downloaded file is not valid JSON"
-                    log_error "Content preview:"
-                    head -n 5 "$output_file" || cat "$output_file"
-                    rm -f "$output_file"
+                    # Not a ZIP file, try to process as direct JSON
+                    log_info "Downloaded file is not a ZIP archive, processing as direct JSON"
+                    
+                    # Move download to output file
+                    if mv "$download_file" "$output_file"; then
+                        # Validate JSON format
+                        if jq . "$output_file" > /dev/null 2>&1; then
+                            log_success "Downloaded SBOM is valid JSON"
+                            
+                            # Log some basic info about the SBOM
+                            local sbom_info
+                            if sbom_info=$(jq -r '.bomFormat // .spdxVersion // "unknown"' "$output_file" 2>/dev/null); then
+                                log_info "SBOM format detected: $sbom_info"
+                            fi
+                            
+                            return 0
+                        else
+                            log_error "Downloaded file is not valid JSON"
+                            log_error "Content preview:"
+                            head -n 5 "$output_file"
+                            log_error "File type: $file_type"
+                        fi
+                    else
+                        log_error "Failed to move downloaded file"
+                    fi
                 fi
             else
                 log_error "Downloaded file is empty or missing"

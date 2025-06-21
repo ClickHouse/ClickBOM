@@ -158,7 +158,7 @@ authenticate_mend() {
     log_info "Authenticating with Mend API 3.0"
     
     # Step 1: Login to get refresh token
-    log_info "Logging in to get refresh token"
+    log_info "Step 1: Logging in to get refresh token"
     local login_payload=$(cat <<EOF
 {
     "email": "$MEND_EMAIL",
@@ -183,41 +183,71 @@ EOF
         if refresh_token=$(echo "$login_response" | jq -r '.response.refreshToken // empty'); then
             if [[ -n "$refresh_token" && "$refresh_token" != "null" ]]; then
                 log_success "Login successful, refresh token obtained"
+                log_debug "Refresh token length: ${#refresh_token}"
+                
+                # Debug: Check if login response already contains JWT
+                local login_jwt
+                if login_jwt=$(echo "$login_response" | jq -r '.response.jwtToken // empty'); then
+                    if [[ -n "$login_jwt" && "$login_jwt" != "null" && "$login_jwt" != "empty" ]]; then
+                        log_info "JWT token found directly in login response"
+                        MEND_JWT_TOKEN="$login_jwt"
+                        return 0
+                    fi
+                fi
                 
                 # Step 2: Use refresh token to get JWT token
                 log_info "Step 2: Getting JWT token using refresh token"
+                log_debug "Using refresh token of length: ${#refresh_token}"
+                log_debug "Base URL: $MEND_BASE_URL"
                 
-                local jwt_response
-                if jwt_response=$(curl -s \
-                    -X POST \
-                    -H "wss-refresh-token: $refresh_token" \
-                    -H "Content-Type: application/json" \
-                    -H "Accept: application/json" \
-                    "$MEND_BASE_URL/api/v3.0/accessToken"); then
-                    
-                    log_debug "JWT response: $jwt_response"
-                    
-                    # Extract JWT token
-                    local jwt_token
-                    if jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty'); then
-                        if [[ -n "$jwt_token" && "$jwt_token" != "null" ]]; then
-                            log_success "JWT token obtained successfully"
-                            # Store JWT token in global variable for use in other functions
-                            MEND_JWT_TOKEN="$jwt_token"
-                            return 0
+                local jwt_response=""
+                local jwt_token=""
+                
+                # Try different endpoint variations and methods
+                local endpoints=("/api/v3.0/accessToken" "/api/v3.0/refreshAccessToken")
+                local methods=("POST" "GET")
+                
+                for endpoint in "${endpoints[@]}"; do
+                    for method in "${methods[@]}"; do
+                        log_debug "Trying $method $endpoint"
+                        
+                        if [[ "$method" == "POST" ]]; then
+                            jwt_response=$(curl -s \
+                                -X POST \
+                                -H "wss-refresh-token: $refresh_token" \
+                                -H "Content-Type: application/json" \
+                                -H "Accept: application/json" \
+                                "$MEND_BASE_URL$endpoint" 2>/dev/null)
                         else
-                            log_error "Failed to extract JWT token from response"
-                            log_error "JWT Response: $jwt_response"
-                            exit 1
+                            jwt_response=$(curl -s \
+                                -X GET \
+                                -H "wss-refresh-token: $refresh_token" \
+                                -H "Accept: application/json" \
+                                "$MEND_BASE_URL$endpoint" 2>/dev/null)
                         fi
-                    else
-                        log_error "Failed to parse JWT response"
-                        log_error "Response: $jwt_response"
-                        exit 1
-                    fi
-                else
-                    log_error "Failed to get JWT token"
-                    log_error "Response: $jwt_response"
+                        
+                        log_debug "Response from $method $endpoint: $jwt_response"
+                        
+                        # Check if we got a successful response with JWT token
+                        if [[ -n "$jwt_response" ]]; then
+                            # Check if response contains an error
+                            local error_status=$(echo "$jwt_response" | jq -r '.status // empty' 2>/dev/null)
+                            if [[ -z "$error_status" || "$error_status" == "empty" || "$error_status" == "null" ]]; then
+                                # Try to extract JWT token
+                                jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty' 2>/dev/null)
+                                if [[ -n "$jwt_token" && "$jwt_token" != "null" && "$jwt_token" != "empty" ]]; then
+                                    log_success "JWT token obtained using $method $endpoint"
+                                    MEND_JWT_TOKEN="$jwt_token"
+                                    return 0
+                                fi
+                            fi
+                        fi
+                    done
+                done
+                
+                # If we get here, all attempts failed
+                log_error "Failed to get JWT token using any endpoint/method combination"
+                log_error "Last response: $jwt_response"
                     exit 1
                 fi
             else

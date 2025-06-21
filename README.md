@@ -50,18 +50,28 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 | aws-region            | AWS Region                          | us-east-1      | false    | false     |
 | s3-bucket             | S3 Bucket Name                      |                | false    | false     |
 | s3-key                | S3 Key Prefix                       | sbom/sbom.json | false    | false     |
-| sbom-format           | SBOM format (spdxjson or cyclonedx) | cyclonedx      | false    | false     |
-| merge                 | Merge SBOMs stored in S3            | false          | false    | false     |
+
+- It is recommended that an S3 bucket be created for the purposes of ClickBOM.
+
+### ClickHouse
+
+| Name                  | Description                         | Default        | Required | Sensitive |
+| --------------------- | ----------------------------------- | -------------- | -------- | --------- |
 | clickhouse-url        | ClickHouse URL                      |                | false    | true      |
 | clickhouse-database   | ClickHouse Database Name            | default        | false    | false     |
 | clickhouse-username   | ClickHouse Username                 | default        | false    | false     |
 | clickhouse-password   | ClickHouse Password                 | (empty)        | false    | true      |
 
-### Notes
+- At the moment, ClickHouse ingestion is only supported over HTTP.
+
+### General
+
+| Name                  | Description                         | Default        | Required | Sensitive |
+| --------------------- | ----------------------------------- | -------------- | -------- | --------- |
+| sbom-format           | SBOM format (spdxjson or cyclonedx) | cyclonedx      | false    | false     |
+| merge                 | Merge SBOMs stored in S3            | false          | false    | false     |
 
 - `sbom-format` specifies the format you want the final SBOM to be in. For example, GitHub only supports SPDX, settings this input to `cyclonedx` will convert the SBOM to CycloneDX format.
-- At the moment, ClickHouse ingestion is only supported over HTTP.
-- It is recommended that an S3 bucket be created for the purposes of ClickBOM.
 
 ## Usage
 

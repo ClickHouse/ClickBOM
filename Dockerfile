@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
     libicu70 \
-    uuid-runtime \
+    vim-common \
+    file \
     && rm -rf /var/lib/apt/lists/*
 
 # Install AWS CLI

@@ -202,15 +202,15 @@ EOF
                 
                 # For saas.mend.io, try the correct API endpoint
                 local jwt_response
-                
-                # Method 1: Try POST to /api/v3.0/accessToken with empty body
-                log_debug "Trying POST /api/v3.0/accessToken with empty body"
+
+                # Method 1: Try POST to /api/v3.0/login/accessToken with empty body
+                log_debug "Trying POST /api/v3.0/login/accessToken with empty body"
                 jwt_response=$(curl -s \
                     -X POST \
                     -H "wss-refresh-token: $refresh_token" \
                     -H "Content-Type: application/json" \
                     -H "Accept: application/json" \
-                    "$MEND_BASE_URL/api/v3.0/accessToken")
+                    "$MEND_BASE_URL/api/v3.0/login/accessToken")
                 
                 log_debug "Response (POST empty body): $jwt_response"
                 

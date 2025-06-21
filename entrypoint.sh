@@ -350,8 +350,8 @@ download_mend_sbom_when_ready() {
         if status_response=$(curl -s \
             -H "Authorization: Bearer $MEND_JWT_TOKEN" \
             -H "Accept: application/json" \
-            "$MEND_BASE_URL/api/v3.0/reports/$report_uuid"); then
-            
+            "$MEND_BASE_URL/api/v3.0/orgs/$MEND_ORG_UUID/reports/$report_uuid"); then
+
             local status
             status=$(echo "$status_response" | jq -r '.response.status // "UNKNOWN"')
             

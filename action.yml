@@ -35,18 +35,6 @@ inputs:
   mend-project-uuids:
     description: 'Comma-separated list of specific project UUIDs to include'
     required: false
-  mend-sbom-standard:
-    description: 'Mend SBOM standard (cyclonedx or spdx)'
-    required: false
-    default: 'cyclonedx'
-  mend-sbom-version:
-    description: 'Mend SBOM version (1.4, 1.5 for CycloneDX; 2.2, 2.3 for SPDX)'
-    required: false
-    default: '1.5'
-  mend-sbom-format:
-    description: 'Mend SBOM file format (json or xml)'
-    required: false
-    default: 'json'
   mend-max-wait-time:
     description: 'Maximum time to wait for Mend report generation (seconds)'
     required: false
@@ -122,9 +110,6 @@ runs:
     MEND_PRODUCT_UUID: ${{ inputs.mend-product-uuid }}
     MEND_ORG_SCOPE_UUID: ${{ inputs.mend-org-scope-uuid }}
     MEND_PROJECT_UUIDS: ${{ inputs.mend-project-uuids }}
-    MEND_SBOM_STANDARD: ${{ inputs.mend-sbom-standard }}
-    MEND_SBOM_VERSION: ${{ inputs.mend-sbom-version }}
-    MEND_SBOM_FORMAT: ${{ inputs.mend-sbom-format }}
     MEND_MAX_WAIT_TIME: ${{ inputs.mend-max-wait-time }}
     MEND_POLL_INTERVAL: ${{ inputs.mend-poll-interval }}
     # AWS-specific

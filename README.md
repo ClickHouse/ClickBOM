@@ -25,21 +25,20 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
 ### Mend
 
-| Name                  | Description                         | Default        | Required | Sensitive |
-| --------------------- | ----------------------------------- | -------------- | -------- | --------- |
-| mend-email            | Mend user email address            |                | false    | true      |
-| mend-org-uuid         | Mend organization UUID for authentication |                | false    | true      |
-| mend-user-key         | Mend user key for authentication    |                | false    | true      |
-| mend-base-url        | Mend base URL (e.g., https://saas.mend.io) |                | false    | false     |
-| mend-product-uuid     | Mend product UUID for product-scoped SBOM |                | false    | false     |
-| mend-project-uuid     | Mend project UUID for project-scoped SBOM |                | false    | false     |
-| mend-org-scope-uuid   | Mend organization UUID for organization-scoped SBOM (different from auth org UUID) |                | false    | false     |
-| mend-project-uuids    | Comma-separated list of specific project UUIDs to include |                | false    | false     |
-| mend-sbom-standard    | Mend SBOM standard (cyclonedx or spdx) |                | false    | false     |
-| mend-sbom-version     | Mend SBOM version (1.4, 1.5 for CycloneDX; 2.2, 2.3 for SPDX) |                | false    | false     |
-| mend-sbom-format      | Mend SBOM file format (json or xml) |                | false    | false     |
-| mend-max-wait-time    | Maximum time to wait for Mend report generation (seconds) |                | false    | false     |
-| mend-poll-interval     | Polling interval for Mend report status (seconds) |                | false    | false     |
+| Name                | Description                                                   | Default                  | Required | Sensitive |
+| ------------------- | ------------------------------------------------------------- | ------------------------ | -------- | --------- |
+| mend-email          | Mend user email address                                       |                          | false    | true      |
+| mend-org-uuid       | Mend organization UUID                                        |                          | false    | true      |
+| mend-user-key       | Mend user key                                                 |                          | false    | true      |
+| mend-base-url       | Mend base URL                                                 | https://api-saas.mend.io | false    | false     |
+| mend-product-uuid   | Mend product UUID for product-scoped SBOM                     |                          | false    | true      |
+| mend-project-uuid   | Mend project UUID for project-scoped SBOM                     |                          | false    | true      |
+| mend-org-scope-uuid | Mend organization UUID for organization-scoped SBOM           |                          | false    | true      |
+| mend-project-uuids  | Comma-separated list of specific project UUIDs to include     |                          | false    | true      |
+| mend-max-wait-time  | Maximum time to wait for Mend report generation (seconds)     |                          | false    | false     |
+| mend-poll-interval  | Polling interval for Mend report status (seconds)             |                          | false    | false     |
+
+- The `mend-org-scope-uuid` is used for organization-scoped SBOMs, which is different from the `mend-org-uuid` used for authentication.
 
 
 | Name                  | Description                         | Default        | Required | Sensitive |

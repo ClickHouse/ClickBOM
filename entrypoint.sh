@@ -193,7 +193,7 @@ EOF
                     -H "wss-refresh-token: $refresh_token" \
                     -H "Content-Type: application/json" \
                     -H "Accept: application/json" \
-                    "$MEND_BASE_URL/api/v3.0/refreshAccessToken"); then
+                    "$MEND_BASE_URL/api/v3.0/accessToken"); then
                     
                     log_debug "JWT response: $jwt_response"
                     

@@ -252,6 +252,7 @@ request_mend_sbom_export() {
     # Build the request payload
     local payload=$(cat <<EOF
 {
+    "uuid": "$(uuidgen)",
     "reportType": "cycloneDX_1_5",
     "format": "json"
 EOF

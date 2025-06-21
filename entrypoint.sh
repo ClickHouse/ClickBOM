@@ -358,7 +358,7 @@ download_mend_sbom_when_ready() {
             log_info "Report status: $status"
             
             case "$status" in
-                "COMPLETED")
+                "COMPLETED|SUCCESS")
                     log_success "Report is ready for download"
                     
                     # Download the report
@@ -420,7 +420,7 @@ download_mend_report() {
             --compressed \
             -H "Authorization: Bearer $MEND_JWT_TOKEN" \
             -H "Accept: application/json" \
-            "$MEND_BASE_URL/api/v3.0/reports/$report_uuid/download" \
+            "$MEND_BASE_URL/api/v3.0/orgs/$MEND_ORG_UUID/reports/download/$report_uuid" \
             -o "$output_file"; then
             
             # Verify the download

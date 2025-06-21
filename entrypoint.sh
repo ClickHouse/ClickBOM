@@ -200,56 +200,100 @@ EOF
                 log_debug "Using refresh token of length: ${#refresh_token}"
                 log_debug "Base URL: $MEND_BASE_URL"
                 
-                local jwt_response=""
-                local jwt_token=""
+                # For saas.mend.io, try the correct API endpoint
+                local jwt_response
                 
-                # Try different endpoint variations and methods
-                local endpoints=("/api/v3.0/accessToken" "/api/v3.0/refreshAccessToken")
-                local methods=("POST" "GET")
+                # Method 1: Try POST to /api/v3.0/accessToken with empty body
+                log_debug "Trying POST /api/v3.0/accessToken with empty body"
+                jwt_response=$(curl -s \
+                    -X POST \
+                    -H "wss-refresh-token: $refresh_token" \
+                    -H "Content-Type: application/json" \
+                    -H "Accept: application/json" \
+                    -d '{}' \
+                    "$MEND_BASE_URL/api/v3.0/accessToken")
                 
-                for endpoint in "${endpoints[@]}"; do
-                    for method in "${methods[@]}"; do
-                        log_debug "Trying $method $endpoint"
-                        
-                        if [[ "$method" == "POST" ]]; then
-                            jwt_response=$(curl -s \
-                                -X POST \
-                                -H "wss-refresh-token: $refresh_token" \
-                                -H "Content-Type: application/json" \
-                                -H "Accept: application/json" \
-                                "$MEND_BASE_URL$endpoint" 2>/dev/null)
-                        else
-                            jwt_response=$(curl -s \
-                                -X GET \
-                                -H "wss-refresh-token: $refresh_token" \
-                                -H "Accept: application/json" \
-                                "$MEND_BASE_URL$endpoint" 2>/dev/null)
-                        fi
-                        
-                        log_debug "Response from $method $endpoint: $jwt_response"
-                        
-                        # Check if we got a successful response with JWT token
-                        if [[ -n "$jwt_response" ]]; then
-                            # Check if response contains an error
-                            local error_status=$(echo "$jwt_response" | jq -r '.status // empty' 2>/dev/null)
-                            if [[ -z "$error_status" || "$error_status" == "empty" || "$error_status" == "null" ]]; then
-                                # Try to extract JWT token
-                                jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty' 2>/dev/null)
-                                if [[ -n "$jwt_token" && "$jwt_token" != "null" && "$jwt_token" != "empty" ]]; then
-                                    log_success "JWT token obtained using $method $endpoint"
-                                    MEND_JWT_TOKEN="$jwt_token"
-                                    return 0
-                                fi
-                            fi
-                        fi
-                    done
-                done
+                log_debug "Response (POST empty body): $jwt_response"
                 
-                # If we get here, all attempts failed
-                log_error "Failed to get JWT token using any endpoint/method combination"
-                log_error "Last response: $jwt_response"
-                    exit 1
+                # Check if this worked
+                local jwt_token
+                jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty' 2>/dev/null)
+                if [[ -n "$jwt_token" && "$jwt_token" != "null" && "$jwt_token" != "empty" ]]; then
+                    log_success "JWT token obtained via POST with empty body"
+                    MEND_JWT_TOKEN="$jwt_token"
+                    return 0
                 fi
+                
+                # Method 2: Try POST to /api/v3.0/accessToken with refreshToken in body
+                log_debug "Trying POST /api/v3.0/accessToken with refreshToken in body"
+                local token_payload="{\"refreshToken\": \"$refresh_token\"}"
+                jwt_response=$(curl -s \
+                    -X POST \
+                    -H "Content-Type: application/json" \
+                    -H "Accept: application/json" \
+                    -d "$token_payload" \
+                    "$MEND_BASE_URL/api/v3.0/accessToken")
+                
+                log_debug "Response (POST with body): $jwt_response"
+                
+                jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty' 2>/dev/null)
+                if [[ -n "$jwt_token" && "$jwt_token" != "null" && "$jwt_token" != "empty" ]]; then
+                    log_success "JWT token obtained via POST with refreshToken in body"
+                    MEND_JWT_TOKEN="$jwt_token"
+                    return 0
+                fi
+                
+                # Method 3: Try the alternative endpoint
+                log_debug "Trying POST /api/v3.0/refreshAccessToken"
+                jwt_response=$(curl -s \
+                    -X POST \
+                    -H "wss-refresh-token: $refresh_token" \
+                    -H "Content-Type: application/json" \
+                    -H "Accept: application/json" \
+                    "$MEND_BASE_URL/api/v3.0/refreshAccessToken")
+                
+                log_debug "Response (refreshAccessToken): $jwt_response"
+                
+                jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty' 2>/dev/null)
+                if [[ -n "$jwt_token" && "$jwt_token" != "null" && "$jwt_token" != "empty" ]]; then
+                    log_success "JWT token obtained via refreshAccessToken endpoint"
+                    MEND_JWT_TOKEN="$jwt_token"
+                    return 0
+                fi
+                
+                # Method 4: Try GET method
+                log_debug "Trying GET /api/v3.0/accessToken"
+                jwt_response=$(curl -s \
+                    -X GET \
+                    -H "wss-refresh-token: $refresh_token" \
+                    -H "Accept: application/json" \
+                    "$MEND_BASE_URL/api/v3.0/accessToken")
+                
+                log_debug "Response (GET): $jwt_response"
+                
+                jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty' 2>/dev/null)
+                if [[ -n "$jwt_token" && "$jwt_token" != "null" && "$jwt_token" != "empty" ]]; then
+                    log_success "JWT token obtained via GET"
+                    MEND_JWT_TOKEN="$jwt_token"
+                    return 0
+                fi
+                
+                # If all methods failed, show detailed error info
+                log_error "All JWT token methods failed"
+                log_error "Login was successful, but JWT token retrieval failed"
+                log_error "This might indicate:"
+                log_error "  1. API version mismatch"
+                log_error "  2. Different endpoint for your Mend instance"
+                log_error "  3. Permission issues with your user account"
+                log_error "  4. Different authentication flow for saas.mend.io"
+                log_error ""
+                log_error "Last response: $jwt_response"
+                log_error ""
+                log_error "Please verify:"
+                log_error "  - Your user has API access permissions"
+                log_error "  - Your org UUID is correct"
+                log_error "  - Try the same calls in Postman/curl manually"
+                exit 1
             else
                 log_error "Failed to extract refresh token from login response"
                 log_error "Login response: $login_response"

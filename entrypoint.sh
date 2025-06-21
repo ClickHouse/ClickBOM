@@ -253,7 +253,7 @@ request_mend_sbom_export() {
     local payload=$(cat <<EOF
 {
     "reportType": "cycloneDX_1_5",
-    "format": "json",
+    "format": "json"
 EOF
 )
 

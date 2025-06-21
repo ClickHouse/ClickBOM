@@ -35,11 +35,13 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 | mend-project-uuid   | Mend project UUID for project-scoped SBOM                     |                          | false    | true      |
 | mend-org-scope-uuid | Mend organization UUID for organization-scoped SBOM           |                          | false    | true      |
 | mend-project-uuids  | Comma-separated list of specific project UUIDs to include     |                          | false    | true      |
-| mend-max-wait-time  | Maximum time to wait for Mend report generation (seconds)     |                          | false    | false     |
-| mend-poll-interval  | Polling interval for Mend report status (seconds)             |                          | false    | false     |
+| mend-max-wait-time  | Maximum time to wait for Mend report generation (seconds)     | 1800                     | false    | false     |
+| mend-poll-interval  | Polling interval for Mend report status (seconds)             | 30                       | false    | false     |
 
 - The `mend-org-scope-uuid` is used for organization-scoped SBOMs, which is different from the `mend-org-uuid` used for authentication.
+- ClickBOM only supports downloading SBOMs from Mend in the CycloneDX v1.5 format. If you need to convert the SBOM to SPDX, you can use the `sbom-format` input. (Support for SPDX coming soon)
 
+### AWS
 
 | Name                  | Description                         | Default        | Required | Sensitive |
 | --------------------- | ----------------------------------- | -------------- | -------- | --------- |

@@ -358,7 +358,7 @@ download_mend_sbom_when_ready() {
             log_info "Report status: $status"
             
             case "$status" in
-                "COMPLETED|SUCCESS")
+                "COMPLETED"|"SUCCESS")
                     log_success "Report is ready for download"
                     
                     # Download the report

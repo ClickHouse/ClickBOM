@@ -20,9 +20,9 @@ inputs:
     description: 'Mend user key for authentication'
     required: false
   mend-base-url:
-    description: 'Mend base URL (e.g., https://saas.mend.io)'
+    description: 'Mend base URL (e.g., https://api-saas.mend.io)'
     required: false
-    default: 'https://saas.mend.io'
+    default: 'https://api-saas.mend.io'
   mend-product-uuid:
     description: 'Mend product UUID for product-scoped SBOM'
     required: false

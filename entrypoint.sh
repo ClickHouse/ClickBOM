@@ -158,7 +158,7 @@ authenticate_mend() {
     log_info "Authenticating with Mend API 3.0"
     
     # Step 1: Login to get refresh token
-    log_info "Step 1: Logging in to get refresh token"
+    log_info "Logging in to get refresh token"
     local login_payload=$(cat <<EOF
 {
     "email": "$MEND_EMAIL",

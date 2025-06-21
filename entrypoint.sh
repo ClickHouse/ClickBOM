@@ -252,9 +252,10 @@ request_mend_sbom_export() {
     # Build the request payload
     local payload=$(cat <<EOF
 {
-    "uuid": "$(uuidgen)",
+    "name": "test",
     "reportType": "cycloneDX_1_5",
-    "format": "json"
+    "format": "json",
+    "includeVulnerabilities": false
 EOF
 )
 
@@ -294,7 +295,7 @@ EOF
         -H "Content-Type: application/json" \
         -H "Accept: application/json" \
         --data "$payload" \
-        "$MEND_BASE_URL/api/v3.0/projects/$MEND_PROJECT_UUID/images/reports/SBOM"); then
+        "$MEND_BASE_URL/api/v3.0/projects/$MEND_PROJECT_UUID/dependencies/reports/SBOM"); then
 
         log_success "SBOM export request submitted successfully"
         log_debug "Export response: $export_response"

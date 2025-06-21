@@ -3,7 +3,7 @@ name: Test ClickBOM Action
 on: [push]
 
 jobs:
-  test_clickbom:
+  test_clickbom_github:
     strategy:
       fail-fast: false
       matrix:
@@ -55,9 +55,48 @@ jobs:
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
           clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
 
+  test_clickbom_mend:
+    name: Test ClickBOM Mend
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        id: aws-creds
+        with:
+          role-to-assume: arn:aws:iam::576599896960:role/GitHubOpenIdConnect
+          role-session-name: clickbom-test-mend
+          aws-region: us-east-1
+
+      - name: Upload SBOM from Mend
+        uses: ./
+        with:
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: clickhouse-sbom
+          s3-key: clickhouse-db.json
+          sbom-source: mend
+          mend-email: ${{ secrets.CLICKBOM_MEND_EMAIL }}
+          mend-org-uuid: ${{ secrets.CLICKBOM_MEND_ORG_UUID }}
+          mend-user-key: ${{ secrets.CLICKBOM_MEND_USER_KEY }}
+          mend-product-uuid: ${{ secrets.CLICKBOM_MEND_PRODUCT_UUID }}
+          mend-project-uuid: ${{ secrets.CLICKBOM_MEND_PROJECT_UUID }}
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
+  
   test_clickbom_merge:
-    needs: test_clickbom
-    # if: ${{ always() }}
+    needs: 
+      - test_clickbom_github
+      - test_clickbom_mend
     name: Test ClickBOM Merge
     runs-on: ubuntu-latest
 
@@ -84,7 +123,7 @@ jobs:
           role-session-name: clickbom-test-merge
           aws-region: us-east-1
 
-      - name: Upload SBOM
+      - name: Merge SBOM
         uses: ./
         with:
           github-token: ${{ steps.generate-token.outputs.token }}

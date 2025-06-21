@@ -60,6 +60,28 @@ validate_env() {
     fi
 }
 
+# Validate Mend environment variables
+validate_mend_env() {
+    if [[ "${SBOM_SOURCE:-}" == "mend" ]]; then
+        local required_mend_vars=("MEND_EMAIL" "MEND_ORG_UUID" "MEND_USER_KEY" "MEND_BASE_URL")
+        
+        for var in "${required_mend_vars[@]}"; do
+            if [[ -z "${!var:-}" ]]; then
+                log_error "Required Mend environment variable $var is not set"
+                exit 1
+            fi
+        done
+        
+        # Validate at least one scope is provided
+        if [[ -z "${MEND_PROJECT_UUID:-}" && -z "${MEND_PRODUCT_UUID:-}" && -z "${MEND_ORG_UUID:-}" ]]; then
+            log_error "At least one Mend scope must be provided: MEND_PROJECT_UUID, MEND_PRODUCT_UUID, or MEND_ORG_UUID"
+            exit 1
+        fi
+        
+        log_info "Mend environment validated"
+    fi
+}
+
 # Download SBOM from GitHub repository
 download_sbom() {
     local repo="$1"
@@ -129,6 +151,316 @@ download_sbom() {
         log_error "  - SBOM not available for this repository"
         exit 1
     fi
+}
+
+# Authenticate with Mend API and get JWT token
+authenticate_mend() {
+    log_info "Authenticating with Mend API 3.0"
+    
+    # Step 1: Login to get refresh token
+    log_info "Step 1: Logging in to get refresh token"
+    local login_payload=$(cat <<EOF
+{
+    "email": "$MEND_EMAIL",
+    "orgUuid": "$MEND_ORG_UUID",
+    "userKey": "$MEND_USER_KEY"
+}
+EOF
+)
+    
+    local login_response
+    if login_response=$(curl -s \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        --data "$login_payload" \
+        "$MEND_BASE_URL/api/v3.0/login"); then
+        
+        log_debug "Login response: $login_response"
+        
+        # Extract refresh token from login response
+        local refresh_token
+        if refresh_token=$(echo "$login_response" | jq -r '.response.refreshToken // empty'); then
+            if [[ -n "$refresh_token" && "$refresh_token" != "null" ]]; then
+                log_success "Login successful, refresh token obtained"
+                
+                # Step 2: Use refresh token to get JWT token
+                log_info "Step 2: Getting JWT token using refresh token"
+                
+                local jwt_response
+                if jwt_response=$(curl -s \
+                    -X POST \
+                    -H "wss-refresh-token: $refresh_token" \
+                    -H "Content-Type: application/json" \
+                    -H "Accept: application/json" \
+                    "$MEND_BASE_URL/api/v3.0/refreshAccessToken"); then
+                    
+                    log_debug "JWT response: $jwt_response"
+                    
+                    # Extract JWT token
+                    local jwt_token
+                    if jwt_token=$(echo "$jwt_response" | jq -r '.response.jwtToken // empty'); then
+                        if [[ -n "$jwt_token" && "$jwt_token" != "null" ]]; then
+                            log_success "JWT token obtained successfully"
+                            # Store JWT token in global variable for use in other functions
+                            MEND_JWT_TOKEN="$jwt_token"
+                            return 0
+                        else
+                            log_error "Failed to extract JWT token from response"
+                            log_error "JWT Response: $jwt_response"
+                            exit 1
+                        fi
+                    else
+                        log_error "Failed to parse JWT response"
+                        log_error "Response: $jwt_response"
+                        exit 1
+                    fi
+                else
+                    log_error "Failed to get JWT token"
+                    log_error "Response: $jwt_response"
+                    exit 1
+                fi
+            else
+                log_error "Failed to extract refresh token from login response"
+                log_error "Login response: $login_response"
+                exit 1
+            fi
+        else
+            log_error "Failed to parse login response"
+            log_error "Response: $login_response"
+            exit 1
+        fi
+    else
+        log_error "Failed to authenticate with Mend"
+        log_error "Check your email, org UUID, and user key credentials"
+        log_error "Response: $login_response"
+        exit 1
+    fi
+}
+
+# Request SBOM export from Mend API 3.0
+request_mend_sbom_export() {
+    local output_file="$1"
+    
+    log_info "Requesting SBOM export from Mend API 3.0"
+    
+    # Authenticate first to get JWT token
+    authenticate_mend
+    
+    # Build the request payload
+    local payload=$(cat <<EOF
+{
+    "reportType": "dependencies",
+    "format": "${MEND_SBOM_FORMAT:-json}",
+    "sbomStandard": "${MEND_SBOM_STANDARD:-cyclonedx}",
+    "sbomVersion": "${MEND_SBOM_VERSION:-1.5}",
+    "includeVulnerabilities": ${MEND_INCLUDE_VULNERABILITIES:-true}
+EOF
+)
+
+    # Add scope based on what's provided
+    if [[ -n "${MEND_PROJECT_UUID:-}" ]]; then
+        log_info "Using project scope: $MEND_PROJECT_UUID"
+        payload+=",\"scopeType\": \"project\",\"scopeUuid\": \"$MEND_PROJECT_UUID\""
+        
+        # Add specific project UUIDs if provided
+        if [[ -n "${MEND_PROJECT_UUIDS:-}" ]]; then
+            local project_array=$(echo "$MEND_PROJECT_UUIDS" | jq -R 'split(",") | map(. | tostring)')
+            payload+=",\"projectUuids\": $project_array"
+        fi
+    elif [[ -n "${MEND_PRODUCT_UUID:-}" ]]; then
+        log_info "Using product scope: $MEND_PRODUCT_UUID"
+        payload+=",\"scopeType\": \"product\",\"scopeUuid\": \"$MEND_PRODUCT_UUID\""
+        
+        # Add specific project UUIDs if provided for product scope
+        if [[ -n "${MEND_PROJECT_UUIDS:-}" ]]; then
+            local project_array=$(echo "$MEND_PROJECT_UUIDS" | jq -R 'split(",") | map(. | tostring)')
+            payload+=",\"projectUuids\": $project_array"
+        fi
+    elif [[ -n "${MEND_ORG_SCOPE_UUID:-}" ]]; then
+        log_info "Using organization scope: $MEND_ORG_SCOPE_UUID"
+        payload+=",\"scopeType\": \"organization\",\"scopeUuid\": \"$MEND_ORG_SCOPE_UUID\""
+    fi
+    
+    payload+="}"
+    
+    log_debug "Request payload: $payload"
+    
+    # Make the export request using JWT token
+    local export_response
+    if export_response=$(curl -s \
+        -X POST \
+        -H "Authorization: Bearer $MEND_JWT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        --data "$payload" \
+        "$MEND_BASE_URL/api/v3.0/reports/exportSBOMReport"); then
+        
+        log_success "SBOM export request submitted successfully"
+        log_debug "Export response: $export_response"
+        
+        # Extract the report UUID from the response
+        local report_uuid
+        if report_uuid=$(echo "$export_response" | jq -r '.response.uuid // empty'); then
+            if [[ -n "$report_uuid" && "$report_uuid" != "null" ]]; then
+                log_info "Report UUID: $report_uuid"
+                
+                # Wait for the report to be ready and download it
+                download_mend_sbom_when_ready "$report_uuid" "$output_file"
+            else
+                log_error "Failed to extract report UUID from response"
+                log_error "Response: $export_response"
+                exit 1
+            fi
+        else
+            log_error "Failed to parse export response"
+            log_error "Response: $export_response"
+            exit 1
+        fi
+    else
+        log_error "Failed to request SBOM export from Mend"
+        log_error "Response: $export_response"
+        exit 1
+    fi
+}
+
+# Poll for report completion and download when ready
+download_mend_sbom_when_ready() {
+    local report_uuid="$1"
+    local output_file="$2"
+    local max_wait_time=${MEND_MAX_WAIT_TIME:-1800}  # 30 minutes default
+    local poll_interval=${MEND_POLL_INTERVAL:-30}    # 30 seconds default
+    local elapsed_time=0
+    
+    log_info "Waiting for SBOM report to be ready (UUID: $report_uuid)"
+    log_info "Max wait time: ${max_wait_time}s, Poll interval: ${poll_interval}s"
+    
+    while [[ $elapsed_time -lt $max_wait_time ]]; do
+        log_info "Checking report status... (elapsed: ${elapsed_time}s)"
+        
+        # Check if JWT token needs refresh (expires every 30 minutes)
+        if [[ $elapsed_time -gt 0 && $((elapsed_time % 1500)) -eq 0 ]]; then
+            log_info "Refreshing JWT token (25 minutes elapsed)"
+            authenticate_mend
+        fi
+        
+        # Check report status
+        local status_response
+        if status_response=$(curl -s \
+            -H "Authorization: Bearer $MEND_JWT_TOKEN" \
+            -H "Accept: application/json" \
+            "$MEND_BASE_URL/api/v3.0/reports/$report_uuid"); then
+            
+            local status
+            status=$(echo "$status_response" | jq -r '.response.status // "UNKNOWN"')
+            
+            log_info "Report status: $status"
+            
+            case "$status" in
+                "COMPLETED")
+                    log_success "Report is ready for download"
+                    
+                    # Download the report
+                    if download_mend_report "$report_uuid" "$output_file"; then
+                        return 0
+                    else
+                        log_error "Failed to download completed report"
+                        exit 1
+                    fi
+                    ;;
+                "FAILED"|"CANCELED")
+                    log_error "Report generation failed with status: $status"
+                    log_error "Status response: $status_response"
+                    exit 1
+                    ;;
+                "PENDING"|"IN_PROGRESS")
+                    log_info "Report still processing, waiting ${poll_interval}s..."
+                    sleep "$poll_interval"
+                    elapsed_time=$((elapsed_time + poll_interval))
+                    ;;
+                *)
+                    log_warning "Unknown report status: $status"
+                    sleep "$poll_interval"
+                    elapsed_time=$((elapsed_time + poll_interval))
+                    ;;
+            esac
+        else
+            log_warning "Failed to check report status, retrying..."
+            sleep "$poll_interval"
+            elapsed_time=$((elapsed_time + poll_interval))
+        fi
+    done
+    
+    log_error "Timeout waiting for SBOM report to complete after ${max_wait_time}s"
+    exit 1
+}
+
+# Download the completed report
+download_mend_report() {
+    local report_uuid="$1"
+    local output_file="$2"
+    
+    log_info "Downloading SBOM report (UUID: $report_uuid)"
+    
+    # Download the report with retry logic
+    local max_attempts=3
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        log_info "Download attempt $attempt/$max_attempts"
+        
+        if curl -L \
+            --max-time 600 \
+            --connect-timeout 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            --silent \
+            --show-error \
+            --compressed \
+            -H "Authorization: Bearer $MEND_JWT_TOKEN" \
+            -H "Accept: application/json" \
+            "$MEND_BASE_URL/api/v3.0/reports/$report_uuid/download" \
+            -o "$output_file"; then
+            
+            # Verify the download
+            if [[ -f "$output_file" && -s "$output_file" ]]; then
+                local file_size
+                file_size=$(du -h "$output_file" | cut -f1)
+                log_success "Mend SBOM downloaded successfully ($file_size)"
+                
+                # Validate JSON format
+                if jq . "$output_file" > /dev/null 2>&1; then
+                    log_success "Downloaded SBOM is valid JSON"
+                    
+                    # Log some basic info about the SBOM
+                    local sbom_info
+                    if sbom_info=$(jq -r '.bomFormat // .spdxVersion // "unknown"' "$output_file" 2>/dev/null); then
+                        log_info "SBOM format detected: $sbom_info"
+                    fi
+                    
+                    return 0
+                else
+                    log_error "Downloaded file is not valid JSON"
+                    log_error "Content preview:"
+                    head -n 5 "$output_file" || cat "$output_file"
+                    rm -f "$output_file"
+                fi
+            else
+                log_error "Downloaded file is empty or missing"
+            fi
+        else
+            log_warning "Download attempt $attempt failed"
+        fi
+        
+        attempt=$((attempt + 1))
+        if [[ $attempt -le $max_attempts ]]; then
+            log_info "Waiting 10s before retry..."
+            sleep 10
+        fi
+    done
+    
+    log_error "Failed to download Mend SBOM after $max_attempts attempts"
+    exit 1
 }
 
 # Fix SPDX compatibility issues for CycloneDX conversion
@@ -809,11 +1141,13 @@ main() {
     
     # Validate environment
     validate_env
+    validate_mend_env
     
     # Set defaults for optional variables
     local s3_key="${S3_KEY:-sbom.json}"
     local desired_format="${SBOM_FORMAT:-cyclonedx}"
     local merge_mode="${MERGE:-false}"
+    local sbom_source="${SBOM_SOURCE:-github}"
     
     # Set up cleanup trap    
     trap cleanup EXIT
@@ -865,15 +1199,29 @@ main() {
         fi
         exit 0
     else
-        log_info "Running in NORMAL mode - processing GitHub SBOM"
+        log_info "Running in NORMAL mode - processing SBOM from $sbom_source"
 
         local original_sbom="$temp_dir/original_sbom.json"
         local extracted_sbom="$temp_dir/extracted_sbom.json"
         local fixed_sbom="$temp_dir/fixed_sbom.json"
         local processed_sbom="$temp_dir/processed_sbom.json"
     
-        # Download SBOM
-        download_sbom "$REPOSITORY" "$original_sbom"
+        # Download SBOM based on source
+        case "$sbom_source" in
+            "github")
+                log_info "Downloading SBOM from GitHub"
+                download_sbom "$REPOSITORY" "$original_sbom"
+                ;;
+            "mend")
+                log_info "Downloading SBOM from Mend"
+                request_mend_sbom_export "$original_sbom"
+                ;;
+            *)
+                log_error "Unsupported SBOM source: $sbom_source"
+                log_error "Supported sources: github, mend"
+                exit 1
+                ;;
+        esac
 
         # Extract SBOM from wrapper if needed
         extract_sbom_from_wrapper "$original_sbom" "$extracted_sbom"
@@ -905,7 +1253,15 @@ main() {
 
         # ClickHouse operations
         if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
-            local table_name=$(echo "$REPOSITORY" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')
+            local table_name
+            case "$sbom_source" in
+                "github")
+                    table_name=$(echo "$REPOSITORY" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')
+                    ;;
+                "mend")
+                    table_name="mend_$(echo "${MEND_PROJECT_UUID:-${MEND_PRODUCT_UUID:-${MEND_ORG_SCOPE_UUID}}}" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')"
+                    ;;
+            esac
             log_info "Starting ClickHouse operations for table: $table_name"
             # Setup table with error handling
             if ! setup_clickhouse_table "$table_name"; then

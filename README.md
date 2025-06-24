@@ -10,6 +10,9 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
   - [Same Repository](#same-repository)
   - [Same Repository with ClickHouse](#same-repository-with-clickhouse)
   - [Same Repository with GitHub App](#same-repository-with-github-app)
+  - [Multiple Repositories](#multiple-repositories)
+  - [Merging SBOMs Stored In S3](#merging-sboms-stored-in-s3)
+  - [Downloading an SBOM from Mend](#downloading-an-sbom-from-mend)
 - [Creating a GitHub App](#creating-a-github-app)
 
 ## Inputs

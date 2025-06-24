@@ -33,12 +33,24 @@ teardown() {
     unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY S3_BUCKET REPOSITORY GITHUB_TOKEN
 }
 
+
 # Basic test to verify BATS is working
 @test "basic test - addition" {
     result="$((2 + 2))"
     [ "$result" -eq 4 ]
 }
 
-
+# Test 1: Basic logging functions work
+@test "logging functions produce colored output" {
+    # Test that log_info produces expected output format
+    run log_info "test message"
+    
+    # Check that the command succeeded (exit code 0)
+    [ "$status" -eq 0 ]
+    
+    # Check that output contains the expected format
+    [[ "$output" == *"[INFO]"* ]]
+    [[ "$output" == *"test message"* ]]
+}
 
 # Add more tests here...

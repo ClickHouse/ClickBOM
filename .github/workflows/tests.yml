@@ -11,8 +11,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup
+      - name: Setup BATS
         run: ./setup-bats.sh
 
-      - name: Run tests
+      - name: Run Tests
         run: ./run-tests.sh

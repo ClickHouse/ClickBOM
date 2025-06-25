@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
-# test/entrypoint.bats
-# Basic BATS tests for entrypoint.sh
+# test/simple.bats
+# Simple BATS tests for entrypoint.sh
 
 # Setup function runs before each test
 setup() {

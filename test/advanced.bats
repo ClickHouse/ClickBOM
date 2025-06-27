@@ -293,3 +293,21 @@ EOF
     run jq . "$output_file"  
     [ "$status" -eq 0 ]
 }
+
+# Test 8: download_sbom handles curl failure
+@test "download_sbom handles curl failure" {
+    # Create a mock curl command that fails
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl: (7) Failed to connect to api.github.com" >&2
+exit 7
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the download function - should fail
+    local output_file="$TEST_TEMP_DIR/failed_download.json"
+    run download_sbom "owner/repo" "$output_file"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Failed to download SBOM file"* ]]
+}

@@ -311,3 +311,48 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"Failed to download SBOM file"* ]]
 }
+
+# Test 9: mock jq command for testing JSON processing
+@test "mock jq command for testing JSON processing" {
+    # Create a mock jq that returns predictable output
+    cat > "$MOCK_DIR/jq" << 'EOF'
+#!/bin/bash
+# Mock jq command
+echo "jq called with: $*" >> "$BATS_TEST_TMPDIR/jq_calls.log"
+
+# Handle different jq operations
+case "$*" in
+    *".bomFormat"*)
+        echo "CycloneDX"
+        ;;
+    *".spdxVersion"*)
+        echo "SPDX-2.2"
+        ;;
+    *". | empty"*)
+        # JSON validation - just succeed
+        exit 0
+        ;;
+    *)
+        # Default - just succeed
+        exit 0
+        ;;
+esac
+EOF
+    chmod +x "$MOCK_DIR/jq"
+    
+    # Create a test file
+    local test_file="$TEST_TEMP_DIR/test.json"
+    echo '{"bomFormat": "CycloneDX"}' > "$test_file"
+    
+    # Test detect_sbom_format with our mock
+    run detect_sbom_format "$test_file"
+    
+    [ "$status" -eq 0 ]
+    [ "$output" = "cyclonedx" ]
+    
+    # Verify jq was called
+    [ -f "$BATS_TEST_TMPDIR/jq_calls.log" ]
+    local jq_call
+    jq_call=$(cat "$BATS_TEST_TMPDIR/jq_calls.log")
+    [[ "$jq_call" == *".bomFormat"* ]]
+}

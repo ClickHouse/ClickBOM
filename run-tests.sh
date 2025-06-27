@@ -235,6 +235,8 @@ SIMPLE_ONLY=false
 ADVANCED_ONLY=false
 FILTER=""
 SPECIFIC_FILE=""
+SETUP_ONLY=false
+LIST_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in

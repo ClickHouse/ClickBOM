@@ -225,3 +225,71 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"Failed to upload SBOM to S3"* ]]
 }
+
+# Test 7: download_sbom with mocked curl command
+@test "download_sbom calls curl with correct GitHub API parameters" {
+    # Create a mock curl command
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+# Mock curl command - log the call and return fake SBOM data
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check if this is the GitHub API call we expect
+if [[ "$*" == *"api.github.com/repos"* ]] && [[ "$*" == *"dependency-graph/sbom"* ]]; then
+    # Find the output file from the arguments
+    local output_file=""
+    local next_is_output=false
+    for arg in "$@"; do
+        if [[ "$next_is_output" == "true" ]]; then
+            output_file="$arg"
+            break
+        fi
+        if [[ "$arg" == "-o" ]]; then
+            next_is_output=true
+        fi
+    done
+    
+    # Write fake SBOM data to the output file
+    if [[ -n "$output_file" ]]; then
+        cat > "$output_file" << 'SBOM_EOF'
+{
+    "sbom": {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.6",
+        "components": [
+            {
+                "name": "test-component",
+                "version": "1.0.0"
+            }
+        ]
+    }
+}
+SBOM_EOF
+    fi
+    exit 0
+else
+    exit 1
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the download function
+    local output_file="$TEST_TEMP_DIR/downloaded_sbom.json"
+    run download_sbom "owner/repo" "$output_file"
+    
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Verify curl was called correctly
+    [ -f "$BATS_TEST_TMPDIR/curl_calls.log" ]
+    local curl_call
+    curl_call=$(cat "$BATS_TEST_TMPDIR/curl_calls.log")
+    
+    [[ "$curl_call" == *"api.github.com/repos/owner/repo/dependency-graph/sbom"* ]]
+    [[ "$curl_call" == *"Authorization: Bearer $GITHUB_TOKEN"* ]]
+    [[ "$curl_call" == *"-o $output_file"* ]]
+    
+    # Verify the downloaded file is valid JSON
+    run jq . "$output_file"  
+    [ "$status" -eq 0 ]
+}

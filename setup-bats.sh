@@ -85,8 +85,10 @@ if [[ ! -f "test/entrypoint.bats" ]]; then
 EOF
 fi
 
-# Create a test runner script
-cat > run-tests.sh << 'EOF'
+# Create a test runner script only if it doesn't exist
+if [[ ! -f "run-tests.sh" ]]; then
+    # Create a test runner script
+    cat > run-tests.sh << 'EOF'
 #!/bin/bash
 
 # run-tests.sh - Test runner script
@@ -104,48 +106,7 @@ else
 fi
 EOF
 
-chmod +x run-tests.sh
-
-# Create a simple Makefile for convenience
-cat > Makefile << 'EOF'
-.PHONY: test test-verbose clean help
-
-# Default target
-help:
-	@echo "Available targets:"
-	@echo "  test         - Run all tests"
-	@echo "  test-verbose - Run tests with verbose output"
-	@echo "  clean        - Clean test artifacts"
-	@echo "  help         - Show this help"
-
-# Run tests
-test:
-	@echo "Running BATS tests..."
-	@bats test/*.bats
-
-# Run tests with verbose output
-test-verbose:
-	@echo "Running BATS tests (verbose)..."
-	@bats --verbose-run test/*.bats
-
-# Clean test artifacts
-clean:
-	@echo "Cleaning test artifacts..."
-	@find test -name "*.tmp" -delete 2>/dev/null || true
-	@rm -rf test/tmp 2>/dev/null || true
-EOF
-
-echo -e "${GREEN}BATS setup complete!${NC}"
-echo ""
-echo "Getting started:"
-echo "1. Edit test/entrypoint.bats to add your tests"
-echo "2. Run tests with: make test"
-echo "3. Run tests with verbose output: make test-verbose"
-echo "4. Or run directly: bats test/entrypoint.bats"
-echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo "- Copy the full test content from the artifact into test/entrypoint.bats"
-echo "- Make sure your entrypoint.sh has proper permissions: chmod +x entrypoint.sh"
-echo "- Install jq if not already installed (required by your script)"
-echo ""
-echo "Happy testing! 🧪"
+    chmod +x run-tests.sh
+else
+    echo -e "${YELLOW}Test runner script already exists: run-tests.sh${NC}"
+fi

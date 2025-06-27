@@ -105,3 +105,41 @@ EOF
     [ "$status" -eq 0 ]
     [ "$output" = "spdxjson" ]
 }
+
+# Test 3: extract_sbom_from_wrapper with a temporary wrapped SBOM file
+@test "extract_sbom_from_wrapper handles wrapped SBOM" {
+    # Create a wrapped SBOM file
+    local wrapped_sbom="$TEST_TEMP_DIR/wrapped_sbom.json"
+    local extracted_sbom="$TEST_TEMP_DIR/extracted_sbom.json"
+    
+    cat > "$wrapped_sbom" << 'EOF'
+{
+    "status": "success",
+    "sbom": {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.6",
+        "components": [
+            {
+                "name": "test-component",
+                "version": "1.0.0"
+            }
+        ]
+    }
+}
+EOF
+
+    # Test the extraction function
+    run extract_sbom_from_wrapper "$wrapped_sbom" "$extracted_sbom"
+    
+    [ "$status" -eq 0 ]
+    [ -f "$extracted_sbom" ]
+    
+    # Verify the extracted content is correct
+    local extracted_format
+    extracted_format=$(jq -r '.bomFormat' "$extracted_sbom")
+    [ "$extracted_format" = "CycloneDX" ]
+    
+    # Verify the wrapper properties are gone
+    run jq -e '.status' "$extracted_sbom"
+    [ "$status" -ne 0 ]  # Should fail because .status shouldn't exist in extracted file
+}

@@ -163,9 +163,9 @@ run_bats() {
     
     # Determine which tests to run
     if [[ "${SIMPLE_ONLY:-false}" == "true" ]]; then
-        test_files=("test/simple_start.bats")
+        test_files=("test/simple.bats")
     elif [[ "${ADVANCED_ONLY:-false}" == "true" ]]; then
-        test_files=("test/advanced_tests.bats")
+        test_files=("test/advanced.bats")
     elif [[ -n "${SPECIFIC_FILE:-}" ]]; then
         test_files=("$SPECIFIC_FILE")
     else
@@ -179,8 +179,8 @@ run_bats() {
     if [[ ${#test_files[@]} -eq 0 ]]; then
         echo -e "${YELLOW}⚠️  No test files found to run${NC}"
         echo "Available options:"
-        echo "  - Create test/simple_start.bats for simple tests"
-        echo "  - Create test/advanced_tests.bats for advanced tests"
+        echo "  - Create test/simple.bats for simple tests"
+        echo "  - Create test/advanced.bats for advanced tests"
         echo "  - Run ./setup-bats.sh to set up basic test structure"
         return 1
     fi

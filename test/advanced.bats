@@ -168,3 +168,42 @@ EOF
     run diff "$normal_sbom" "$output_sbom"
     [ "$status" -eq 0 ]
 }
+
+# ============================================================================
+# TESTS WITH COMMAND MOCKING
+# ============================================================================
+
+# ============================================================================
+# TESTS WITH COMMAND MOCKING
+# ============================================================================
+
+@test "upload_to_s3 calls aws s3 cp with correct parameters" {
+    # Create a mock aws command that logs what it was called with
+    cat > "$MOCK_DIR/aws" << 'EOF'
+#!/bin/bash
+# Mock aws command - just log the arguments and succeed
+echo "aws called with: $*" >> "$BATS_TEST_TMPDIR/aws_calls.log"
+exit 0
+EOF
+    chmod +x "$MOCK_DIR/aws"
+    
+    # Create a test file to upload
+    local test_file="$TEST_TEMP_DIR/test_sbom.json"
+    echo '{"bomFormat": "CycloneDX"}' > "$test_file"
+    
+    # Test the upload function
+    run upload_to_s3 "$test_file" "my-bucket" "path/to/sbom.json"
+    
+    [ "$status" -eq 0 ]
+    
+    # Verify aws was called with correct parameters
+    [ -f "$BATS_TEST_TMPDIR/aws_calls.log" ]
+    local aws_call
+    aws_call=$(cat "$BATS_TEST_TMPDIR/aws_calls.log")
+    
+    [[ "$aws_call" == *"s3 cp"* ]]
+    [[ "$aws_call" == *"$test_file"* ]]
+    [[ "$aws_call" == *"s3://my-bucket/path/to/sbom.json"* ]]
+    [[ "$aws_call" == *"--content-type"* ]]
+    [[ "$aws_call" == *"application/json"* ]]
+}

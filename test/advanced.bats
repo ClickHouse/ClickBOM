@@ -173,10 +173,7 @@ EOF
 # TESTS WITH COMMAND MOCKING
 # ============================================================================
 
-# ============================================================================
-# TESTS WITH COMMAND MOCKING
-# ============================================================================
-
+# Test 5: upload_to_s3 with mocked aws command
 @test "upload_to_s3 calls aws s3 cp with correct parameters" {
     # Create a mock aws command that logs what it was called with
     cat > "$MOCK_DIR/aws" << 'EOF'
@@ -206,4 +203,25 @@ EOF
     [[ "$aws_call" == *"s3://my-bucket/path/to/sbom.json"* ]]
     [[ "$aws_call" == *"--content-type"* ]]
     [[ "$aws_call" == *"application/json"* ]]
+}
+
+# Test 6: upload_to_s3 handles aws command failure
+@test "upload_to_s3 handles aws command failure" {
+    # Create a mock aws command that fails
+    cat > "$MOCK_DIR/aws" << 'EOF'
+#!/bin/bash
+echo "AWS Error: Access denied" >&2
+exit 1
+EOF
+    chmod +x "$MOCK_DIR/aws"
+    
+    # Create a test file
+    local test_file="$TEST_TEMP_DIR/test_sbom.json"
+    echo '{"bomFormat": "CycloneDX"}' > "$test_file"
+    
+    # Test the upload function - should fail
+    run upload_to_s3 "$test_file" "my-bucket" "path/to/sbom.json"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Failed to upload SBOM to S3"* ]]
 }

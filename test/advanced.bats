@@ -412,22 +412,15 @@ EOF
 # Mock cyclonedx convert
 echo "cyclonedx called with: $*" >> "$BATS_TEST_TMPDIR/cyclonedx_calls.log"
 
-# Find input and output files - handle both --flag=value and --flag value formats
-local input_file=""
-local output_file=""
-local i=0
-while [[ $i -lt $# ]]; do
-    arg="${!i}"
-    case "$arg" in
-        --input-file=*)
-            input_file="${arg#*=}"
-            ;;
+# Find input and output files - handle --flag value format
+input_file=""
+output_file=""
+i=1
+while [[ $i -le $# ]]; do
+    case "${!i}" in
         --input-file)
             ((i++))
             input_file="${!i}"
-            ;;
-        --output-file=*)
-            output_file="${arg#*=}"
             ;;
         --output-file)
             ((i++))
@@ -505,30 +498,7 @@ EOF
     
     # Step 4: Convert format
     run convert_sbom "$extracted_sbom" "$converted_sbom" "spdxjson" "cyclonedx"
-    
-    # Debug output if conversion fails
-    if [ "$status" -ne 0 ]; then
-        echo "Convert failed with status: $status" >&3
-        echo "Convert output: $output" >&3
-        if [ -f "$BATS_TEST_TMPDIR/cyclonedx_calls.log" ]; then
-            echo "CycloneDX calls:" >&3
-            cat "$BATS_TEST_TMPDIR/cyclonedx_calls.log" >&3
-        fi
-    fi
-    
     [ "$status" -eq 0 ]
-    
-    # Debug if converted file doesn't exist
-    if [ ! -f "$converted_sbom" ]; then
-        echo "Converted SBOM file not found: $converted_sbom" >&3
-        echo "Files in temp dir:" >&3
-        ls -la "$TEST_TEMP_DIR" >&3
-        if [ -f "$BATS_TEST_TMPDIR/cyclonedx_calls.log" ]; then
-            echo "CycloneDX debug log:" >&3
-            cat "$BATS_TEST_TMPDIR/cyclonedx_calls.log" >&3
-        fi
-    fi
-    
     [ -f "$converted_sbom" ]
     
     # Step 5: Upload to S3

@@ -30,7 +30,7 @@ usage() {
     echo "  $0 -a                       # Run advanced tests only"
     echo "  $0 -v                       # Run with verbose output"
     echo "  $0 -f 'log_info'            # Run tests matching 'log_info'"
-    echo "  $0 test/simple_start.bats   # Run specific test file"
+    echo "  $0 test/simple.bats   # Run specific test file"
 }
 
 # Check if BATS is installed
@@ -259,12 +259,12 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --setup)
-            setup_check
-            exit $?
+            SETUP_ONLY=true
+            shift
             ;;
         --list)
-            list_tests
-            exit 0
+            LIST_ONLY=true
+            shift
             ;;
         *.bats)
             SPECIFIC_FILE="$1"
@@ -280,6 +280,17 @@ done
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # Handle special modes first
+    if [[ "$SETUP_ONLY" == "true" ]]; then
+        setup_check
+        exit $?
+    fi
+    
+    if [[ "$LIST_ONLY" == "true" ]]; then
+        list_tests
+        exit 0
+    fi
+    
     # Check basic setup first
     check_bats
     

@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     wget \
     ca-certificates \
-    libicu70 \
+    libicu74 \
     vim-common \
     file \
     && rm -rf /var/lib/apt/lists/*

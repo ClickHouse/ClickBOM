@@ -291,16 +291,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Finished parsing. Final values:"
-echo "SETUP_ONLY=$SETUP_ONLY"
-echo "LIST_ONLY=$LIST_ONLY"
-echo "SIMPLE_ONLY=$SIMPLE_ONLY"
-echo "ADVANCED_ONLY=$ADVANCED_ONLY"
-
-# Main execution
-# Debug: Show what flags were parsed
-echo "Debug: SETUP_ONLY=$SETUP_ONLY, LIST_ONLY=$LIST_ONLY, SIMPLE_ONLY=$SIMPLE_ONLY, ADVANCED_ONLY=$ADVANCED_ONLY"
-
 # Handle special modes first
 if [[ "$SETUP_ONLY" == "true" ]]; then
     echo "Running setup check..."

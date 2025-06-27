@@ -356,3 +356,152 @@ EOF
     jq_call=$(cat "$BATS_TEST_TMPDIR/jq_calls.log")
     [[ "$jq_call" == *".bomFormat"* ]]
 }
+
+# ============================================================================
+# COMPLEX SCENARIOS - COMBINING MOCKING AND TEMP FILES
+# ============================================================================
+
+# Test 10: full workflow simulation with mocks and temp files
+@test "full workflow simulation with mocks and temp files" {
+    # Set up multiple mocks
+    
+    # Mock curl for downloading
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+if [[ "$*" == *"dependency-graph/sbom"* ]]; then
+    # Find output file
+    local output_file=""
+    local next_is_output=false
+    for arg in "$@"; do
+        if [[ "$next_is_output" == "true" ]]; then
+            output_file="$arg"
+            break
+        fi
+        if [[ "$arg" == "-o" ]]; then
+            next_is_output=true
+        fi
+    done
+    
+    # Create a realistic wrapped SBOM
+    cat > "$output_file" << 'SBOM_EOF'
+{
+    "sbom": {
+        "spdxVersion": "SPDX-2.2",
+        "SPDXID": "SPDXRef-DOCUMENT",
+        "name": "test-repo",
+        "packages": [
+            {
+                "SPDXID": "SPDXRef-Package-test",
+                "name": "lodash",
+                "versionInfo": "4.17.21",
+                "licenseConcluded": "MIT"
+            }
+        ]
+    }
+}
+SBOM_EOF
+    exit 0
+fi
+exit 1
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Mock cyclonedx convert command
+    cat > "$MOCK_DIR/cyclonedx" << 'EOF'
+#!/bin/bash
+# Mock cyclonedx convert
+echo "cyclonedx called with: $*" >> "$BATS_TEST_TMPDIR/cyclonedx_calls.log"
+
+# Find input and output files
+local input_file=""
+local output_file=""
+for i in "${@}"; do
+    case $i in
+        --input-file=*)
+            input_file="${i#*=}"
+            ;;
+        --output-file=*)
+            output_file="${i#*=}"
+            ;;
+    esac
+done
+
+# Convert SPDX to CycloneDX (simplified simulation)
+if [[ -n "$input_file" && -n "$output_file" ]]; then
+    cat > "$output_file" << 'CONVERTED_EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+        {
+            "name": "lodash",
+            "version": "4.17.21",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ]
+        }
+    ]
+}
+CONVERTED_EOF
+fi
+exit 0
+EOF
+    chmod +x "$MOCK_DIR/cyclonedx"
+    
+    # Mock aws s3 cp
+    cat > "$MOCK_DIR/aws" << 'EOF'
+#!/bin/bash
+echo "aws s3 cp successful" >> "$BATS_TEST_TMPDIR/aws_calls.log"
+exit 0
+EOF
+    chmod +x "$MOCK_DIR/aws"
+    
+    # Set up test environment
+    export SBOM_FORMAT="cyclonedx"
+    export SBOM_SOURCE="github"
+    
+    # Create temporary files for the workflow
+    local original_sbom="$TEST_TEMP_DIR/original.json"
+    local extracted_sbom="$TEST_TEMP_DIR/extracted.json"
+    local converted_sbom="$TEST_TEMP_DIR/converted.json"
+    
+    # Test the workflow steps
+    
+    # Step 1: Download SBOM
+    run download_sbom "test/repo" "$original_sbom"
+    [ "$status" -eq 0 ]
+    [ -f "$original_sbom" ]
+    
+    # Step 2: Extract from wrapper
+    run extract_sbom_from_wrapper "$original_sbom" "$extracted_sbom"
+    [ "$status" -eq 0 ]
+    [ -f "$extracted_sbom" ]
+    
+    # Step 3: Detect format
+    run detect_sbom_format "$extracted_sbom"
+    [ "$status" -eq 0 ]
+    [ "$output" = "spdxjson" ]
+    
+    # Step 4: Convert format
+    run convert_sbom "$extracted_sbom" "$converted_sbom" "spdxjson" "cyclonedx"
+    [ "$status" -eq 0 ]
+    [ -f "$converted_sbom" ]
+    
+    # Step 5: Upload to S3
+    run upload_to_s3 "$converted_sbom" "test-bucket" "test-key.json"
+    [ "$status" -eq 0 ]
+    
+    # Verify all our mocks were called
+    [ -f "$BATS_TEST_TMPDIR/cyclonedx_calls.log" ]
+    [ -f "$BATS_TEST_TMPDIR/aws_calls.log" ]
+    
+    # Verify final file format
+    local final_format
+    # Use real jq here since we want to actually check the file
+    final_format=$(jq -r '.bomFormat' "$converted_sbom")
+    [ "$final_format" = "CycloneDX" ]
+}

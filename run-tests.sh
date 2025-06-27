@@ -280,13 +280,18 @@ done
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # Debug: Show what flags were parsed
+    echo "Debug: SETUP_ONLY=$SETUP_ONLY, LIST_ONLY=$LIST_ONLY, SIMPLE_ONLY=$SIMPLE_ONLY, ADVANCED_ONLY=$ADVANCED_ONLY"
+    
     # Handle special modes first
     if [[ "$SETUP_ONLY" == "true" ]]; then
+        echo "Running setup check..."
         setup_check
         exit $?
     fi
     
     if [[ "$LIST_ONLY" == "true" ]]; then
+        echo "Listing tests..."
         list_tests
         exit 0
     fi

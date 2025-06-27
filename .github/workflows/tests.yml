@@ -1,18 +1,24 @@
 # Once this repository is public, move this workflow to security-integrations
-name: ClickBOM Tests
+name: 💣 ClickBOM Tests
 on: [push]
 
 jobs:
   test_clickbom_github:
-    name: ClickBOM Tests
+    name: 💣 ClickBOM Tests
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: 🧾 Checkout
         uses: actions/checkout@v4
 
-      - name: Setup BATS
+      - name: ⚙️ Setup BATS
         run: ./setup-bats.sh
 
-      - name: Run Tests
-        run: ./run-tests.sh
+      - name: 📋 Check Tests
+        run: ./run-tests.sh --setup
+
+      - name: 🧪 Run Simple Tests
+        run: ./run-tests.sh --simple
+
+      - name: 🧪 Run Advanced Tests
+        run: ./run-tests.sh --advanced

@@ -143,3 +143,28 @@ EOF
     run jq -e '.status' "$extracted_sbom"
     [ "$status" -ne 0 ]  # Should fail because .status shouldn't exist in extracted file
 }
+
+# Test 4: extract_sbom_from_wrapper handles unwrapped SBOM
+@test "extract_sbom_from_wrapper handles non-wrapped SBOM" {
+    # Create a non-wrapped SBOM file
+    local normal_sbom="$TEST_TEMP_DIR/normal_sbom.json"
+    local output_sbom="$TEST_TEMP_DIR/output_sbom.json"
+    
+    cat > "$normal_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": []
+}
+EOF
+
+    # Test the extraction function (should just copy the file)
+    run extract_sbom_from_wrapper "$normal_sbom" "$output_sbom"
+    
+    [ "$status" -eq 0 ]
+    [ -f "$output_sbom" ]
+    
+    # Files should be identical
+    run diff "$normal_sbom" "$output_sbom"
+    [ "$status" -eq 0 ]
+}

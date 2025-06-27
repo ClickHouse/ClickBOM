@@ -238,37 +238,48 @@ SPECIFIC_FILE=""
 SETUP_ONLY=false
 LIST_ONLY=false
 
+echo "Starting argument parsing with $# arguments: $*"
+
 while [[ $# -gt 0 ]]; do
+    echo "Processing argument: '$1'"
     case $1 in
         -h|--help)
+            echo "Help requested"
             usage
             exit 0
             ;;
         -v|--verbose)
+            echo "Setting VERBOSE=true"
             VERBOSE=true
             shift
             ;;
         -s|--simple)
+            echo "Setting SIMPLE_ONLY=true"
             SIMPLE_ONLY=true
             shift
             ;;
         -a|--advanced)
+            echo "Setting ADVANCED_ONLY=true"
             ADVANCED_ONLY=true
             shift
             ;;
         -f|--filter)
+            echo "Setting FILTER=$2"
             FILTER="$2"
             shift 2
             ;;
         --setup)
+            echo "Setting SETUP_ONLY=true"
             SETUP_ONLY=true
             shift
             ;;
         --list)
+            echo "Setting LIST_ONLY=true"
             LIST_ONLY=true
             shift
             ;;
         *.bats)
+            echo "Setting SPECIFIC_FILE=$1"
             SPECIFIC_FILE="$1"
             shift
             ;;
@@ -279,6 +290,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+echo "Finished parsing. Final values:"
+echo "SETUP_ONLY=$SETUP_ONLY"
+echo "LIST_ONLY=$LIST_ONLY"
+echo "SIMPLE_ONLY=$SIMPLE_ONLY"
+echo "ADVANCED_ONLY=$ADVANCED_ONLY"
 
 # Main execution
 # Debug: Show what flags were parsed

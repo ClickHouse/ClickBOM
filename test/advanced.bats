@@ -69,3 +69,39 @@ EOF
     [ "$status" -eq 0 ]
     [ "$output" = "cyclonedx" ]
 }
+
+# Test 2: detect_sbom_format with a temporary SPDX SBOM file
+@test "detect_sbom_format works with temporary SPDX file" {
+    # Create a temporary SPDX SBOM file
+    local test_sbom="$TEST_TEMP_DIR/spdx_test.json"
+    
+    cat > "$test_sbom" << 'EOF'
+{
+    "spdxVersion": "SPDX-2.2",
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "name": "test-document",
+    "documentNamespace": "https://example.com/test",
+    "packages": [
+        {
+            "SPDXID": "SPDXRef-Package",
+            "name": "test-package",
+            "versionInfo": "1.0.0"
+        }
+    ]
+}
+EOF
+
+    # Verify the file was created correctly
+    [ -f "$test_sbom" ]
+    [ -s "$test_sbom" ]
+    
+    # Verify it's valid JSON
+    run jq . "$test_sbom"
+    [ "$status" -eq 0 ]
+    
+    # Test the function
+    run detect_sbom_format "$test_sbom"
+    
+    [ "$status" -eq 0 ]
+    [ "$output" = "spdxjson" ]
+}

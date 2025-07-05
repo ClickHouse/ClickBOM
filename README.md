@@ -1,4 +1,4 @@
-[![Test ClickBOM Action](https://github.com/ClickHouse/ClickBOM/actions/workflows/test.yml/badge.svg)](https://github.com/ClickHouse/ClickBOM/actions/workflows/test.yml)
+[![💣 ClickBOM Tests](https://github.com/ClickHouse/ClickBOM/actions/workflows/tests.yml/badge.svg)](https://github.com/ClickHouse/ClickBOM/actions/workflows/tests.yml)
 
 # ClickBOM
 

@@ -2,10 +2,15 @@
 
 # ClickBOM
 
-Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
+Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 
 - [Inputs](#inputs)
-  - [Notes](#notes)
+  - [GitHub](#github)
+  - [Mend](#mend)
+  - [Wiz](#wiz)
+  - [AWS](#aws)
+  - [ClickHouse](#clickhouse)
+  - [General](#general)
 - [Usage](#usage)
   - [Same Repository](#same-repository)
   - [Same Repository with ClickHouse](#same-repository-with-clickhouse)
@@ -44,6 +49,15 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 - The `mend-org-scope-uuid` is used for organization-scoped SBOMs, which is different from the `mend-org-uuid` used for authentication.
 - ClickBOM only supports downloading SBOMs from Mend in the CycloneDX v1.5 format. If you need to convert the SBOM to SPDX, you can use the `sbom-format` input. (Support for SPDX coming soon)
 
+### Wiz
+
+| Name              | Description       | Default | Required | Sensitive |
+| ----------------- | ----------------- | ------- | -------- | --------- |
+| wiz-api-endpoint  | Wiz API Endpoint  |         | false    | true      |
+| wiz-client-id     | Wiz Client ID     |         | false    | true      |
+| wiz-client-secret | Wiz Client Secret |         | false    | true      |
+| wiz-report-id     | Wiz Report ID     |         | false    | true      |
+
 ### AWS
 
 | Name                  | Description                         | Default        | Required | Sensitive |
@@ -71,6 +85,7 @@ Downloads SBOMs from GitHub. Uploads to S3 and ClickHouse.
 
 | Name                  | Description                         | Default        | Required | Sensitive |
 | --------------------- | ----------------------------------- | -------------- | -------- | --------- |
+| sbom-source           | Source of SBOM (github, mend, wiz)  | github         | false    | false     |
 | sbom-format           | SBOM format (spdxjson or cyclonedx) | cyclonedx      | false    | false     |
 | merge                 | Merge SBOMs stored in S3            | false          | false    | false     |
 

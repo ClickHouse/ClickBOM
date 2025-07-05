@@ -82,6 +82,22 @@ validate_mend_env() {
     fi
 }
 
+# Validate Wiz environment variables
+validate_wiz_env() {
+    if [[ "${SBOM_SOURCE:-}" == "wiz" ]]; then
+        local required_wiz_vars=("WIZ_API_ENDPOINT" "WIZ_CLIENT_ID" "WIZ_CLIENT_SECRET" "WIZ_REPORT_ID")
+        
+        for var in "${required_wiz_vars[@]}"; do
+            if [[ -z "${!var:-}" ]]; then
+                log_error "Required Wiz environment variable $var is not set"
+                exit 1
+            fi
+        done
+        
+        log_info "Wiz environment validated"
+    fi
+}
+
 # Download SBOM from GitHub repository
 download_sbom() {
     local repo="$1"
@@ -539,6 +555,186 @@ download_mend_report() {
     
     log_error "Failed to download Mend SBOM after $max_attempts attempts"
     exit 1
+}
+
+# Authenticate with Wiz API and get access token
+authenticate_wiz() {
+    log_info "Authenticating with Wiz API"
+    
+    # Prepare authentication payload
+    local auth_payload=$(cat <<EOF
+{
+    "audience": "wiz-api",
+    "grant_type": "client_credentials",
+    "client_id": "$WIZ_CLIENT_ID",
+    "client_secret": "$WIZ_CLIENT_SECRET"
+}
+EOF
+)
+    
+    # Get access token
+    local auth_response
+    if auth_response=$(curl -s \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        --data "$auth_payload" \
+        "$WIZ_API_ENDPOINT/oauth/token"); then
+        
+        log_debug "Auth response: $auth_response"
+        
+        # Extract access token
+        local access_token
+        if access_token=$(echo "$auth_response" | jq -r '.access_token // empty'); then
+            if [[ -n "$access_token" && "$access_token" != "null" ]]; then
+                log_success "Wiz authentication successful"
+                WIZ_ACCESS_TOKEN="$access_token"
+                return 0
+            else
+                log_error "Failed to extract access token from response"
+                log_error "Response: $auth_response"
+                exit 1
+            fi
+        else
+            log_error "Failed to parse authentication response"
+            log_error "Response: $auth_response"
+            exit 1
+        fi
+    else
+        log_error "Failed to authenticate with Wiz API"
+        log_error "Check your API endpoint, client ID, and client secret"
+        exit 1
+    fi
+}
+
+# Download SBOM report from Wiz using GraphQL
+download_wiz_report() {
+    local output_file="$1"
+    
+    log_info "Downloading Wiz report: $WIZ_REPORT_ID"
+    
+    # Authenticate first
+    authenticate_wiz
+    
+    # Prepare GraphQL query
+    local graphql_query=$(cat <<'EOF'
+{
+  "query": "query ReportDownloadUrl($reportId: ID!) { report(id: $reportId) { lastRun { url } } }",
+  "variables": {
+    "reportId": "%s"
+  }
+}
+EOF
+)
+    
+    # Format the query with the actual report ID
+    local formatted_query
+    formatted_query=$(printf "$graphql_query" "$WIZ_REPORT_ID")
+    
+    log_debug "GraphQL query: $formatted_query"
+    
+    # Execute GraphQL query to get download URL
+    local graphql_response
+    if graphql_response=$(curl -s \
+        -X POST \
+        -H "Authorization: Bearer $WIZ_ACCESS_TOKEN" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        --data "$formatted_query" \
+        "$WIZ_API_ENDPOINT/api/graphql"); then
+        
+        log_debug "GraphQL response: $graphql_response"
+        
+        # Check for GraphQL errors
+        if echo "$graphql_response" | jq -e '.errors' > /dev/null 2>&1; then
+            local error_message
+            error_message=$(echo "$graphql_response" | jq -r '.errors[0].message // "Unknown GraphQL error"')
+            log_error "Wiz GraphQL error: $error_message"
+            exit 1
+        fi
+        
+        # Extract download URL
+        local download_url
+        if download_url=$(echo "$graphql_response" | jq -r '.data.report.lastRun.url // empty'); then
+            if [[ -n "$download_url" && "$download_url" != "null" ]]; then
+                log_info "Got download URL from Wiz"
+                log_debug "Download URL: $download_url"
+                
+                # Download the report from the URL
+                download_wiz_report_from_url "$download_url" "$output_file"
+                return 0
+            else
+                log_error "No download URL found in response"
+                log_error "This could mean:"
+                log_error "  - Report ID does not exist"
+                log_error "  - Report has no completed runs"
+                log_error "  - Report URL has expired"
+                log_error "Response: $graphql_response"
+                exit 1
+            fi
+        else
+            log_error "Failed to parse GraphQL response"
+            log_error "Response: $graphql_response"
+            exit 1
+        fi
+    else
+        log_error "Failed to execute GraphQL query"
+        exit 1
+    fi
+}
+
+# Download the report from the provided URL
+download_wiz_report_from_url() {
+    local download_url="$1"
+    local output_file="$2"
+    
+    log_info "Downloading Wiz report from URL"
+    
+    # Download the report file from the provided URL
+    if curl -L \
+        --max-time 300 \
+        --connect-timeout 30 \
+        --retry 3 \
+        --retry-delay 5 \
+        --silent \
+        --show-error \
+        --compressed \
+        -H "Authorization: Bearer $WIZ_ACCESS_TOKEN" \
+        -H "Accept: application/json" \
+        "$download_url" \
+        -o "$output_file"; then
+        
+        # Verify the download
+        if [[ -f "$output_file" && -s "$output_file" ]]; then
+            local file_size
+            file_size=$(du -h "$output_file" | cut -f1)
+            log_success "Wiz report downloaded successfully ($file_size)"
+            
+            # Validate JSON format
+            if jq . "$output_file" > /dev/null 2>&1; then
+                log_success "Downloaded report is valid JSON"
+                
+                # Log some basic info about the report
+                local report_info
+                if report_info=$(jq -r '.bomFormat // .spdxVersion // .reportType // "unknown"' "$output_file" 2>/dev/null); then
+                    log_info "Report format detected: $report_info"
+                fi
+                
+                return 0
+            else
+                log_error "Downloaded file is not valid JSON"
+                log_error "Content preview:"
+                head -n 5 "$output_file"
+                exit 1
+            fi
+        else
+            log_error "Downloaded file is empty or missing"
+            exit 1
+        fi
+    else
+        log_error "Failed to download Wiz report from URL"
+        exit 1
+    fi
 }
 
 # Fix SPDX compatibility issues for CycloneDX conversion
@@ -1220,6 +1416,7 @@ main() {
     # Validate environment
     validate_env
     validate_mend_env
+    validate_wiz_env
     
     # Set defaults for optional variables
     local s3_key="${S3_KEY:-sbom.json}"
@@ -1293,6 +1490,10 @@ main() {
             "mend")
                 log_info "Downloading SBOM from Mend"
                 request_mend_sbom_export "$original_sbom"
+                ;;
+            "wiz")
+                log_info "Downloading SBOM from Wiz"
+                download_wiz_report "$original_sbom"
                 ;;
             *)
                 log_error "Unsupported SBOM source: $sbom_source"

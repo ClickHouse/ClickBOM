@@ -43,6 +43,19 @@ inputs:
     description: 'Polling interval for Mend report status (seconds)'
     required: false
     default: '30'
+  # Wiz-specific inputs
+  wiz-api-endpoint:
+    description: 'Wiz API endpoint (e.g., https://api.us1.app.wiz.io)'
+    required: false
+  wiz-client-id:
+    description: 'Wiz API client ID'
+    required: false
+  wiz-client-secret:
+    description: 'Wiz API client secret'
+    required: false
+  wiz-report-id:
+    description: 'Wiz report ID to download'
+    required: false
   # AWS-specific inputs
   aws-access-key-id:
     description: 'AWS Access Key ID'
@@ -112,6 +125,11 @@ runs:
     MEND_PROJECT_UUIDS: ${{ inputs.mend-project-uuids }}
     MEND_MAX_WAIT_TIME: ${{ inputs.mend-max-wait-time }}
     MEND_POLL_INTERVAL: ${{ inputs.mend-poll-interval }}
+    # Wiz-specific
+    WIZ_API_ENDPOINT: ${{ inputs.wiz-api-endpoint }}
+    WIZ_CLIENT_ID: ${{ inputs.wiz-client-id }}
+    WIZ_CLIENT_SECRET: ${{ inputs.wiz-client-secret }}
+    WIZ_REPORT_ID: ${{ inputs.wiz-report-id }}
     # AWS-specific
     AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
     AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}

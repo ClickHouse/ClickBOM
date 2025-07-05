@@ -1,4 +1,3 @@
-# Once this repository is public, move this workflow to security-integrations
 name: 💣 ClickBOM Tests
 on: [push]
 

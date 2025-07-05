@@ -579,7 +579,7 @@ EOF
         -H "Content-Type: application/json" \
         -H "Accept: application/json" \
         --data "$auth_payload" \
-        "$WIZ_API_ENDPOINT/oauth/token"); then
+        "$WIZ_AUTH_ENDPOINT"); then
         
         log_debug "Auth response: $auth_response"
         

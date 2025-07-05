@@ -44,8 +44,11 @@ inputs:
     required: false
     default: '30'
   # Wiz-specific inputs
+  wiz-auth-endpoint:
+    description: 'Wiz authentication endpoint'
+    required: false
   wiz-api-endpoint:
-    description: 'Wiz API endpoint (e.g., https://api.us1.app.wiz.io)'
+    description: 'Wiz API endpoint'
     required: false
   wiz-client-id:
     description: 'Wiz API client ID'
@@ -126,6 +129,7 @@ runs:
     MEND_MAX_WAIT_TIME: ${{ inputs.mend-max-wait-time }}
     MEND_POLL_INTERVAL: ${{ inputs.mend-poll-interval }}
     # Wiz-specific
+    WIZ_AUTH_ENDPOINT: ${{ inputs.wiz-auth-endpoint }}
     WIZ_API_ENDPOINT: ${{ inputs.wiz-api-endpoint }}
     WIZ_CLIENT_ID: ${{ inputs.wiz-client-id }}
     WIZ_CLIENT_SECRET: ${{ inputs.wiz-client-secret }}

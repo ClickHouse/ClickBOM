@@ -54,6 +54,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 
 | Name              | Description       | Default | Required | Sensitive |
 | ----------------- | ----------------- | ------- | -------- | --------- |
+| wiz-auth-endpoint | Wiz Auth Endpoint |         | false    | true      |
 | wiz-api-endpoint  | Wiz API Endpoint  |         | false    | true      |
 | wiz-client-id     | Wiz Client ID     |         | false    | true      |
 | wiz-client-secret | Wiz Client Secret |         | false    | true      |
@@ -500,6 +501,7 @@ jobs:
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
           sbom-source: wiz
+          wiz-auth-endpoint: ${{ secrets.CLICKBOM_WIZ_AUTH_ENDPOINT }}
           wiz-api-endpoint: ${{ secrets.CLICKBOM_WIZ_API_ENDPOINT }}
           wiz-client-id: ${{ secrets.CLICKBOM_WIZ_CLIENT_ID }}
           wiz-client-secret: ${{ secrets.CLICKBOM_WIZ_CLIENT_SECRET }}

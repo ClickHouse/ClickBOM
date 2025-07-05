@@ -61,13 +61,13 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 
 ### AWS
 
-| Name                  | Description                         | Default        | Required | Sensitive |
-| --------------------- | ----------------------------------- | -------------- | -------- | --------- |
-| aws-access-key-id     | AWS Access Key ID                   |                | true     | true      |
-| aws-secret-access-key | AWS Secret Access Key               |                | true     | true      |
-| aws-region            | AWS Region                          | us-east-1      | false    | false     |
-| s3-bucket             | S3 Bucket Name                      |                | false    | false     |
-| s3-key                | S3 Key Prefix                       | sbom/sbom.json | false    | false     |
+| Name                  | Description                         | Default   | Required | Sensitive |
+| --------------------- | ----------------------------------- | --------- | -------- | --------- |
+| aws-access-key-id     | AWS Access Key ID                   |           | true     | true      |
+| aws-secret-access-key | AWS Secret Access Key               |           | true     | true      |
+| aws-region            | AWS Region                          | us-east-1 | false    | false     |
+| s3-bucket             | S3 Bucket Name                      |           | false    | false     |
+| s3-key                | S3 Key Prefix                       | sbom.json | false    | false     |
 
 - It is recommended that an S3 bucket be created for the purposes of ClickBOM.
 

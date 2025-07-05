@@ -576,7 +576,7 @@ EOF
     local auth_response
     if auth_response=$(curl -s \
         -X POST \
-        -H "Content-Type: application/json" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
         -H "Accept: application/json" \
         --data "$auth_payload" \
         "$WIZ_AUTH_ENDPOINT"); then

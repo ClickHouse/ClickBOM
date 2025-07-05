@@ -36,7 +36,7 @@ validate_env() {
     local required_vars=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "S3_BUCKET")
 
     # Add REPOSITORY requirement only if not in merge mode
-    if [[ "${MERGE:-false}" != "true" && "${SBOM_SOURCE:-}" != "mend" ]]; then
+    if [[ "${MERGE:-false}" != "true" && "${SBOM_SOURCE:-}" != "mend" && "${SBOM_SOURCE:-}" != "wiz" ]]; then
         required_vars+=("REPOSITORY")
     fi
 

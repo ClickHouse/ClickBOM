@@ -1540,6 +1540,9 @@ main() {
                 "mend")
                     table_name="mend_$(echo "${MEND_PROJECT_UUID:-${MEND_PRODUCT_UUID:-${MEND_ORG_SCOPE_UUID}}}" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')"
                     ;;
+                "wiz")
+                    table_name="wiz_$(echo "${WIZ_REPORT_ID}" | sed 's|[^a-zA-Z0-9]|_|g' | tr '[:upper:]' '[:lower:]')"
+                    ;;
             esac
             log_info "Starting ClickHouse operations for table: $table_name"
             # Setup table with error handling

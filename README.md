@@ -18,6 +18,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
   - [Multiple Repositories](#multiple-repositories)
   - [Merging SBOMs Stored In S3](#merging-sboms-stored-in-s3)
   - [Downloading an SBOM from Mend](#downloading-an-sbom-from-mend)
+  - [Downloading an SBOM from Wiz](#downloading-an-sbom-from-wiz)
 - [Creating a GitHub App](#creating-a-github-app)
 
 ## Inputs
@@ -453,6 +454,56 @@ jobs:
           mend-user-key: ${{ secrets.CLICKBOM_MEND_USER_KEY }}
           mend-product-uuid: ${{ secrets.CLICKBOM_MEND_PRODUCT_UUID }}
           mend-project-uuid: ${{ secrets.CLICKBOM_MEND_PROJECT_UUID }}
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
+```
+
+### Downloading an SBOM from Wiz
+
+If you want to download an SBOM from Wiz, you can use the following example. This example assumes you have the necessary Wiz credentials set up in your GitHub Secrets.
+
+```yaml
+name: Upload SBOM
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  clickbom:
+    name: ClickBOM
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
+          role-session-name: clickbom-session
+          aws-region: us-east-1
+
+      - name: Upload SBOM from Wiz
+        uses: ./
+        with:
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: my-sbom-bucket
+          s3-key: clickbom.json
+          sbom-source: wiz
+          wiz-api-endpoint: ${{ secrets.CLICKBOM_WIZ_API_ENDPOINT }}
+          wiz-client-id: ${{ secrets.CLICKBOM_WIZ_CLIENT_ID }}
+          wiz-client-secret: ${{ secrets.CLICKBOM_WIZ_CLIENT_SECRET }}
+          wiz-report-id: ${{ secrets.CLICKBOM_WIZ_REPORT_ID }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}

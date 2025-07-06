@@ -693,6 +693,9 @@ download_wiz_report_from_url() {
     
     log_info "Downloading Wiz report from URL"
     
+    # Create temporary file for the raw download
+    local temp_download="$temp_dir/wiz_raw_download"
+    
     # Download the report file from the provided URL
     if curl -L \
         --max-time 300 \
@@ -701,17 +704,82 @@ download_wiz_report_from_url() {
         --retry-delay 5 \
         --silent \
         --show-error \
-        --compressed \
         -H "Authorization: Bearer $WIZ_ACCESS_TOKEN" \
         -H "Accept: application/json" \
         "$download_url" \
-        -o "$output_file"; then
+        -o "$temp_download"; then
         
         # Verify the download
-        if [[ -f "$output_file" && -s "$output_file" ]]; then
+        if [[ -f "$temp_download" && -s "$temp_download" ]]; then
             local file_size
-            file_size=$(du -h "$output_file" | cut -f1)
+            file_size=$(du -h "$temp_download" | cut -f1)
             log_success "Wiz report downloaded successfully ($file_size)"
+            
+            # Detect file type and handle compression
+            local file_type
+            file_type=$(file -b "$temp_download" 2>/dev/null || echo "unknown")
+            log_info "Downloaded file type: $file_type"
+            
+            # Handle different file types
+            if [[ "$file_type" =~ "gzip compressed" ]] || [[ "$file_type" =~ "gzip" ]]; then
+                log_info "File is gzip compressed, decompressing..."
+                if gunzip -c "$temp_download" > "$output_file"; then
+                    log_success "File decompressed successfully"
+                else
+                    log_error "Failed to decompress gzip file"
+                    exit 1
+                fi
+            elif [[ "$file_type" =~ "Zip archive" ]] || [[ "$file_type" =~ "zip" ]] || head -c 2 "$temp_download" | xxd | grep -q "504b"; then
+                log_info "File is ZIP archive, extracting..."
+                
+                # Create extraction directory
+                local extract_dir="$temp_dir/wiz_extract"
+                mkdir -p "$extract_dir"
+                
+                # Extract the ZIP file
+                if unzip -q "$temp_download" -d "$extract_dir"; then
+                    log_success "ZIP file extracted successfully"
+                    
+                    # Find JSON files in the extracted content
+                    local json_files
+                    json_files=$(find "$extract_dir" -name "*.json" -type f | head -1)
+                    
+                    if [[ -n "$json_files" ]]; then
+                        log_info "Found JSON file: $(basename "$json_files")"
+                        
+                        # Copy the extracted JSON to our output file
+                        if cp "$json_files" "$output_file"; then
+                            log_success "JSON file extracted and copied successfully"
+                        else
+                            log_error "Failed to copy extracted JSON file"
+                            exit 1
+                        fi
+                    else
+                        log_error "No JSON files found in extracted ZIP"
+                        log_info "Extracted files:"
+                        find "$extract_dir" -type f | head -10
+                        exit 1
+                    fi
+                    
+                    # Cleanup extraction directory
+                    rm -rf "$extract_dir"
+                else
+                    log_error "Failed to extract ZIP file"
+                    exit 1
+                fi
+            else
+                # Assume it's already a JSON file
+                log_info "File appears to be uncompressed, copying as-is..."
+                if cp "$temp_download" "$output_file"; then
+                    log_success "File copied successfully"
+                else
+                    log_error "Failed to copy file"
+                    exit 1
+                fi
+            fi
+            
+            # Cleanup temp download
+            rm -f "$temp_download"
             
             # Validate JSON format
             if jq . "$output_file" > /dev/null 2>&1; then
@@ -725,7 +793,7 @@ download_wiz_report_from_url() {
                 
                 return 0
             else
-                log_error "Downloaded file is not valid JSON"
+                log_error "Downloaded file is not valid JSON after processing"
                 log_error "Content preview:"
                 head -n 5 "$output_file"
                 exit 1

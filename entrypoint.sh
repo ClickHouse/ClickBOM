@@ -578,7 +578,10 @@ EOF
         -X POST \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -H "Accept: application/json" \
-        --data "$auth_payload" \
+        --data grant_type=client_credentials \
+        --data client_id="$WIZ_CLIENT_ID" \
+        --data client_secret="$WIZ_CLIENT_SECRET" \
+        --data audience=wiz-api \
         "$WIZ_AUTH_ENDPOINT"); then
         
         log_debug "Auth response: $auth_response"

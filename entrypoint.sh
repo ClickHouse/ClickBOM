@@ -740,15 +740,24 @@ download_wiz_report_from_url() {
                 if unzip -q "$temp_download" -d "$extract_dir"; then
                     log_success "ZIP file extracted successfully"
                     
+                    # Debug: Show what was extracted
+                    log_info "Extracted files:"
+                    find "$extract_dir" -type f | while read -r file; do
+                        log_info "  - $(basename "$file") ($(file -b "$file" 2>/dev/null || echo "unknown type"))"
+                    done
+                    
                     # Find JSON files in the extracted content
                     local json_files
-                    json_files=$(find "$extract_dir" -name "*.json" -type f | head -1)
+                    json_files=$(find "$extract_dir" -name "*.json" -type f)
                     
                     if [[ -n "$json_files" ]]; then
-                        log_info "Found JSON file: $(basename "$json_files")"
+                        # Use the first JSON file found
+                        local json_file
+                        json_file=$(echo "$json_files" | head -1)
+                        log_info "Found JSON file: $(basename "$json_file")"
                         
                         # Copy the extracted JSON to our output file
-                        if cp "$json_files" "$output_file"; then
+                        if cp "$json_file" "$output_file"; then
                             log_success "JSON file extracted and copied successfully"
                         else
                             log_error "Failed to copy extracted JSON file"
@@ -756,9 +765,34 @@ download_wiz_report_from_url() {
                         fi
                     else
                         log_error "No JSON files found in extracted ZIP"
-                        log_info "Extracted files:"
-                        find "$extract_dir" -type f | head -10
-                        exit 1
+                        log_info "Looking for any files that might be JSON (without .json extension):"
+                        
+                        # Try to find files that might be JSON by content
+                        local potential_json_files=()
+                        while IFS= read -r -d '' file; do
+                            if [[ -f "$file" && -s "$file" ]]; then
+                                # Check if file content looks like JSON
+                                if head -c 1 "$file" | grep -q '[{\[]'; then
+                                    potential_json_files+=("$file")
+                                    log_info "  - $(basename "$file") might be JSON (starts with { or [)"
+                                fi
+                            fi
+                        done < <(find "$extract_dir" -type f -print0)
+                        
+                        if [[ ${#potential_json_files[@]} -gt 0 ]]; then
+                            log_info "Trying first potential JSON file: $(basename "${potential_json_files[0]}")"
+                            if cp "${potential_json_files[0]}" "$output_file"; then
+                                log_success "Potential JSON file copied successfully"
+                            else
+                                log_error "Failed to copy potential JSON file"
+                                exit 1
+                            fi
+                        else
+                            log_error "No JSON or JSON-like files found in ZIP archive"
+                            log_info "All extracted files:"
+                            find "$extract_dir" -type f -exec basename {} \; | sort
+                            exit 1
+                        fi
                     fi
                     
                     # Cleanup extraction directory

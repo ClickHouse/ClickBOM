@@ -751,17 +751,61 @@ download_wiz_report_from_url() {
                     json_files=$(find "$extract_dir" -name "*.json" -type f)
                     
                     if [[ -n "$json_files" ]]; then
-                        # Use the first JSON file found
-                        local json_file
-                        json_file=$(echo "$json_files" | head -1)
-                        log_info "Found JSON file: $(basename "$json_file")"
-                        
-                        # Copy the extracted JSON to our output file
-                        if cp "$json_file" "$output_file"; then
-                            log_success "JSON file extracted and copied successfully"
+                        if [[ $json_count -eq 1 ]]; then
+                            # Single JSON file - just copy it
+                            local json_file
+                            json_file=$(echo "$json_files" | head -1)
+                            log_info "Single JSON file: $(basename "$json_file")"
+                            
+                            if cp "$json_file" "$output_file"; then
+                                log_success "JSON file extracted and copied successfully"
+                            else
+                                log_error "Failed to copy extracted JSON file"
+                                exit 1
+                            fi
                         else
-                            log_error "Failed to copy extracted JSON file"
-                            exit 1
+                            # Multiple JSON files - merge them using existing function
+                            log_info "Multiple JSON files found, merging CycloneDX SBOMs..."
+                            
+                            # Validate all are CycloneDX SBOMs
+                            local cyclonedx_files=()
+                            while IFS= read -r json_file; do
+                                if [[ -f "$json_file" ]]; then
+                                    # Check if it's valid JSON first
+                                    if jq empty "$json_file" >/dev/null 2>&1; then
+                                        # Check if it's CycloneDX
+                                        local bom_format
+                                        bom_format=$(jq -r '.bomFormat // "missing"' "$json_file" 2>/dev/null)
+                                        
+                                        if [[ "$bom_format" == "CycloneDX" ]] || jq -e '.metadata.component' "$json_file" >/dev/null 2>&1; then
+                                            cyclonedx_files+=("$json_file")
+                                            log_info "  ✓ $(basename "$json_file") is valid CycloneDX"
+                                        else
+                                            log_warning "  ⚠ $(basename "$json_file") is not CycloneDX (format: $bom_format)"
+                                        fi
+                                    else
+                                        log_warning "  ⚠ $(basename "$json_file") is not valid JSON"
+                                    fi
+                                fi
+                            done <<< "$json_files"
+                            
+                            if [[ ${#cyclonedx_files[@]} -eq 0 ]]; then
+                                log_error "No valid CycloneDX SBOMs found in ZIP archive"
+                                exit 1
+                            elif [[ ${#cyclonedx_files[@]} -eq 1 ]]; then
+                                # Only one valid CycloneDX file found
+                                log_info "Only one valid CycloneDX SBOM found, copying it"
+                                if cp "${cyclonedx_files[0]}" "$output_file"; then
+                                    log_success "CycloneDX SBOM copied successfully"
+                                else
+                                    log_error "Failed to copy CycloneDX SBOM"
+                                    exit 1
+                                fi
+                            else
+                                # Multiple valid CycloneDX files - merge them
+                                log_info "Merging ${#cyclonedx_files[@]} CycloneDX SBOMs..."
+                                merge_local_cyclonedx_sboms "${cyclonedx_files[@]}" "$output_file"
+                            fi
                         fi
                     else
                         log_error "No JSON files found in extracted ZIP"
@@ -1293,6 +1337,132 @@ EOF
     # Show a summary of what was merged
     log_info "Merge summary:"
     for sbom_file in "${cyclonedx_files[@]}"; do
+        local fname=$(basename "$sbom_file" .json)
+        local comp_count
+        comp_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || comp_count=0
+        log_info "  - $fname: $comp_count components"
+    done
+}
+
+# Merge multiple local CycloneDX SBOMs into one
+merge_local_cyclonedx_sboms() {
+    local output_file="${!#}"  # Last argument is the output file
+    local input_files=("${@:1:$#-1}")  # All arguments except the last one
+    
+    log_info "Merging ${#input_files[@]} local CycloneDX SBOMs"
+    
+    # Create the merged SBOM structure
+    log_info "Creating merged CycloneDX SBOM..."
+    
+    # Start with a proper CycloneDX template
+    local merged_metadata
+    merged_metadata=$(cat <<'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "serialNumber": "",
+    "version": 1,
+    "metadata": {
+        "timestamp": "",
+        "tools": [{
+            "vendor": "ClickBOM",
+            "name": "cyclonedx-merge", 
+            "version": "1.0.0"
+        }],
+        "component": {
+            "type": "application",
+            "name": "wiz-merged-sbom",
+            "version": "1.0.0"
+        }
+    },
+    "components": []
+}
+EOF
+)
+    
+    # Generate a UUID-like serial number and timestamp
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local serial_number
+    if command -v uuidgen >/dev/null 2>&1; then
+        serial_number="urn:uuid:$(uuidgen)"
+    else
+        serial_number="urn:uuid:$(openssl rand -hex 16 | sed 's/\(.{8}\)\(.{4}\)\(.{4}\)\(.{4}\)\(.{12}\)/\1-\2-\3-\4-\5/')"
+    fi
+    
+    # Update metadata with actual values
+    merged_metadata=$(echo "$merged_metadata" | jq --arg ts "$timestamp" --arg sn "$serial_number" '
+        .metadata.timestamp = $ts |
+        .serialNumber = $sn
+    ')
+    
+    # Collect all components from all SBOMs
+    log_info "Collecting components from all SBOMs..."
+    local all_components="$temp_dir/wiz_all_components.json"
+    
+    # Initialize empty array
+    echo "[]" > "$all_components"
+    
+    # Collect all components from input files
+    for sbom_file in "${input_files[@]}"; do
+        local component_count
+        component_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || component_count=0
+        log_info "Processing $(basename "$sbom_file"): $component_count components"
+        
+        # Extract components and append to collection
+        if [[ "$component_count" -gt 0 ]]; then
+            local temp_components="$temp_dir/wiz_temp_components_$(basename "$sbom_file").json"
+            if jq '.components[]' "$sbom_file" > "$temp_components" 2>/dev/null; then
+                # Merge with existing components
+                if jq -s 'flatten' "$all_components" "$temp_components" > "$temp_dir/wiz_merged_temp.json"; then
+                    mv "$temp_dir/wiz_merged_temp.json" "$all_components"
+                else
+                    log_warning "Failed to merge components from $(basename "$sbom_file")"
+                fi
+            else
+                log_warning "Failed to extract components from $(basename "$sbom_file")"
+            fi
+        fi
+    done
+    
+    # Remove duplicates based on name+version+purl combination
+    log_info "Removing duplicate components..."
+    local unique_components="$temp_dir/wiz_unique_components.json"
+    if jq 'unique_by((.name // "unknown") + "@" + (.version // "unknown") + "#" + (.purl // ""))' "$all_components" > "$unique_components"; then
+        log_success "Deduplication completed"
+    else
+        log_error "Failed to deduplicate components"
+        exit 1
+    fi
+    
+    # Create final merged SBOM
+    log_info "Assembling final merged SBOM..."
+    if echo "$merged_metadata" | jq --slurpfile comps "$unique_components" '. + {components: $comps[0]}' > "$output_file"; then
+        log_success "Final SBOM assembled"
+    else
+        log_error "Failed to assemble final SBOM"
+        exit 1
+    fi
+    
+    # Validate the merged SBOM
+    if ! jq . "$output_file" > /dev/null 2>&1; then
+        log_error "Generated merged SBOM is not valid JSON"
+        exit 1
+    fi
+    
+    # Final validation that it's proper CycloneDX
+    if ! jq -e '.bomFormat == "CycloneDX"' "$output_file" > /dev/null 2>&1; then
+        log_error "Generated merged SBOM does not have proper CycloneDX format"
+        exit 1
+    fi
+    
+    local component_count
+    component_count=$(jq '.components | length' "$output_file")
+    
+    log_success "Successfully merged ${#input_files[@]} SBOMs into one with $component_count unique components"
+    
+    # Show a summary of what was merged
+    log_info "Merge summary:"
+    for sbom_file in "${input_files[@]}"; do
         local fname=$(basename "$sbom_file" .json)
         local comp_count
         comp_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || comp_count=0

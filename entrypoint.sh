@@ -751,6 +751,10 @@ download_wiz_report_from_url() {
                     json_files=$(find "$extract_dir" -name "*.json" -type f)
                     
                     if [[ -n "$json_files" ]]; then
+                        local json_count
+                        json_count=$(echo "$json_files" | wc -l)
+                        log_info "Found $json_count JSON files in ZIP archive"
+                        
                         if [[ $json_count -eq 1 ]]; then
                             # Single JSON file - just copy it
                             local json_file

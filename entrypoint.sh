@@ -1107,6 +1107,9 @@ filter_files() {
                 log_debug "File '$filename' does not match any include pattern, excluding"
                 should_include=false
             fi
+        else
+            # No include patterns specified, so include all files by default
+            should_include=true
         fi
         
         # If exclude patterns are specified and file matches, exclude it

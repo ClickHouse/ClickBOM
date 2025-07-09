@@ -17,6 +17,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
   - [Same Repository with GitHub App](#same-repository-with-github-app)
   - [Multiple Repositories](#multiple-repositories)
   - [Merging SBOMs Stored In S3](#merging-sboms-stored-in-s3)
+  - [Merging SBOMs with Include/Exclude Filters](#merging-sboms-with-includeexclude-filters)
   - [Downloading an SBOM from Mend](#downloading-an-sbom-from-mend)
   - [Downloading an SBOM from Wiz](#downloading-an-sbom-from-wiz)
 - [Creating a GitHub App](#creating-a-github-app)
@@ -85,13 +86,20 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 
 ### General
 
-| Name                  | Description                         | Default        | Required | Sensitive |
-| --------------------- | ----------------------------------- | -------------- | -------- | --------- |
-| sbom-source           | Source of SBOM (github, mend, wiz)  | github         | false    | false     |
-| sbom-format           | SBOM format (spdxjson or cyclonedx) | cyclonedx      | false    | false     |
-| merge                 | Merge SBOMs stored in S3            | false          | false    | false     |
+| Name        | Description                                                           | Default   | Required | Sensitive |
+| ----------- | --------------------------------------------------------------------- | --------- | -------- | --------- |
+| sbom-source | Source of SBOM (github, mend, wiz)                                    | github    | false    | false     |
+| sbom-format | SBOM format (spdxjson or cyclonedx)                                   | cyclonedx | false    | false     |
+| merge       | Merge SBOMs stored in S3                                              | false     | false    | false     |
+| include     | Comma-separated list of filenames or patterns to include when merging | (empty)   | false    | false     |
+| exclude     | Comma-separated list of filenames or patterns to exclude when merging | (empty)   | false    | false     |
 
 - `sbom-format` specifies the format you want the final SBOM to be in. For example, GitHub only supports SPDX, settings this input to `cyclonedx` will convert the SBOM to CycloneDX format.
+- `include` and `exclude` are only used when `merge` is set to `true`. They allow you to filter which files from the S3 bucket should be included in the merge operation.
+- Both `include` and `exclude` support exact filename matching and wildcard patterns (e.g., `file*.json`, `*-prod.json`).
+- If `include` is specified, only files matching the include patterns will be processed.
+- If `exclude` is specified, files matching the exclude patterns will be skipped.
+- `exclude` is applied after `include`, so a file that matches **both** an include and exclude pattern will be *excluded*.
 
 ## Usage
 
@@ -409,6 +417,68 @@ jobs:
           clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
           merge: true
 ```
+
+### Merging SBOMs with Include/Exclude Filters
+
+This example shows how to use the `include` and `exclude` filters when merging SBOMs. This is useful when you want to merge only specific files from your S3 bucket.
+
+```yaml
+name: Upload SBOM
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  clickbom_merge:
+    name: ClickBOM Merge with Filters
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Generate Token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
+          private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
+          role-session-name: clickbom-session
+          aws-region: us-east-1
+
+      - name: Merge Production SBOMs Only
+        uses: ./
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          s3-bucket: my-sbom-bucket
+          s3-key: production-merged.json
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
+          merge: true
+          include: "*-prod.json,production-*.json"
+          exclude: "*-test.json,*-dev.json"
+```
+
+In this example:
+
+- `include: "*-prod.json,production-*.json"` will only process files that match these patterns
+- `exclude: "*-test.json,*-dev.json"` will skip any files that match these patterns
+- The result is that only production-related SBOMs will be merged, excluding test and development SBOMs
 
 ### Downloading an SBOM from Mend
 

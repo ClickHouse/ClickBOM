@@ -318,31 +318,3 @@ EOF
     [[ "$result" =~ production-main.json ]]
     [[ ! "$result" =~ test-dev.json ]]
 }
-
-@test "debug matches_pattern function" {
-    # Test individual pattern matching
-    echo "Testing matches_pattern function:"
-    
-    if matches_pattern "test-prod.json" "*-prod.json"; then
-        echo "test-prod.json matches *-prod.json: YES"
-    else
-        echo "test-prod.json matches *-prod.json: NO"
-    fi
-    
-    if matches_pattern "test-dev.json" "*-prod.json"; then
-        echo "test-dev.json matches *-prod.json: YES"
-    else
-        echo "test-dev.json matches *-prod.json: NO"
-    fi
-    
-    if matches_pattern "production-main.json" "production-*.json"; then
-        echo "production-main.json matches production-*.json: YES"
-    else
-        echo "production-main.json matches production-*.json: NO"
-    fi
-    
-    # These should pass
-    matches_pattern "test-prod.json" "*-prod.json"
-    ! matches_pattern "test-dev.json" "*-prod.json"
-    matches_pattern "production-main.json" "production-*.json"
-}

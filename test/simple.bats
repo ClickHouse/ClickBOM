@@ -168,3 +168,130 @@ EOF
     [[ "$output" == *"Required Mend environment variable MEND_EMAIL is not set"* ]]
 }
 
+# Test 12: matches_pattern function with exact filename
+@test "matches_pattern works with exact filename" {
+    run matches_pattern "test.json" "test.json"
+    [ "$status" -eq 0 ]
+    
+    run matches_pattern "test.json" "other.json"
+    [ "$status" -eq 1 ]
+}
+
+# Test 13: matches_pattern function with wildcard patterns
+@test "matches_pattern works with wildcard patterns" {
+    run matches_pattern "test-prod.json" "*-prod.json"
+    [ "$status" -eq 0 ]
+    
+    run matches_pattern "production-test.json" "production-*.json"
+    [ "$status" -eq 0 ]
+    
+    run matches_pattern "test-dev.json" "*-prod.json"
+    [ "$status" -eq 1 ]
+}
+
+# Test 14: matches_pattern function with multiple patterns
+@test "matches_pattern works with multiple comma-separated patterns" {
+    run matches_pattern "test-prod.json" "test.json,*-prod.json,other.json"
+    [ "$status" -eq 0 ]
+    
+    run matches_pattern "production-test.json" "test.json,production-*.json,other.json"
+    [ "$status" -eq 0 ]
+    
+    run matches_pattern "random.json" "test.json,*-prod.json,other.json"
+    [ "$status" -eq 1 ]
+}
+
+# Test 15: matches_pattern function with empty patterns
+@test "matches_pattern returns false for empty patterns" {
+    run matches_pattern "test.json" ""
+    [ "$status" -eq 1 ]
+}
+
+# Test 16: filter_files function with include only
+@test "filter_files works with include patterns only" {
+    local test_files="test-prod.json"$'\n'"test-dev.json"$'\n'"production-main.json"
+    
+    export INCLUDE="*-prod.json,production-*.json"
+    export EXCLUDE=""
+    
+    local result=$(filter_files "$test_files")
+    
+    # Should include test-prod.json and production-main.json
+    [[ "$result" == *"test-prod.json"* ]]
+    [[ "$result" == *"production-main.json"* ]]
+    [[ "$result" != *"test-dev.json"* ]]
+}
+
+# Test 17: filter_files function with exclude only
+@test "filter_files works with exclude patterns only" {
+    local test_files="test-prod.json"$'\n'"test-dev.json"$'\n'"production-main.json"
+    
+    export INCLUDE=""
+    export EXCLUDE="*-dev.json"
+    
+    local result=$(filter_files "$test_files")
+    
+    # Should exclude test-dev.json but include others
+    [[ "$result" == *"test-prod.json"* ]]
+    [[ "$result" == *"production-main.json"* ]]
+    [[ "$result" != *"test-dev.json"* ]]
+}
+
+# Test 18: filter_files function with both include and exclude
+@test "filter_files works with both include and exclude patterns" {
+    local test_files="test-prod.json"$'\n'"test-dev.json"$'\n'"production-main.json"$'\n'"production-test.json"
+    
+    export INCLUDE="*-prod.json,production-*.json"
+    export EXCLUDE="*-test.json"
+    
+    local result=$(filter_files "$test_files")
+    
+    # Should include test-prod.json and production-main.json
+    # Should exclude test-dev.json (not in include) and production-test.json (in exclude)
+    [[ "$result" == *"test-prod.json"* ]]
+    [[ "$result" == *"production-main.json"* ]]
+    [[ "$result" != *"test-dev.json"* ]]
+    [[ "$result" != *"production-test.json"* ]]
+}
+
+# Test 19: filter_files function with no patterns (should return all files)
+@test "filter_files returns all files when no patterns specified" {
+    local test_files="test-prod.json"$'\n'"test-dev.json"$'\n'"production-main.json"
+    
+    export INCLUDE=""
+    export EXCLUDE=""
+    
+    local result=$(filter_files "$test_files")
+    
+    # Should include all files
+    [[ "$result" == *"test-prod.json"* ]]
+    [[ "$result" == *"test-dev.json"* ]]
+    [[ "$result" == *"production-main.json"* ]]
+}
+
+# Test 20: filter_files function with empty file list
+@test "filter_files handles empty file list" {
+    local test_files=""
+    
+    export INCLUDE="*.json"
+    export EXCLUDE=""
+    
+    local result=$(filter_files "$test_files")
+    
+    # Should return empty result
+    [[ -z "$result" ]]
+}
+
+# Test 21: filter_files function with whitespace in patterns
+@test "filter_files handles whitespace in patterns correctly" {
+    local test_files="test-prod.json"$'\n'"test-dev.json"
+    
+    export INCLUDE=" *-prod.json , production-*.json "
+    export EXCLUDE=""
+    
+    local result=$(filter_files "$test_files")
+    
+    # Should include test-prod.json (whitespace should be trimmed)
+    [[ "$result" == *"test-prod.json"* ]]
+    [[ "$result" != *"test-dev.json"* ]]
+}

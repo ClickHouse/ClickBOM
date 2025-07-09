@@ -110,6 +110,14 @@ inputs:
     description: 'Merge SBOM files from S3 into one'
     required: false
     default: 'false'
+  include:
+    description: 'Comma-separated list of filenames or patterns to include when merging (only used with merge=true)'
+    required: false
+    default: ''
+  exclude:
+    description: 'Comma-separated list of filenames or patterns to exclude when merging (only used with merge=true)'
+    required: false
+    default: ''
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -150,6 +158,8 @@ runs:
     SBOM_SOURCE: ${{ inputs.sbom-source }}
     SBOM_FORMAT: ${{ inputs.sbom-format }}
     MERGE: ${{ inputs.merge }}
+    INCLUDE: ${{ inputs.include }}
+    EXCLUDE: ${{ inputs.exclude }}
 branding:
   icon: 'list'
   color: 'yellow'

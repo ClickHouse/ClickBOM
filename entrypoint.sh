@@ -754,7 +754,7 @@ download_wiz_report_from_url() {
                         local json_count
                         json_count=$(echo "$json_files" | wc -l)
                         log_info "Found $json_count JSON files in ZIP archive"
-                        
+
                         if [[ $json_count -eq 1 ]]; then
                             # Single JSON file - just copy it
                             local json_file
@@ -1057,11 +1057,92 @@ upload_to_s3() {
     fi
 }
 
+# Function to check if a filename matches any pattern in a list
+matches_pattern() {
+    local filename="$1"
+    local patterns="$2"
+    
+    # If no patterns provided, return false (no match)
+    if [[ -z "$patterns" ]]; then
+        return 1
+    fi
+    
+    # Split patterns by comma and check each one
+    IFS=',' read -ra pattern_array <<< "$patterns"
+    for pattern in "${pattern_array[@]}"; do
+        # Trim whitespace
+        pattern=$(echo "$pattern" | xargs)
+        
+        # Check if filename matches the pattern using bash pattern matching
+        if [[ "$filename" == $pattern ]]; then
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+# Function to filter files based on include/exclude patterns
+filter_files() {
+    local files_input="$1"
+    local include_patterns="${INCLUDE:-}"
+    local exclude_patterns="${EXCLUDE:-}"
+    
+    local filtered_files=""
+    
+    # Process each file
+    while IFS= read -r file; do
+        # Skip empty lines
+        [[ -z "$file" ]] && continue
+        
+        local filename=$(basename "$file")
+        local should_include=true
+        
+        # If include patterns are specified, file must match at least one include pattern
+        if [[ -n "$include_patterns" ]]; then
+            if matches_pattern "$filename" "$include_patterns"; then
+                log_debug "File '$filename' matches include pattern"
+                should_include=true
+            else
+                log_debug "File '$filename' does not match any include pattern, excluding"
+                should_include=false
+            fi
+        fi
+        
+        # If exclude patterns are specified and file matches, exclude it
+        if [[ "$should_include" == "true" && -n "$exclude_patterns" ]]; then
+            if matches_pattern "$filename" "$exclude_patterns"; then
+                log_debug "File '$filename' matches exclude pattern, excluding"
+                should_include=false
+            fi
+        fi
+        
+        # Add to filtered list if it should be included
+        if [[ "$should_include" == "true" ]]; then
+            if [[ -n "$filtered_files" ]]; then
+                filtered_files="$filtered_files"$'\n'"$file"
+            else
+                filtered_files="$file"
+            fi
+        fi
+    done <<< "$files_input"
+    
+    echo "$filtered_files"
+}
+
 # Download all CycloneDX SBOMs from S3 bucket and merge them
 merge_cyclonedx_sboms() {
     local output_file="$1"
     
     log_info "Merging all CycloneDX SBOMs from S3 bucket: $S3_BUCKET"
+    
+    # Log include/exclude patterns if specified
+    if [[ -n "${INCLUDE:-}" ]]; then
+        log_info "Include patterns: ${INCLUDE}"
+    fi
+    if [[ -n "${EXCLUDE:-}" ]]; then
+        log_info "Exclude patterns: ${EXCLUDE}"
+    fi
     
     # Create temporary directory for downloaded SBOMs
     local download_dir="$temp_dir/sboms"
@@ -1099,6 +1180,13 @@ merge_cyclonedx_sboms() {
     s3_files=$(echo "$s3_files" | grep -v "^${s3_key_basename}$" || true)
     log_info "JSON files after excluding target file ($s3_key_basename): $(echo "$s3_files" | wc -l) files"
     
+    # Apply include/exclude filters
+    if [[ -n "${INCLUDE:-}" ]] || [[ -n "${EXCLUDE:-}" ]]; then
+        log_info "Applying include/exclude filters..."
+        s3_files=$(filter_files "$s3_files")
+        log_info "Files after filtering: $(echo "$s3_files" | wc -l) files"
+    fi
+    
     # Debug: Show what files we're going to process
     log_info "Files to process:"
     echo "$s3_files" | while IFS= read -r file; do
@@ -1106,9 +1194,14 @@ merge_cyclonedx_sboms() {
     done
 
     if [[ -z "$s3_files" ]] || [[ "$(echo "$s3_files" | wc -l)" -eq 0 ]]; then
-        log_error "No JSON files found in S3 bucket (excluding vulns/ directory and target file)"
-        log_error "Available files were:"
-        echo "$all_files" | head -10
+        log_error "No JSON files found in S3 bucket after filtering"
+        log_error "Check your include/exclude patterns and ensure there are valid files"
+        if [[ -n "${INCLUDE:-}" ]]; then
+            log_error "Include patterns: ${INCLUDE}"
+        fi
+        if [[ -n "${EXCLUDE:-}" ]]; then
+            log_error "Exclude patterns: ${EXCLUDE}"
+        fi
         exit 1
     fi
 
@@ -1211,8 +1304,9 @@ merge_cyclonedx_sboms() {
     log_info "Downloaded $total_files files, found $file_count valid CycloneDX SBOMs"
 
     if [[ $file_count -eq 0 ]]; then
-        log_error "No valid CycloneDX SBOMs found in S3 bucket"
+        log_error "No valid CycloneDX SBOMs found in S3 bucket after filtering"
         log_error "Check that your S3 bucket contains CycloneDX format SBOMs"
+        log_error "and that your include/exclude patterns are correct"
         
         # Show what files were actually downloaded for debugging
         log_info "Files that were downloaded but rejected:"

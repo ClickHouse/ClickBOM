@@ -217,9 +217,9 @@ EOF
     local result=$(filter_files "$test_files")
     
     # Should include test-prod.json and production-main.json
-    [[ "$result" == *"test-prod.json"* ]]
-    [[ "$result" == *"production-main.json"* ]]
-    [[ "$result" != *"test-dev.json"* ]]
+    [[ "$result" =~ test-prod.json ]]
+    [[ "$result" =~ production-main.json ]]
+    [[ ! "$result" =~ test-dev.json ]]
 }
 
 # Test 17: filter_files function with exclude only
@@ -232,9 +232,9 @@ EOF
     local result=$(filter_files "$test_files")
     
     # Should exclude test-dev.json but include others
-    [[ "$result" == *"test-prod.json"* ]]
-    [[ "$result" == *"production-main.json"* ]]
-    [[ "$result" != *"test-dev.json"* ]]
+    [[ "$result" =~ test-prod.json ]]
+    [[ "$result" =~ production-main.json ]]
+    [[ ! "$result" =~ test-dev.json ]]
 }
 
 # Test 18: filter_files function with both include and exclude
@@ -248,10 +248,10 @@ EOF
     
     # Should include test-prod.json and production-main.json
     # Should exclude test-dev.json (not in include) and production-test.json (in exclude)
-    [[ "$result" == *"test-prod.json"* ]]
-    [[ "$result" == *"production-main.json"* ]]
-    [[ "$result" != *"test-dev.json"* ]]
-    [[ "$result" != *"production-test.json"* ]]
+    [[ "$result" =~ test-prod.json ]]
+    [[ "$result" =~ production-main.json ]]
+    [[ ! "$result" =~ test-dev.json ]]
+    [[ ! "$result" =~ production-test.json ]]
 }
 
 # Test 19: filter_files function with no patterns (should return all files)
@@ -264,9 +264,9 @@ EOF
     local result=$(filter_files "$test_files")
     
     # Should include all files
-    [[ "$result" == *"test-prod.json"* ]]
-    [[ "$result" == *"test-dev.json"* ]]
-    [[ "$result" == *"production-main.json"* ]]
+    [[ "$result" =~ test-prod.json ]]
+    [[ "$result" =~ test-dev.json ]]
+    [[ "$result" =~ production-main.json ]]
 }
 
 # Test 20: filter_files function with empty file list
@@ -292,6 +292,6 @@ EOF
     local result=$(filter_files "$test_files")
     
     # Should include test-prod.json (whitespace should be trimmed)
-    [[ "$result" == *"test-prod.json"* ]]
-    [[ "$result" != *"test-dev.json"* ]]
+    [[ "$result" =~ test-prod.json ]]
+    [[ ! "$result" =~ test-dev.json ]]
 }

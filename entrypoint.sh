@@ -1101,10 +1101,8 @@ filter_files() {
         # If include patterns are specified, file must match at least one include pattern
         if [[ -n "$include_patterns" ]]; then
             if matches_pattern "$filename" "$include_patterns"; then
-                log_debug "File '$filename' matches include pattern"
                 should_include=true
             else
-                log_debug "File '$filename' does not match any include pattern, excluding"
                 should_include=false
             fi
         else
@@ -1115,7 +1113,6 @@ filter_files() {
         # If exclude patterns are specified and file matches, exclude it
         if [[ "$should_include" == "true" && -n "$exclude_patterns" ]]; then
             if matches_pattern "$filename" "$exclude_patterns"; then
-                log_debug "File '$filename' matches exclude pattern, excluding"
                 should_include=false
             fi
         fi

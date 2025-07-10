@@ -1828,7 +1828,7 @@ main() {
 
         # ClickHouse operations
         if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
-            local table_name=$(echo "$s3_key" | sed 's|\.json|_merged|g' | tr '[:upper:]' '[:lower:]')
+            local table_name=$(echo "$s3_key" | sed 's|[^a-zA-Z0-9]|_|g' | sed 's|\.json|_merged|g' | tr '[:upper:]' '[:lower:]')
             log_info "Starting ClickHouse operations for table: $table_name"
             # Setup table with error handling
             if ! setup_clickhouse_table "$table_name"; then

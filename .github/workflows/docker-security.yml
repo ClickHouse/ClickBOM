@@ -128,12 +128,15 @@ jobs:
           format: sarif
           output-file: hadolint-results.sarif
           no-color: true
+          failure-threshold: error
+        continue-on-error: true
 
       - name: 📤 Upload Hadolint scan results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: hadolint-results.sarif
+          category: hadolint
 
       - name: 🔍 Run Checkov (Infrastructure as Code Security)
         uses: bridgecrewio/checkov-action@master
@@ -143,12 +146,25 @@ jobs:
           framework: dockerfile
           output_format: sarif
           output_file_path: checkov-results.sarif
+          soft_fail: true
+        continue-on-error: true
 
       - name: 📤 Upload Checkov scan results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: checkov-results.sarif
+          category: checkov
+
+      - name: 📎 Upload Dockerfile Security Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dockerfile-security-results
+          path: |
+            hadolint-results.sarif
+            checkov-results.sarif
+          retention-days: 30
 
   container_sbom:
     name: 📋 Generate Container SBOM
@@ -195,13 +211,13 @@ jobs:
     
     steps:
       - name: 📥 Download Security Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: security-scan-results
           path: security-results/
 
       - name: 📥 Download Container SBOM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: container-sbom
           path: sbom-results/

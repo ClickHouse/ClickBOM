@@ -89,7 +89,7 @@ jobs:
           echo "4. Run security scans in CI/CD pipeline" >> security-report.md
 
       - name: 📎 Upload Security Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-scan-results
@@ -178,7 +178,7 @@ jobs:
           docker scout sbom clickbom:latest --format spdx --output container-sbom-scout.spdx.json || echo "Docker Scout SBOM generation failed"
 
       - name: 📎 Upload Container SBOM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: container-sbom
           path: |

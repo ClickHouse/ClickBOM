@@ -211,13 +211,13 @@ jobs:
     
     steps:
       - name: 📥 Download Security Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: security-scan-results
           path: security-results/
 
       - name: 📥 Download Container SBOM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: container-sbom
           path: sbom-results/

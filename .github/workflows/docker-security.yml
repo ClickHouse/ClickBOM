@@ -114,6 +114,11 @@ jobs:
           fi
 
   dockerfile_security_scan:
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
     name: 🐋 Dockerfile Security Scan
     runs-on: ubuntu-latest
     

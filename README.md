@@ -1,4 +1,4 @@
-[![💣 ClickBOM Tests](https://github.com/ClickHouse/ClickBOM/actions/workflows/tests.yml/badge.svg)](https://github.com/ClickHouse/ClickBOM/actions/workflows/tests.yml)
+[![💣 ClickBOM Tests](https://github.com/ClickHouse/ClickBOM/actions/workflows/tests.yml/badge.svg)](https://github.com/ClickHouse/ClickBOM/actions/workflows/tests.yml) [![🐳 Docker Security Scan](https://github.com/ClickHouse/ClickBOM/actions/workflows/docker-security.yml/badge.svg)](https://github.com/ClickHouse/ClickBOM/actions/workflows/docker-security.yml)
 
 # ClickBOM
 

@@ -1,5 +1,5 @@
 name: 'ClickBOM'
-description: 'Download SBOM from GitHub repository, convert to CycloneDX format, and upload to S3'
+description: 'Download SBOMs from GitHub, Mend, and Wiz. Convert to CycloneDX and SPDX formats. Upload to S3 and ClickHouse.'
 author: 'ClickHouse, Inc.'
 inputs:
   # GitHub-specific inputs

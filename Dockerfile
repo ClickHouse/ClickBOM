@@ -61,6 +61,10 @@ ENV PATH="/usr/local/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Health check to ensure the container is working properly
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ps aux | grep -v grep | grep -q entrypoint || exit 1
+
 # Use absolute path for entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
 

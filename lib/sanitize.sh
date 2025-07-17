@@ -1,4 +1,4 @@
-!#/bin/bash
+#!/bin/bash
 # Sanitize input to prevent command injection and other vulnerabilities
 
 # Sanitize general string inputs - remove potentially dangerous characters

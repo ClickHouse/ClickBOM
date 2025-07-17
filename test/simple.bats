@@ -16,8 +16,6 @@ setup() {
     # Extract only the functions from entrypoint.sh (everything before main function call)
     sed '/^# Run main function/,$d' "$PROJECT_ROOT/entrypoint.sh" > "$TEST_SCRIPT"
     
-    cd "$PROJECT_ROOT"
-
     # Source the functions
     source "$TEST_SCRIPT"
     

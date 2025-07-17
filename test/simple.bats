@@ -18,6 +18,9 @@ setup() {
     
     # Source the functions
     source "$TEST_SCRIPT"
+
+    # Source all library files
+    source "$PROJECT_ROOT/lib/sanitize.sh"
     
     # Set up test environment variables
     export AWS_ACCESS_KEY_ID="test-key"

@@ -16,8 +16,7 @@ setup() {
     # Extract only the functions from entrypoint.sh (everything before main function call)
     sed '/^# Run main function/,$d' "$PROJECT_ROOT/entrypoint.sh" > "$TEST_SCRIPT"
     
-    # Source all library files
-    source "$PROJECT_ROOT/lib/sanitize.sh"
+    cd "$PROJECT_ROOT"
 
     # Source the functions
     source "$TEST_SCRIPT"

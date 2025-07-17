@@ -1643,7 +1643,7 @@ map_unknown_licenses() {
     
     # Convert JSON to TSV temporarily
     local mappings_tsv="$temp_dir/mappings.tsv"
-    jq -r 'to_entries[] | [.key, .value] | @tsv' /license-mappings.json > "$mappings_tsv"
+    jq -r 'to_entries[] | [.key, .value] | @tsv' /app/license-mappings.json > "$mappings_tsv"
     
     # Use awk to apply mappings
     awk -F'\t' '

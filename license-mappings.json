@@ -12,5 +12,9 @@
   "aws-actions/configure-aws-credentials": "MIT",
   "actions/create-github-app-token": "MIT",
   "CycloneDX/gh-gomod-generate-sbom": "Apache-2.0",
+  "dario.cat/mergo": "BSD-3-Clause",
+  "github.com/Azure/go-ansiterm": "MIT",
+  "github.com/ClickHouse/ch-go": "Apache-2.0",
+  "github.com/Microsoft/go-winio": "MIT",
   "RoryCrispin/gh-action-bump-version": "MIT"
 }

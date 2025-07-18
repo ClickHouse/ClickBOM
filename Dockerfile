@@ -47,6 +47,7 @@ WORKDIR /app
 
 # Copy application files with proper ownership
 COPY --chown=clickbom:clickbom entrypoint.sh /app/entrypoint.sh
+COPY --chown=clickbom:clickbom lib/ /app/lib/
 COPY --chown=clickbom:clickbom license-mappings.json /app/license-mappings.json
 
 # Make entrypoint executable

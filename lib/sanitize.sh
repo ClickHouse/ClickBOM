@@ -11,7 +11,25 @@ sanitize_string() {
     sanitized=$(echo "$input" | tr -d '\0' | tr -d '\001-\037' | tr -d '\177-\377' | cut -c1-"$max_length")
     
     # Remove potentially dangerous patterns
-    sanitized=$(echo "$sanitized" | sed 's/[$(){}|;&<>]//g' | tr -d '`')
+    sanitized=$(echo "$sanitized" | sed 's/[$(){}|;&<>@]//g' | tr -d '`')
+    
+    echo "$sanitized"
+}
+
+# Sanitize repository names (owner/repo format)
+sanitize_repository() {
+    local repo="$1"
+    
+    # Repository should only contain alphanumeric, hyphens, underscores, dots, and forward slash
+    local sanitized
+    sanitized=$(echo "$repo" | sed 's/[^a-zA-Z0-9._/-]//g')
+    
+    # Validate format: should be owner/repo
+    if [[ ! "$sanitized" =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]]; then
+        log_error "Invalid repository format: $repo"
+        log_error "Repository must be in 'owner/repo' format with alphanumeric characters, dots, hyphens, and underscores only"
+        exit 1
+    fi
     
     echo "$sanitized"
 }
@@ -20,11 +38,11 @@ sanitize_string() {
 sanitize_inputs() {
     log_info "Sanitizing input parameters..."
 
-    # # GitHub inputs
-    # if [[ -n "${REPOSITORY:-}" ]]; then
-    #     REPOSITORY=$(sanitize_repository "$REPOSITORY")
-    #     log_debug "Sanitized REPOSITORY: $REPOSITORY"
-    # fi
+    # GitHub inputs
+    if [[ -n "${REPOSITORY:-}" ]]; then
+        REPOSITORY=$(sanitize_repository "$REPOSITORY")
+        log_debug "Sanitized REPOSITORY: $REPOSITORY"
+    fi
     
     # # Mend inputs
     # if [[ -n "${MEND_EMAIL:-}" ]]; then

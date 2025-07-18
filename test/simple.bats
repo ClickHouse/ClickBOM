@@ -16,6 +16,9 @@ setup() {
     # Extract only the functions from entrypoint.sh (everything before main function call)
     sed '/^# Run main function/,$d' "$PROJECT_ROOT/entrypoint.sh" > "$TEST_SCRIPT"
     
+    # Replace the source line in the extracted script
+    sed -i "s|source \"\$SCRIPT_DIR/lib/sanitize.sh\"|source \"$PROJECT_ROOT/lib/sanitize.sh\"|" "$TEST_SCRIPT"
+    
     # Source the functions
     source "$TEST_SCRIPT"
     
@@ -296,25 +299,9 @@ EOF
     [[ ! "$result" =~ test-dev.json ]]
 }
 
-@test "debug filter_files with include patterns" {
-    local test_files="test-prod.json"$'\n'"test-dev.json"$'\n'"production-main.json"
-    
-    export INCLUDE="*-prod.json,production-*.json"
-    export EXCLUDE=""
-    
-    local result=$(filter_files "$test_files")
-    
-    # Debug: show what we got
-    echo "Input files: $test_files"
-    echo "Include patterns: $INCLUDE"
-    echo "Exclude patterns: $EXCLUDE"
-    echo "Result: '$result'"
-    echo "Result contains test-prod.json: $(if [[ "$result" =~ test-prod.json ]]; then echo "YES"; else echo "NO"; fi)"
-    echo "Result contains test-dev.json: $(if [[ "$result" =~ test-dev.json ]]; then echo "YES"; else echo "NO"; fi)"
-    echo "Result contains production-main.json: $(if [[ "$result" =~ production-main.json ]]; then echo "YES"; else echo "NO"; fi)"
-    
-    # The actual test
-    [[ "$result" =~ test-prod.json ]]
-    [[ "$result" =~ production-main.json ]]
-    [[ ! "$result" =~ test-dev.json ]]
+# Test 22: sanitize_string function basic functionality
+@test "sanitize_string removes dangerous characters" {
+    run sanitize_string "test\$command\`echo hello\`"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "testcommandecho hello" ]]
 }

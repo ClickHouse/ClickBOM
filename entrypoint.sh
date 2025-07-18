@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source all library files
+source "$SCRIPT_DIR/lib/sanitize.sh"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

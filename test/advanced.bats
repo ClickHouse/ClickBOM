@@ -5,8 +5,21 @@
 
 # Setup function runs before each test
 setup() {
-    # Source the script functions without executing main
-    source <(sed '/^# Run main function/,$d' entrypoint.sh)
+    # Get the directory where this test is located
+    export BATS_TEST_DIRNAME="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export PROJECT_ROOT="$(dirname "$BATS_TEST_DIRNAME")"
+    
+    # Create a temporary test script that sources functions without executing main
+    export TEST_SCRIPT="$BATS_TEST_TMPDIR/test_entrypoint.sh"
+    
+    # Extract only the functions from entrypoint.sh (everything before main function call)
+    sed '/^# Run main function/,$d' "$PROJECT_ROOT/entrypoint.sh" > "$TEST_SCRIPT"
+    
+    # Fix the lib/sanitize.sh source path in the extracted script
+    sed -i "s|source \"\$SCRIPT_DIR/lib/sanitize.sh\"|source \"$PROJECT_ROOT/lib/sanitize.sh\"|" "$TEST_SCRIPT"
+    
+    # Source the functions
+    source "$TEST_SCRIPT"
     
     # Create a temporary directory for this test session
     # BATS_TEST_TMPDIR is provided by BATS automatically

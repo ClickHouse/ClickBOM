@@ -1791,6 +1791,9 @@ cleanup() {
 # Main function
 main() {
     log_info "Starting ClickBOM GitHub Action for SBOM processing"
+
+    # Sanitize inputs
+    sanitize_inputs
     
     # Validate environment
     validate_env

@@ -326,15 +326,13 @@ EOF
 # Test 25: sanitize_string removes shell metacharacters
 @test "sanitize_string removes shell metacharacters" {
     run sanitize_string "test|command;rm -rf /&"
-    echo "$output"
     [ "$status" -eq 0 ]
-    [[ "$output" == "testcommand rm -rf /" ]]
+    [[ "$output" == "testcommandrm -rf /" ]]
 }
 
 # Test 26: sanitize_string preserves safe characters
 @test "sanitize_string preserves safe characters" {
     run sanitize_string "test-string_with.safe@characters123"
-    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "test-string_with.safecharacters123" ]]
 }

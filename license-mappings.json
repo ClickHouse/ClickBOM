@@ -1,4 +1,7 @@
 {
+  "@clickhouse/client": "Apache-2.0",
+  "@clickhouse/client-common": "Apache-2.0",
+  "@faker-js/faker": "MIT",
   "4d63.com/gocheckcompilerdirectives": "MIT",
   "4d63.com/gochecknoglobals": "MIT",
   "actions/cache": "MIT",

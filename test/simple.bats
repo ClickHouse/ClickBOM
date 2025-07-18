@@ -302,7 +302,6 @@ EOF
 # Test 22: sanitize_string function basic functionality
 @test "sanitize_string removes dangerous characters" {
     run sanitize_string "test\$command\`echo hello\`"
-    echo "Actual output: '$output'" >&2
     [ "$status" -eq 0 ]
     [[ "$output" == "testcommandecho hello" ]]
 }

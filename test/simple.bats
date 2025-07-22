@@ -453,3 +453,67 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "https://example.com" ]]
 }
+
+# Test 43: sanitize_s3_bucket accepts valid bucket name
+@test "sanitize_s3_bucket accepts valid bucket name" {
+    run sanitize_s3_bucket "my-test-bucket"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "my-test-bucket" ]]
+}
+
+# Test 44: sanitize_s3_bucket converts bucket name to lowercase
+@test "sanitize_s3_bucket converts to lowercase" {
+    run sanitize_s3_bucket "My-Test-Bucket"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "my-test-bucket" ]]
+}
+
+# Test 45: sanitize_s3_bucket accepts bucket with dots
+@test "sanitize_s3_bucket accepts bucket with dots" {
+    run sanitize_s3_bucket "my.test.bucket"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "my.test.bucket" ]]
+}
+
+# Test 46: sanitize_s3_bucket removes invalid characters
+@test "sanitize_s3_bucket removes invalid characters" {
+    run sanitize_s3_bucket "my_test@bucket!"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "mytestbucket" ]]
+}
+
+# Test 47: sanitize_s3_bucket rejects short bucket name
+@test "sanitize_s3_bucket rejects too short name" {
+    run sanitize_s3_bucket "ab"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid S3 bucket name"* ]]
+}
+
+# Test 48: sanitize_s3_bucket rejects long bucket name
+@test "sanitize_s3_bucket rejects too long name" {
+    local long_name=$(printf 'a%.0s' {1..70})
+    run sanitize_s3_bucket "$long_name"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid S3 bucket name"* ]]
+}
+
+# Test 49: sanitize_s3_bucket rejects IP-like format
+@test "sanitize_s3_bucket rejects IP-like format" {
+    run sanitize_s3_bucket "192.168.1.1"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"cannot be formatted as IP address"* ]]
+}
+
+# Test 50: sanitize_s3_bucket rejects bucket starting with dash
+@test "sanitize_s3_bucket rejects bucket starting with dash" {
+    run sanitize_s3_bucket "-invalid-bucket"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid S3 bucket name"* ]]
+}
+
+# Test 51: sanitize_s3_bucket rejects bucket ending with dash
+@test "sanitize_s3_bucket rejects bucket ending with dash" {
+    run sanitize_s3_bucket "invalid-bucket-"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid S3 bucket name"* ]]
+}

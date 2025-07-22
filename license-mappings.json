@@ -1,4 +1,9 @@
 {
+  "@astrojs/markdown-remark": "MIT",
+  "@astrojs/mdx": "MIT",
+  "@astrojs/sitemap": "MIT",
+  "@astrojs/starlight": "MIT",
+  "@astrojs/telemetry": "MIT",
   "@clickhouse/client": "Apache-2.0",
   "@clickhouse/client-common": "Apache-2.0",
   "@faker-js/faker": "MIT",

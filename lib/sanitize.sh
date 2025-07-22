@@ -78,6 +78,33 @@ sanitize_url() {
     echo "$sanitized"
 }
 
+# Sanitize S3 bucket names
+sanitize_s3_bucket() {
+    local bucket="$1"
+    
+    # S3 bucket names have specific rules
+    local sanitized
+    sanitized=$(echo "$bucket" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9.-]//g')
+    
+    # Validate S3 bucket naming rules
+    if [[ ! "$sanitized" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]]; then
+        log_error "Invalid S3 bucket name: $bucket"
+        log_error "S3 bucket names must be 3-63 characters, lowercase, and contain only letters, numbers, dots, and hyphens"
+        exit 1
+    fi
+    
+    # Additional S3 bucket rules
+    if [[ "$sanitized" == *.* ]]; then
+        # If contains dots, validate it's not IP-like
+        if [[ "$sanitized" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            log_error "S3 bucket name cannot be formatted as IP address: $bucket"
+            exit 1
+        fi
+    fi
+    
+    echo "$sanitized"
+}
+
 # Main sanitization function - sanitizes all environment variables
 sanitize_inputs() {
     log_debug "Sanitizing input parameters..."
@@ -190,10 +217,10 @@ sanitize_inputs() {
         log_debug "Sanitized AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION"
     fi
     
-    # if [[ -n "${S3_BUCKET:-}" ]]; then
-    #     S3_BUCKET=$(sanitize_s3_bucket "$S3_BUCKET")
-    #     log_debug "Sanitized S3_BUCKET: $S3_BUCKET"
-    # fi
+    if [[ -n "${S3_BUCKET:-}" ]]; then
+        S3_BUCKET=$(sanitize_s3_bucket "$S3_BUCKET")
+        log_debug "Sanitized S3_BUCKET: $S3_BUCKET"
+    fi
     
     # if [[ -n "${S3_KEY:-}" ]]; then
     #     S3_KEY=$(sanitize_s3_key "$S3_KEY")

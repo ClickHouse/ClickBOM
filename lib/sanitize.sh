@@ -46,7 +46,7 @@ sanitize_url() {
     # Validate URL format and allowed protocols
     case "$url_type" in
         "clickhouse")
-            if [[ ! "$sanitized" =~ ^https?://[a-zA-Z0-9.-]+(:[0-9]+)?/?$ ]]; then
+            if [[ ! "$sanitized" =~ ^https?://[a-zA-Z0-9][a-zA-Z0-9.-]*(:[0-9]+)?/?$ ]]; then
                 log_error "Invalid ClickHouse URL format: $url"
                 log_error "ClickHouse URL must be HTTP/HTTPS with valid hostname"
                 exit 1

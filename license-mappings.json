@@ -32,7 +32,7 @@
   "dario.cat/mergo": "BSD-3-Clause",
   "eslint": "MIT",
   "eslint-config-prettier": "MIT",
-  "eslint-plugin-expect-types": "Apache-2.0",
+  "eslint-plugin-expect-type": "Apache-2.0",
   "eslint-plugin-prettier": "MIT",
   "github.com/andybalholm/brotli": "MIT",
   "github.com/Azure/go-ansiterm": "MIT",

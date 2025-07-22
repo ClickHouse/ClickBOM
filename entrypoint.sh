@@ -141,7 +141,7 @@ download_sbom() {
             log_success "SBOM downloaded successfully ($file_size)"
             
             # Debug: Show first few lines of downloaded content
-            log_info "First 200 characters of downloaded content:"
+            log_debug "First 200 characters of downloaded content:"
             head -c 200 "$output_file" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
             echo ""
             
@@ -1694,7 +1694,7 @@ insert_sbom_data() {
     # Extract data based on SBOM format
     case "$sbom_format" in
         "cyclonedx")
-            log_info "Sample CycloneDX component with license:"
+            log_debug "Sample CycloneDX component with license:"
             jq -r '.components[0] | {name: .name, version: .version, licenses: .licenses}' "$sbom_file" 2>/dev/null || echo "No components found"
             # Extract from CycloneDX format
             jq -r '

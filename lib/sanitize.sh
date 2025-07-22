@@ -34,9 +34,53 @@ sanitize_repository() {
     echo "$sanitized"
 }
 
+# Sanitize URLs - validate format and allowed protocols
+sanitize_url() {
+    local url="$1"
+    local url_type="${2:-general}"  # general, clickhouse, mend, wiz
+    
+    # Remove null bytes and control characters
+    local sanitized
+    sanitized=$(echo "$url" | tr -d '\0' | tr -d '\001-\037' | tr -d '\177-\377')
+    
+    # Validate URL format and allowed protocols
+    case "$url_type" in
+        "clickhouse")
+            if [[ ! "$sanitized" =~ ^https?://[a-zA-Z0-9.-]+(:[0-9]+)?/?$ ]]; then
+                log_error "Invalid ClickHouse URL format: $url"
+                log_error "ClickHouse URL must be HTTP/HTTPS with valid hostname"
+                exit 1
+            fi
+            ;;
+        "mend")
+            if [[ ! "$sanitized" =~ ^https://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$ ]]; then
+                log_error "Invalid Mend URL format: $url"
+                log_error "Mend URL must be HTTPS with valid domain"
+                exit 1
+            fi
+            ;;
+        "wiz")
+            if [[ ! "$sanitized" =~ ^https://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$ ]]; then
+                log_error "Invalid Wiz URL format: $url"
+                log_error "Wiz URL must be HTTPS with valid domain"
+                exit 1
+            fi
+            ;;
+        *)
+            if [[ ! "$sanitized" =~ ^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$ ]]; then
+                log_error "Invalid URL format: $url"
+                log_error "URL must be HTTP/HTTPS with valid hostname"
+                exit 1
+            fi
+            ;;
+    esac
+    
+    echo "$sanitized"
+}
+
 # Main sanitization function - sanitizes all environment variables
 sanitize_inputs() {
-    log_info "Sanitizing input parameters..."
+    log_debug "Sanitizing input parameters..."
 
     # GitHub inputs
     if [[ -n "${REPOSITORY:-}" ]]; then
@@ -50,10 +94,10 @@ sanitize_inputs() {
     #     log_debug "Sanitized MEND_EMAIL: $MEND_EMAIL"
     # fi
     
-    # if [[ -n "${MEND_BASE_URL:-}" ]]; then
-    #     MEND_BASE_URL=$(sanitize_url "$MEND_BASE_URL" "mend")
-    #     log_debug "Sanitized MEND_BASE_URL: $MEND_BASE_URL"
-    # fi
+    if [[ -n "${MEND_BASE_URL:-}" ]]; then
+        MEND_BASE_URL=$(sanitize_url "$MEND_BASE_URL" "mend")
+        log_debug "Sanitized MEND_BASE_URL: $MEND_BASE_URL"
+    fi
     
     # if [[ -n "${MEND_ORG_UUID:-}" ]]; then
     #     MEND_ORG_UUID=$(sanitize_uuid "$MEND_ORG_UUID" "MEND_ORG_UUID")
@@ -104,16 +148,16 @@ sanitize_inputs() {
     #     log_debug "Sanitized MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"
     # fi
     
-    # # Wiz inputs
-    # if [[ -n "${WIZ_AUTH_ENDPOINT:-}" ]]; then
-    #     WIZ_AUTH_ENDPOINT=$(sanitize_url "$WIZ_AUTH_ENDPOINT" "wiz")
-    #     log_debug "Sanitized WIZ_AUTH_ENDPOINT: $WIZ_AUTH_ENDPOINT"
-    # fi
+    # Wiz inputs
+    if [[ -n "${WIZ_AUTH_ENDPOINT:-}" ]]; then
+        WIZ_AUTH_ENDPOINT=$(sanitize_url "$WIZ_AUTH_ENDPOINT" "wiz")
+        log_debug "Sanitized WIZ_AUTH_ENDPOINT: $WIZ_AUTH_ENDPOINT"
+    fi
     
-    # if [[ -n "${WIZ_API_ENDPOINT:-}" ]]; then
-    #     WIZ_API_ENDPOINT=$(sanitize_url "$WIZ_API_ENDPOINT" "wiz")
-    #     log_debug "Sanitized WIZ_API_ENDPOINT: $WIZ_API_ENDPOINT"
-    # fi
+    if [[ -n "${WIZ_API_ENDPOINT:-}" ]]; then
+        WIZ_API_ENDPOINT=$(sanitize_url "$WIZ_API_ENDPOINT" "wiz")
+        log_debug "Sanitized WIZ_API_ENDPOINT: $WIZ_API_ENDPOINT"
+    fi
     
     if [[ -n "${WIZ_CLIENT_ID:-}" ]]; then
         WIZ_CLIENT_ID=$(sanitize_string "$WIZ_CLIENT_ID" 200)
@@ -156,11 +200,11 @@ sanitize_inputs() {
     #     log_debug "Sanitized S3_KEY: $S3_KEY"
     # fi
     
-    # # ClickHouse inputs
-    # if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
-    #     CLICKHOUSE_URL=$(sanitize_url "$CLICKHOUSE_URL" "clickhouse")
-    #     log_debug "Sanitized CLICKHOUSE_URL: $CLICKHOUSE_URL"
-    # fi
+    # ClickHouse inputs
+    if [[ -n "${CLICKHOUSE_URL:-}" ]]; then
+        CLICKHOUSE_URL=$(sanitize_url "$CLICKHOUSE_URL" "clickhouse")
+        log_debug "Sanitized CLICKHOUSE_URL: $CLICKHOUSE_URL"
+    fi
     
     # if [[ -n "${CLICKHOUSE_DATABASE:-}" ]]; then
     #     CLICKHOUSE_DATABASE=$(sanitize_database_name "$CLICKHOUSE_DATABASE")

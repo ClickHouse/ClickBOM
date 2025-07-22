@@ -389,3 +389,67 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
+
+# Test 34: sanitize_url accepts valid HTTP URL
+@test "sanitize_url accepts valid HTTP URL" {
+    run sanitize_url "http://example.com"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "http://example.com" ]]
+}
+
+# Test 35: sanitize_url accepts valid HTTPS URL
+@test "sanitize_url accepts valid HTTPS URL" {
+    run sanitize_url "https://api.example.com:8080"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "https://api.example.com:8080" ]]
+}
+
+# Test 36: sanitize_url accepts valid ClickHouse URL
+@test "sanitize_url accepts ClickHouse URL format" {
+    run sanitize_url "https://clickhouse.example.com:8443" "clickhouse"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "https://clickhouse.example.com:8443" ]]
+}
+
+# Test 37: sanitize_url enforces HTTPS for Mend URLs
+@test "sanitize_url enforces HTTPS for Mend URLs" {
+    run sanitize_url "https://api.mend.io/path" "mend"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "https://api.mend.io/path" ]]
+}
+
+# Test 38: sanitize_url rejects non-HTTPS for Mend URLs
+@test "sanitize_url rejects HTTP for Mend URLs" {
+    run sanitize_url "http://api.mend.io" "mend"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid Mend URL format"* ]]
+}
+
+# Test 39: sanitize_url enforces HTTPS for Wiz URLs
+@test "sanitize_url enforces HTTPS for Wiz URLs" {
+    run sanitize_url "https://api.wiz.io/graphql" "wiz"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "https://api.wiz.io/graphql" ]]
+}
+
+# Test 40: sanitize_url rejects invalid URL format
+@test "sanitize_url rejects invalid URL format" {
+    run sanitize_url "not-a-url"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid URL format"* ]]
+}
+
+# Test 41: sanitize_url rejects FTP URLs
+@test "sanitize_url rejects FTP URLs" {
+    run sanitize_url "ftp://example.com"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid URL format"* ]]
+}
+
+# Test 42: sanitize_url removes control characters
+@test "sanitize_url removes control characters" {
+    local test_url=$(printf "https://example.com\001\002")
+    run sanitize_url "$test_url"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "https://example.com" ]]
+}

@@ -67,7 +67,7 @@ sanitize_url() {
             fi
             ;;
         *)
-            if [[ ! "$sanitized" =~ ^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$ ]]; then
+            if [[ ! "$sanitized" =~ ^https?://[a-zA-Z0-9][a-zA-Z0-9.-]*(:[0-9]+)?(/.*)?$ ]]; then
                 log_error "Invalid URL format: $url"
                 log_error "URL must be HTTP/HTTPS with valid hostname"
                 exit 1

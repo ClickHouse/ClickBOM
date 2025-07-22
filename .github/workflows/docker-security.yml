@@ -2,17 +2,8 @@
 name: 🐳 Docker Security Scan
 on:
   push:
-    branches: [main]
-    paths:
-      - 'Dockerfile'
-      - 'entrypoint.sh'
-      - '.github/workflows/docker-security.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'Dockerfile'
-      - 'entrypoint.sh'
-      - '.github/workflows/docker-security.yml'
   schedule:
     # Run weekly on Sundays at 2 AM UTC
     - cron: '0 0 * * 0'

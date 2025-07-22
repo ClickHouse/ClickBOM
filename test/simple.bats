@@ -305,3 +305,87 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "testcommandecho hello" ]]
 }
+
+# Test 23: sanitize_string removes null bytes and control characters
+@test "sanitize_string removes control characters" {
+    # Test string with null byte, control characters
+    local test_string=$(printf "test\000string\001\002\003")
+    run sanitize_string "$test_string"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "teststring" ]]
+}
+
+# Test 24: sanitize_string limits length
+@test "sanitize_string respects length limit" {
+    local long_string=$(printf 'a%.0s' {1..2000})
+    run sanitize_string "$long_string" 100
+    [ "$status" -eq 0 ]
+    [ "${#output}" -eq 100 ]
+}
+
+# Test 25: sanitize_string removes shell metacharacters
+@test "sanitize_string removes shell metacharacters" {
+    run sanitize_string "test|command;rm -rf /&"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "testcommandrm -rf /" ]]
+}
+
+# Test 26: sanitize_string preserves safe characters
+@test "sanitize_string preserves safe characters" {
+    run sanitize_string "test-string_with.safe@characters123"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "test-string_with.safecharacters123" ]]
+}
+
+# Test 27: sanitize_repository valid input
+@test "sanitize_repository accepts valid repository format" {
+    run sanitize_repository "owner/repo"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "owner/repo" ]]
+}
+
+# Test 28: sanitize_repository accepts repository with hyphens and underscores
+@test "sanitize_repository accepts repository with hyphens and underscores" {
+    run sanitize_repository "my-org/my_repo-name"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "my-org/my_repo-name" ]]
+}
+
+# Test 29: sanitize_repository accepts repository with dots
+@test "sanitize_repository accepts repository with dots" {
+    run sanitize_repository "my.org/repo.name"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "my.org/repo.name" ]]
+}
+
+# Test 30: sanitize_repository removes dangerous characters
+@test "sanitize_repository removes dangerous characters" {
+    run sanitize_repository "owner\$bad/repo;rm"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "ownerbad/reporm" ]]
+}
+
+# Test 31: sanitize_repository rejects invalid format - special characters
+@test "sanitize_repository rejects invalid format - no slash" {
+    run sanitize_repository "invalidrepo"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid repository format"* ]]
+}
+
+# Test 32: sanitize_repository rejects invalid format - multiple slashes
+@test "sanitize_repository rejects invalid format - multiple slashes" {
+    run sanitize_repository "owner/repo/extra"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid repository format"* ]]
+}
+
+# Test 33: sanitize_repository rejects invalid format - empty owner or repo
+@test "sanitize_repository rejects empty owner or repo" {
+    run sanitize_repository "/repo"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid repository format"* ]]
+    
+    run sanitize_repository "owner/"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid repository format"* ]]
+}

@@ -105,6 +105,29 @@ sanitize_s3_bucket() {
     echo "$sanitized"
 }
 
+# Sanitize S3 key
+sanitize_s3_key() {
+    local key="$1"
+    
+    # S3 keys can contain most characters but we'll be restrictive for security
+    local sanitized
+    sanitized=$(echo "$key" | sed 's/[^a-zA-Z0-9._/-]//g')
+    
+    # Prevent path traversal attempts
+    sanitized=$(echo "$sanitized" | sed 's/\.\.//g' | sed 's/\/\+/\//g')
+    
+    # Remove leading/trailing slashes
+    sanitized=$(echo "$sanitized" | sed 's/^\/*//' | sed 's/\/*$//')
+    
+    if [[ -z "$sanitized" ]]; then
+        log_error "Invalid S3 key: $key"
+        log_error "S3 key must contain valid characters and cannot be empty"
+        exit 1
+    fi
+    
+    echo "$sanitized"
+}
+
 # Main sanitization function - sanitizes all environment variables
 sanitize_inputs() {
     log_debug "Sanitizing input parameters..."
@@ -222,10 +245,10 @@ sanitize_inputs() {
         log_debug "Sanitized S3_BUCKET: $S3_BUCKET"
     fi
     
-    # if [[ -n "${S3_KEY:-}" ]]; then
-    #     S3_KEY=$(sanitize_s3_key "$S3_KEY")
-    #     log_debug "Sanitized S3_KEY: $S3_KEY"
-    # fi
+    if [[ -n "${S3_KEY:-}" ]]; then
+        S3_KEY=$(sanitize_s3_key "$S3_KEY")
+        log_debug "Sanitized S3_KEY: $S3_KEY"
+    fi
     
     # ClickHouse inputs
     if [[ -n "${CLICKHOUSE_URL:-}" ]]; then

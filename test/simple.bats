@@ -609,7 +609,7 @@ EOF
     [[ "$output" == *"Invalid UUID format for TEST_UUID"* ]]
 }
 
-# Test 65: sanitize_uuid rejects too long UUID
+# Test 65: sanitize_uuid rejects non-hex characters
 @test "sanitize_uuid rejects non-hex characters" {
     run sanitize_uuid "123g4567-e89b-12d3-a456-426614174000" "TEST_UUID"
     [ "$status" -eq 0 ]

@@ -118,6 +118,10 @@ inputs:
     description: 'Comma-separated list of filenames or patterns to exclude when merging (only used with merge=true)'
     required: false
     default: ''
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -160,6 +164,7 @@ runs:
     MERGE: ${{ inputs.merge }}
     INCLUDE: ${{ inputs.include }}
     EXCLUDE: ${{ inputs.exclude }}
+    DEBUG: ${{ inputs.debug }}
 branding:
   icon: 'list'
   color: 'yellow'

@@ -590,8 +590,6 @@ EOF
         --data audience=wiz-api \
         "$WIZ_AUTH_ENDPOINT"); then
         
-        log_debug "Auth response: $auth_response"
-        
         # Extract access token
         local access_token
         if access_token=$(echo "$auth_response" | jq -r '.access_token // empty'); then
@@ -747,9 +745,9 @@ download_wiz_report_from_url() {
                     log_success "ZIP file extracted successfully"
                     
                     # Debug: Show what was extracted
-                    log_info "Extracted files:"
+                    log_debug "Extracted files:"
                     find "$extract_dir" -type f | while read -r file; do
-                        log_info "  - $(basename "$file") ($(file -b "$file" 2>/dev/null || echo "unknown type"))"
+                        log_debug "  - $(basename "$file") ($(file -b "$file" 2>/dev/null || echo "unknown type"))"
                     done
                     
                     # Find JSON files in the extracted content
@@ -789,7 +787,7 @@ download_wiz_report_from_url() {
                                         
                                         if [[ "$bom_format" == "CycloneDX" ]] || jq -e '.metadata.component' "$json_file" >/dev/null 2>&1; then
                                             cyclonedx_files+=("$json_file")
-                                            log_info "  ✓ $(basename "$json_file") is valid CycloneDX"
+                                            log_debug "  ✓ $(basename "$json_file") is valid CycloneDX"
                                         else
                                             log_warning "  ⚠ $(basename "$json_file") is not CycloneDX (format: $bom_format)"
                                         fi
@@ -1154,12 +1152,11 @@ merge_cyclonedx_sboms() {
     local download_dir="$temp_dir/sboms"
     mkdir -p "$download_dir"
     
-    # List all JSON files in the S3 bucket (excluding vulns/ directory)
-    log_info "Listing JSON files in S3 bucket (excluding vulns/ directory)..."
+    # List all JSON files in the S3 bucket
     local s3_files
     
     # Debug: Show raw S3 ls output
-    log_info "Raw S3 listing for bucket: $S3_BUCKET"
+    log_debug "Raw S3 listing for bucket: $S3_BUCKET"
     if ! aws s3 ls "s3://$S3_BUCKET" --recursive; then
         log_error "Failed to list files in S3 bucket: $S3_BUCKET"
         log_error "Check bucket name and AWS permissions"
@@ -1177,13 +1174,10 @@ merge_cyclonedx_sboms() {
     local json_files
     json_files=$(echo "$all_files" | grep '\.json$' || true)
     log_info "JSON files found: $(echo "$json_files" | wc -l) files"
-    
-    s3_files=$(echo "$json_files" | grep -v 'vulns/' || true)
-    log_info "JSON files after excluding vulns/: $(echo "$s3_files" | wc -l) files"
-    
+        
     # Also exclude the target S3_KEY file to avoid processing the merged output
     local s3_key_basename=$(basename "${S3_KEY:-sbom.json}")
-    s3_files=$(echo "$s3_files" | grep -v "^${s3_key_basename}$" || true)
+    s3_files=$(echo "$json_files" | grep -v "^${s3_key_basename}$" || true)
     log_info "JSON files after excluding target file ($s3_key_basename): $(echo "$s3_files" | wc -l) files"
     
     # Apply include/exclude filters
@@ -1246,18 +1240,18 @@ merge_cyclonedx_sboms() {
         
         local local_file="$download_dir/${filename}"
 
-        log_info "Downloading ($total_files/${#files_array[@]}): s3://$S3_BUCKET/$s3_key_to_merge"
+        log_debug "Downloading ($total_files/${#files_array[@]}): s3://$S3_BUCKET/$s3_key_to_merge"
 
         # Try to download the file
         if aws s3 cp "s3://$S3_BUCKET/$s3_key_to_merge" "$local_file"; then
             log_success "Downloaded: $filename"
             
             # Check if it's a valid CycloneDX SBOM
-            log_info "Validating CycloneDX format for: $filename"
+            log_debug "Validating CycloneDX format for: $filename"
 
             # First check if it's valid JSON
             if jq empty "$local_file" >/dev/null 2>&1; then
-                log_info "JSON validation passed for: $filename"
+                log_debug "JSON validation passed for: $filename"
             else
                 log_warning "Skipping $filename - not valid JSON"
                 continue
@@ -1273,7 +1267,7 @@ merge_cyclonedx_sboms() {
                 bom_format="missing"
             fi
             
-            log_info "File $filename has bomFormat: $bom_format"
+            log_debug "File $filename has bomFormat: $bom_format"
 
             # Check if it's CycloneDX (also check for metadata.component as backup)
             local is_cyclonedx=false
@@ -1587,16 +1581,16 @@ setup_clickhouse_table() {
     # Use basic auth if username and password are provided
     if [[ -n "${CLICKHOUSE_USERNAME:-}" ]] && [[ -n "${CLICKHOUSE_PASSWORD:-}" ]]; then
         auth_params="-u ${CLICKHOUSE_USERNAME}:${CLICKHOUSE_PASSWORD}"
-        log_info "Using basic auth with username: ${CLICKHOUSE_USERNAME}"
+        log_debug "Using basic auth with username: ${CLICKHOUSE_USERNAME}"
     elif [[ -n "${CLICKHOUSE_USERNAME:-}" ]]; then
         auth_params="-u ${CLICKHOUSE_USERNAME}:"
-        log_info "Using basic auth with username only: ${CLICKHOUSE_USERNAME}"
+        log_debug "Using basic auth with username only: ${CLICKHOUSE_USERNAME}"
     else
-        log_info "Using no authentication"
+        log_debug "Using no authentication"
     fi
     
     # Test connection first
-    log_info "Testing ClickHouse connection..."
+    log_debug "Testing ClickHouse connection..."
     if ! curl -s ${auth_params} --data "SELECT 1" "${clickhouse_url}" > /dev/null; then
         log_error "ClickHouse connection test failed"
         log_error "Please verify your ClickHouse credentials and URL"

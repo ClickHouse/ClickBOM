@@ -128,6 +128,25 @@ sanitize_s3_key() {
     echo "$sanitized"
 }
 
+# Sanitize UUID format (for Mend/Wiz IDs)
+sanitize_uuid() {
+    local uuid="$1"
+    local field_name="$2"
+    
+    # Remove any non-hex characters except hyphens
+    local sanitized
+    sanitized=$(echo "$uuid" | sed 's/[^a-fA-F0-9-]//g')
+    
+    # Validate UUID format (loose validation - some services use non-standard formats)
+    if [[ ! "$sanitized" =~ ^[a-fA-F0-9-]{8,}$ ]]; then
+        log_error "Invalid UUID format for $field_name: $uuid"
+        log_error "UUID must contain only hexadecimal characters and hyphens"
+        exit 1
+    fi
+    
+    echo "$sanitized"
+}
+
 # Main sanitization function - sanitizes all environment variables
 sanitize_inputs() {
     log_debug "Sanitizing input parameters..."
@@ -149,44 +168,44 @@ sanitize_inputs() {
         log_debug "Sanitized MEND_BASE_URL: $MEND_BASE_URL"
     fi
     
-    # if [[ -n "${MEND_ORG_UUID:-}" ]]; then
-    #     MEND_ORG_UUID=$(sanitize_uuid "$MEND_ORG_UUID" "MEND_ORG_UUID")
-    #     log_debug "Sanitized MEND_ORG_UUID: $MEND_ORG_UUID"
-    # fi
+    if [[ -n "${MEND_ORG_UUID:-}" ]]; then
+        MEND_ORG_UUID=$(sanitize_uuid "$MEND_ORG_UUID" "MEND_ORG_UUID")
+        log_debug "Sanitized MEND_ORG_UUID: $MEND_ORG_UUID"
+    fi
     
     if [[ -n "${MEND_USER_KEY:-}" ]]; then
         MEND_USER_KEY=$(sanitize_string "$MEND_USER_KEY" 500)
         log_debug "Sanitized MEND_USER_KEY: [REDACTED]"
     fi
     
-    # if [[ -n "${MEND_PROJECT_UUID:-}" ]]; then
-    #     MEND_PROJECT_UUID=$(sanitize_uuid "$MEND_PROJECT_UUID" "MEND_PROJECT_UUID")
-    #     log_debug "Sanitized MEND_PROJECT_UUID: $MEND_PROJECT_UUID"
-    # fi
+    if [[ -n "${MEND_PROJECT_UUID:-}" ]]; then
+        MEND_PROJECT_UUID=$(sanitize_uuid "$MEND_PROJECT_UUID" "MEND_PROJECT_UUID")
+        log_debug "Sanitized MEND_PROJECT_UUID: $MEND_PROJECT_UUID"
+    fi
     
-    # if [[ -n "${MEND_PRODUCT_UUID:-}" ]]; then
-    #     MEND_PRODUCT_UUID=$(sanitize_uuid "$MEND_PRODUCT_UUID" "MEND_PRODUCT_UUID")
-    #     log_debug "Sanitized MEND_PRODUCT_UUID: $MEND_PRODUCT_UUID"
-    # fi
+    if [[ -n "${MEND_PRODUCT_UUID:-}" ]]; then
+        MEND_PRODUCT_UUID=$(sanitize_uuid "$MEND_PRODUCT_UUID" "MEND_PRODUCT_UUID")
+        log_debug "Sanitized MEND_PRODUCT_UUID: $MEND_PRODUCT_UUID"
+    fi
     
-    # if [[ -n "${MEND_ORG_SCOPE_UUID:-}" ]]; then
-    #     MEND_ORG_SCOPE_UUID=$(sanitize_uuid "$MEND_ORG_SCOPE_UUID" "MEND_ORG_SCOPE_UUID")
-    #     log_debug "Sanitized MEND_ORG_SCOPE_UUID: $MEND_ORG_SCOPE_UUID"
-    # fi
+    if [[ -n "${MEND_ORG_SCOPE_UUID:-}" ]]; then
+        MEND_ORG_SCOPE_UUID=$(sanitize_uuid "$MEND_ORG_SCOPE_UUID" "MEND_ORG_SCOPE_UUID")
+        log_debug "Sanitized MEND_ORG_SCOPE_UUID: $MEND_ORG_SCOPE_UUID"
+    fi
     
-    # if [[ -n "${MEND_PROJECT_UUIDS:-}" ]]; then
-    #     # Split by comma and sanitize each UUID
-    #     local sanitized_uuids=()
-    #     IFS=',' read -ra uuid_array <<< "$MEND_PROJECT_UUIDS"
-    #     for uuid in "${uuid_array[@]}"; do
-    #         uuid=$(echo "$uuid" | xargs)  # trim whitespace
-    #         if [[ -n "$uuid" ]]; then
-    #             sanitized_uuids+=($(sanitize_uuid "$uuid" "MEND_PROJECT_UUIDS"))
-    #         fi
-    #     done
-    #     MEND_PROJECT_UUIDS=$(IFS=','; echo "${sanitized_uuids[*]}")
-    #     log_debug "Sanitized MEND_PROJECT_UUIDS: $MEND_PROJECT_UUIDS"
-    # fi
+    if [[ -n "${MEND_PROJECT_UUIDS:-}" ]]; then
+        # Split by comma and sanitize each UUID
+        local sanitized_uuids=()
+        IFS=',' read -ra uuid_array <<< "$MEND_PROJECT_UUIDS"
+        for uuid in "${uuid_array[@]}"; do
+            uuid=$(echo "$uuid" | xargs)  # trim whitespace
+            if [[ -n "$uuid" ]]; then
+                sanitized_uuids+=($(sanitize_uuid "$uuid" "MEND_PROJECT_UUIDS"))
+            fi
+        done
+        MEND_PROJECT_UUIDS=$(IFS=','; echo "${sanitized_uuids[*]}")
+        log_debug "Sanitized MEND_PROJECT_UUIDS: $MEND_PROJECT_UUIDS"
+    fi
     
     # if [[ -n "${MEND_MAX_WAIT_TIME:-}" ]]; then
     #     MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200)

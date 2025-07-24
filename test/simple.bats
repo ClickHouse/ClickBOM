@@ -517,3 +517,59 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid S3 bucket name"* ]]
 }
+
+# Test 52: sanitize_s3_key accepts valid S3 key
+@test "sanitize_s3_key accepts valid key" {
+    run sanitize_s3_key "path/to/file.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "path/to/file.json" ]]
+}
+
+# Test 53: sanitize_s3_key removes dangerous characters
+@test "sanitize_s3_key removes dangerous characters" {
+    run sanitize_s3_key "path/to/file\$bad.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "path/to/filebad.json" ]]
+}
+
+# Test 54: sanitize_s3_key prevents path traversal
+@test "sanitize_s3_key prevents path traversal" {
+    run sanitize_s3_key "../../../etc/passwd"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "etc/passwd" ]]
+}
+
+# Test 55: sanitize_s3_key removes multiple slashes
+@test "sanitize_s3_key removes multiple slashes" {
+    run sanitize_s3_key "path//to///file.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "path/to/file.json" ]]
+}
+
+# Test 56: sanitize_s3_key removes leading slash
+@test "sanitize_s3_key removes leading slash" {
+    run sanitize_s3_key "/path/to/file.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "path/to/file.json" ]]
+}
+
+# Test 57: sanitize_s3_key removes trailing slash
+@test "sanitize_s3_key removes trailing slash" {
+    run sanitize_s3_key "path/to/file.json/"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "path/to/file.json" ]]
+}
+
+# Test 58: sanitize_s3_key rejects empty key
+@test "sanitize_s3_key rejects empty key" {
+    run sanitize_s3_key ""
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid S3 key"* ]]
+}
+
+# Test 59: sanitize_s3_key rejects key with only invalid characters
+@test "sanitize_s3_key rejects key with only invalid characters" {
+    run sanitize_s3_key "\$%^&*()"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid S3 key"* ]]
+}

@@ -18,7 +18,9 @@ NC='\033[0m' # No Color
 
 # Logging functions
 log_debug() {
-    echo -e "${ORANGE}[DEBUG]${NC} $1"
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        echo -e "${ORANGE}[DEBUG]${NC} $1"
+    fi
 }
 
 log_info() {

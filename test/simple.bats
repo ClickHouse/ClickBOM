@@ -573,3 +573,46 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid S3 key"* ]]
 }
+
+# Test 60: sanitize_uuid accepts valid UUID
+@test "sanitize_uuid accepts valid UUID" {
+    run sanitize_uuid "123e4567-e89b-12d3-a456-426614174000" "TEST_UUID"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "123e4567-e89b-12d3-a456-426614174000" ]]
+}
+
+# Test 61: sanitize_uuid accepts UUID without hyphens
+@test "sanitize_uuid accepts UUID without hyphens" {
+    run sanitize_uuid "123e4567e89b12d3a456426614174000" "TEST_UUID"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "123e4567e89b12d3a456426614174000" ]]
+}
+
+# Test 62: sanitize_uuid accepts UUID with uppercase letters
+@test "sanitize_uuid accepts uppercase UUID" {
+    run sanitize_uuid "123E4567-E89B-12D3-A456-426614174000" "TEST_UUID"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "123E4567-E89B-12D3-A456-426614174000" ]]
+}
+
+# Test 63: sanitize_uuid removes invalid characters
+@test "sanitize_uuid removes invalid characters" {
+    run sanitize_uuid "123e4567-e89b-12d3-a456-426614174000!@#" "TEST_UUID"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "123e4567-e89b-12d3-a456-426614174000" ]]
+}
+
+# Test 64: sanitize_uuid rejects too short UUID
+@test "sanitize_uuid rejects too short UUID" {
+    run sanitize_uuid "123" "TEST_UUID"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid UUID format for TEST_UUID"* ]]
+}
+
+# Test 65: sanitize_uuid rejects non-hex characters
+@test "sanitize_uuid rejects non-hex characters" {
+    run sanitize_uuid "123g45678-e89b-12d3-a456-426614174000" "TEST_UUID"
+    echo "$output"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "12345678-e89b-12d3-a456-426614174000" ]]
+}

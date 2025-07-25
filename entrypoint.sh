@@ -144,8 +144,10 @@ download_sbom() {
             
             # Debug: Show first few lines of downloaded content
             log_debug "First 200 characters of downloaded content:"
-            head -c 200 "$output_file" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
-            echo ""
+            if [[ "${DEBUG:-false}" == "true" ]]; then
+                head -c 200 "$output_file" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
+                echo ""
+            fi
             
             # Quick validation that it's JSON
             if ! jq . "$output_file" > /dev/null 2>&1; then
@@ -748,9 +750,11 @@ download_wiz_report_from_url() {
                     
                     # Debug: Show what was extracted
                     log_debug "Extracted files:"
-                    find "$extract_dir" -type f | while read -r file; do
-                        log_debug "  - $(basename "$file") ($(file -b "$file" 2>/dev/null || echo "unknown type"))"
-                    done
+                    if [[ "${DEBUG:-false}" == "true" ]]; then
+                        find "$extract_dir" -type f | while read -r file; do
+                            log_debug "  - $(basename "$file") ($(file -b "$file" 2>/dev/null || echo "unknown type"))"
+                        done
+                    fi
                     
                     # Find JSON files in the extracted content
                     local json_files
@@ -1159,10 +1163,12 @@ merge_cyclonedx_sboms() {
     
     # Debug: Show raw S3 ls output
     log_debug "Raw S3 listing for bucket: $S3_BUCKET"
-    if ! aws s3 ls "s3://$S3_BUCKET" --recursive; then
-        log_error "Failed to list files in S3 bucket: $S3_BUCKET"
-        log_error "Check bucket name and AWS permissions"
-        exit 1
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        if ! aws s3 ls "s3://$S3_BUCKET" --recursive; then
+            log_error "Failed to list files in S3 bucket: $S3_BUCKET"
+            log_error "Check bucket name and AWS permissions"
+            exit 1
+        fi
     fi
 
     # Extract JSON files (excluding vulns/ directory and target S3_KEY file)
@@ -1290,10 +1296,12 @@ merge_cyclonedx_sboms() {
                 
                 # Debug: Show structure of the file to understand why it's not recognized
                 log_debug "File structure preview for $filename:"
-                if jq -r 'keys[]' "$local_file" 2>/dev/null | head -5; then
-                    echo "Keys shown above"
-                else
-                    echo "Unable to read keys from file"
+                if [[ "${DEBUG:-false}" == "true" ]]; then
+                    if jq -r 'keys[]' "$local_file" 2>/dev/null | head -5; then
+                        echo "Keys shown above"
+                    else
+                        echo "Unable to read keys from file"
+                    fi
                 fi
             fi
         else
@@ -1593,12 +1601,14 @@ setup_clickhouse_table() {
     
     # Test connection first
     log_debug "Testing ClickHouse connection..."
-    if ! curl -s ${auth_params} --data "SELECT 1" "${clickhouse_url}" > /dev/null; then
-        log_error "ClickHouse connection test failed"
-        log_error "Please verify your ClickHouse credentials and URL"
-        return 1
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        if ! curl -s ${auth_params} --data "SELECT 1" "${clickhouse_url}" > /dev/null; then
+            log_error "ClickHouse connection test failed"
+            log_error "Please verify your ClickHouse credentials and URL"
+            return 1
+        fi
+        log_success "ClickHouse connection successful"
     fi
-    log_success "ClickHouse connection successful"
 
     # Check if table exists
     local table_exists
@@ -1691,7 +1701,9 @@ insert_sbom_data() {
     case "$sbom_format" in
         "cyclonedx")
             log_debug "Sample CycloneDX component with license:"
-            jq -r '.components[0] | {name: .name, version: .version, licenses: .licenses}' "$sbom_file" 2>/dev/null || echo "No components found"
+            if [[ "${DEBUG:-false}" == "true" ]]; then
+                jq -r '.components[0] | {name: .name, version: .version, licenses: .licenses}' "$sbom_file" 2>/dev/null || echo "No components found"
+            fi
             # Extract from CycloneDX format
             jq -r '
                 .components[]? // empty |

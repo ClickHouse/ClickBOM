@@ -93,6 +93,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 | merge       | Merge SBOMs stored in S3                                              | false     | false    | false     |
 | include     | Comma-separated list of filenames or patterns to include when merging | (empty)   | false    | false     |
 | exclude     | Comma-separated list of filenames or patterns to exclude when merging | (empty)   | false    | false     |
+| debug       | Enable debug logging                                                  | false     | false    | false     |
 
 - `sbom-format` specifies the format you want the final SBOM to be in. For example, GitHub only supports SPDX, settings this input to `cyclonedx` will convert the SBOM to CycloneDX format.
 - `include` and `exclude` are only used when `merge` is set to `true`. They allow you to filter which files from the S3 bucket should be included in the merge operation.
@@ -219,7 +220,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -282,7 +283,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -346,7 +347,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -390,7 +391,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -444,7 +445,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}

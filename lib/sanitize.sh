@@ -153,7 +153,7 @@ sanitize_email() {
     
     # Basic email sanitization - remove dangerous characters
     local sanitized
-    sanitized=$(echo "$email" | sed 's/[^a-zA-Z0-9@._-]//g')
+    sanitized=$(echo "$email" | sed 's/[^a-zA-Z0-9@._-]//g' | sed 's/@/\n&/;t;d' | tr -d '\n')
     
     # Basic email format validation
     if [[ ! "$sanitized" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])*(\.[a-zA-Z]{2,})+$ ]]; then

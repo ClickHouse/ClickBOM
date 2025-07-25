@@ -144,7 +144,7 @@ download_sbom() {
             
             # Debug: Show first few lines of downloaded content
             log_debug "First 200 characters of downloaded content:"
-            if [[ "${DEBUG:-false}" == "true" ]]; then``
+            if [[ "${DEBUG:-false}" == "true" ]]; then
                 head -c 200 "$output_file" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g'
                 echo ""
             fi

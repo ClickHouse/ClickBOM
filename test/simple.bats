@@ -611,8 +611,8 @@ EOF
 
 # Test 65: sanitize_uuid rejects non-hex characters
 @test "sanitize_uuid rejects non-hex characters" {
-    run sanitize_uuid "123g4567-e89b-12d3-a456-426614174000" "TEST_UUID"
+    run sanitize_uuid "123g45678-e89b-12d3-a456-426614174000" "TEST_UUID"
     echo "$output"
     [ "$status" -eq 0 ]
-    [[ "$output" == "1234567-e89b-12d3-a456-426614174000" ]]
+    [[ "$output" == "12345678-e89b-12d3-a456-426614174000" ]]
 }

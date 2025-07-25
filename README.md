@@ -220,7 +220,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -283,7 +283,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -347,7 +347,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -391,7 +391,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -445,7 +445,7 @@ jobs:
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}

@@ -147,6 +147,24 @@ sanitize_uuid() {
     echo "$sanitized"
 }
 
+# Sanitize email addresses
+sanitize_email() {
+    local email="$1"
+    
+    # Basic email sanitization - remove dangerous characters
+    local sanitized
+    sanitized=$(echo "$email" | sed 's/[^a-zA-Z0-9@._-]//g')
+    
+    # Basic email format validation
+    if [[ ! "$sanitized" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+        log_error "Invalid email format: $email"
+        log_error "Email must be in valid format: user@domain.com"
+        exit 1
+    fi
+    
+    echo "$sanitized"
+}
+
 # Main sanitization function - sanitizes all environment variables
 sanitize_inputs() {
     log_debug "Sanitizing input parameters..."
@@ -157,11 +175,11 @@ sanitize_inputs() {
         log_debug "Sanitized REPOSITORY: $REPOSITORY"
     fi
     
-    # # Mend inputs
-    # if [[ -n "${MEND_EMAIL:-}" ]]; then
-    #     MEND_EMAIL=$(sanitize_email "$MEND_EMAIL")
-    #     log_debug "Sanitized MEND_EMAIL: $MEND_EMAIL"
-    # fi
+    # Mend inputs
+    if [[ -n "${MEND_EMAIL:-}" ]]; then
+        MEND_EMAIL=$(sanitize_email "$MEND_EMAIL")
+        log_debug "Sanitized MEND_EMAIL: $MEND_EMAIL"
+    fi
     
     if [[ -n "${MEND_BASE_URL:-}" ]]; then
         MEND_BASE_URL=$(sanitize_url "$MEND_BASE_URL" "mend")

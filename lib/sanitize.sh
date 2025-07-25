@@ -138,7 +138,7 @@ sanitize_uuid() {
     sanitized=$(echo "$uuid" | sed 's/[^a-fA-F0-9-]//g')
     
     # Validate UUID format (loose validation - some services use non-standard formats)
-    if [[ ! "$sanitized" =~ ^[a-fA-F0-9-]{8,}$ ]]; then
+    if [[ ! "$sanitized" =~ ^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$ ]]; then
         log_error "Invalid UUID format for $field_name: $uuid"
         log_error "UUID must contain only hexadecimal characters and hyphens"
         exit 1

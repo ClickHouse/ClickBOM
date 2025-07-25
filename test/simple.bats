@@ -616,3 +616,52 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "12345678-e89b-12d3-a456-426614174000" ]]
 }
+
+# Test 66: sanitize_email accepts valid email
+@test "sanitize_email accepts valid email" {
+    run sanitize_email "user@example.com"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "user@example.com" ]]
+}
+
+# Test 67: sanitize_email accepts with dots and hyphens
+@test "sanitize_email accepts email with dots and hyphens" {
+    run sanitize_email "user.name-test@example-domain.com"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "user.name-test@example-domain.com" ]]
+}
+
+# Test 68: sanitize_email removes dangerous characters
+@test "sanitize_email removes dangerous characters" {
+    run sanitize_email "user\$bad@example.com"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "userbad@example.com" ]]
+}
+
+# Test 69: sanitize_email rejects invalid format - no @ sign
+@test "sanitize_email rejects invalid format - no @" {
+    run sanitize_email "invalid-email"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid email format"* ]]
+}
+
+# Test 70: sanitize_email rejects invalid format - multiple @ signs
+@test "sanitize_email rejects invalid format - multiple @" {
+    run sanitize_email "user@@example.com"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid email format"* ]]
+}
+
+# Test 71: sanitize_email rejects invalid format - no domain
+@test "sanitize_email rejects invalid format - no domain" {
+    run sanitize_email "user@"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid email format"* ]]
+}
+
+# Test 72: sanitize_email rejects invalid format - no TLD
+@test "sanitize_email rejects invalid format - no TLD" {
+    run sanitize_email "user@domain"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid email format"* ]]
+}

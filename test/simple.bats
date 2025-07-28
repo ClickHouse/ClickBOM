@@ -665,3 +665,45 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid email format"* ]]
 }
+
+# Test 73: sanitize_email accepts valid name
+@test "sanitize_database_name accepts valid name" {
+    run sanitize_database_name "test_database"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "test_database" ]]
+}
+
+# Test 74: sanitize_database_name accepts name with underscores
+@test "sanitize_database_name accepts name starting with underscore" {
+    run sanitize_database_name "_test_database"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "_test_database" ]]
+}
+
+# Test 75: sanitize_database_name accepts name with numbers
+@test "sanitize_database_name accepts name with numbers" {
+    run sanitize_database_name "test_database_123"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "test_database_123" ]]
+}
+
+# Test 76: sanitize_database_name removes dangerous characters
+@test "sanitize_database_name removes dangerous characters" {
+    run sanitize_database_name "test-database.name"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "testdatabasename" ]]
+}
+
+# Test 77: sanitize_database_name rejects name with starting with number
+@test "sanitize_database_name rejects name starting with number" {
+    run sanitize_database_name "1test_database"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid database name"* ]]
+}
+
+# Test 78: sanitize_database_name rejects name with spaces
+@test "sanitize_database_name rejects name with spaces" {
+    run sanitize_database_name "test database"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid database name"* ]]
+}

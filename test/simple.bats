@@ -690,6 +690,7 @@ EOF
 # Test 76: sanitize_database_name removes dangerous characters
 @test "sanitize_database_name removes dangerous characters" {
     run sanitize_database_name "test-database.name"
+    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "testdatabasename" ]]
 }
@@ -697,6 +698,7 @@ EOF
 # Test 77: sanitize_database_name rejects name with starting with number
 @test "sanitize_database_name rejects name starting with number" {
     run sanitize_database_name "1test_database"
+    echo "$output"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid database name"* ]]
 }
@@ -704,6 +706,7 @@ EOF
 # Test 78: sanitize_database_name rejects name with spaces
 @test "sanitize_database_name rejects name with spaces" {
     run sanitize_database_name "test database"
+    echo "$output"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid database name"* ]]
 }

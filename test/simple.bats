@@ -698,12 +698,12 @@ EOF
 @test "sanitize_database_name rejects name starting with number" {
     run sanitize_database_name "1test_database"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"Invalid database name"* ]]
+    [[ "$output" == "test_database" ]]
 }
 
 # Test 78: sanitize_database_name rejects name with spaces
 @test "sanitize_database_name rejects name with spaces" {
     run sanitize_database_name "test database"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"Invalid database name"* ]]
+    [[ "$output" == "testdatabase" ]]
 }

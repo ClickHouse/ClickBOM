@@ -171,13 +171,11 @@ sanitize_database_name() {
     
     # Database names should only contain alphanumeric and underscores
     local sanitized
-    sanitized=$(echo "$name" | sed 's/[^a-zA-Z0-9_]//g')
+    sanitized=$(echo "$name" | sed 's/[^a-zA-Z0-9_]//g' | sed 's/^[0-9]/_&/')
     
-    # Must start with letter or underscore
-    if [[ ! "$sanitized" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-        log_error "Invalid database name: $name"
-        log_error "Database name must start with letter or underscore and contain only alphanumeric characters and underscores"
-        exit 1
+    # Log a warning if the name was modified
+    if [[ "$sanitized" != "$name" ]]; then
+        log_warning "Database name modified to conform to requirements: $sanitized"
     fi
     
     echo "$sanitized"

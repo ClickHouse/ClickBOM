@@ -173,11 +173,6 @@ sanitize_database_name() {
     local sanitized
     sanitized=$(echo "$name" | sed 's/[^a-zA-Z0-9_]//g' | sed 's/^[0-9]/_&/')
     
-    # Log a warning if the name was modified
-    if [[ "$sanitized" != "$name" ]]; then
-        log_warning "Database name modified to conform to requirements: $sanitized"
-    fi
-    
     echo "$sanitized"
 }
 

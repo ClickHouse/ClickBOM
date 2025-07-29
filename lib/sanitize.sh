@@ -165,6 +165,17 @@ sanitize_email() {
     echo "$sanitized"
 }
 
+# Sanitize database/table names
+sanitize_database_name() {
+    local name="$1"
+    
+    # Database names should only contain alphanumeric and underscores
+    local sanitized
+    sanitized=$(echo "$name" | sed 's/[^a-zA-Z0-9_]//g' | sed 's/^[0-9]/_&/')
+    
+    echo "$sanitized"
+}
+
 # Main sanitization function - sanitizes all environment variables
 sanitize_inputs() {
     log_debug "Sanitizing input parameters..."
@@ -293,10 +304,10 @@ sanitize_inputs() {
         log_debug "Sanitized CLICKHOUSE_URL: $CLICKHOUSE_URL"
     fi
     
-    # if [[ -n "${CLICKHOUSE_DATABASE:-}" ]]; then
-    #     CLICKHOUSE_DATABASE=$(sanitize_database_name "$CLICKHOUSE_DATABASE")
-    #     log_debug "Sanitized CLICKHOUSE_DATABASE: $CLICKHOUSE_DATABASE"
-    # fi
+    if [[ -n "${CLICKHOUSE_DATABASE:-}" ]]; then
+        CLICKHOUSE_DATABASE=$(sanitize_database_name "$CLICKHOUSE_DATABASE")
+        log_debug "Sanitized CLICKHOUSE_DATABASE: $CLICKHOUSE_DATABASE"
+    fi
     
     if [[ -n "${CLICKHOUSE_USERNAME:-}" ]]; then
         CLICKHOUSE_USERNAME=$(sanitize_string "$CLICKHOUSE_USERNAME" 100)

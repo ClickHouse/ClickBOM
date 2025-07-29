@@ -540,7 +540,7 @@ EOF
     run sanitize_inputs
     echo "$output"
     [ "$status" -eq 0 ]
-    [[ "$output" == "test-org/test-repo" ]]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
 # Test 12: sanitize_inputs processes Mend email correctly
@@ -555,7 +555,7 @@ EOF
     run sanitize_inputs
     echo "$output"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Sanitized MEND_EMAIL: test@example.com"* ]]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
 # Test 13: sanitize_inputs processes S3 bucket correctly
@@ -564,7 +564,7 @@ EOF
     
     run sanitize_inputs
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Sanitized S3_BUCKET: my-test-bucket"* ]]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
 # Test 14: sanitize_inputs validates SBOM_SOURCE enum

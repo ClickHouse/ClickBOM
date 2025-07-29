@@ -707,3 +707,52 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "testdatabase" ]]
 }
+
+# Test 79: sanitize_patterns accepts valid patterns
+@test "sanitize_patterns accepts valid patterns" {
+    run sanitize_patterns "*.json,test*.txt,file.log"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "*.json,test*.txt,file.log" ]]
+}
+
+# Test 80: sanitize_patterns trims whitespace
+@test "sanitize_patterns trims whitespace" {
+    run sanitize_patterns " *.json , test*.txt , file.log "
+    [ "$status" -eq 0 ]
+    [[ "$output" == "*.json,test*.txt,file.log" ]]
+}
+
+# Test 81: sanitize_patterns removes dangerous characters
+@test "sanitize_patterns removes dangerous characters" {
+    run sanitize_patterns "*.json,test\$bad.txt"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "*.json,testbad.txt" ]]
+}
+
+# Test 82: sanitize_patterns preserves valid wildcards
+@test "sanitize_patterns preserves wildcards" {
+    run sanitize_patterns "*-prod.json,production-*.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "*-prod.json,production-*.json" ]]
+}
+
+# Test 83: sanitize_patterns handles empty input
+@test "sanitize_patterns handles empty input" {
+    run sanitize_patterns ""
+    [ "$status" -eq 0 ]
+    [[ "$output" == "" ]]
+}
+
+# Test 84: sanitize_patterns removes empty patterns
+@test "sanitize_patterns removes empty patterns" {
+    run sanitize_patterns "*.json,,test*.txt"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "*.json,test*.txt" ]]
+}
+
+# Test 85: sanitize_patterns handles single pattern
+@test "sanitize_patterns handles single pattern" {
+    run sanitize_patterns "*.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "*.json" ]]
+}

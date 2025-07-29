@@ -302,6 +302,7 @@
   "github.com/docker/go-metrics": "Apache-2.0",
   "github.com/docker/go-units": "Apache-2.0",
   "github.com/dustin/go-humanize": "MIT",
+  "github.com/eapache/channels": "MIT",
   "github.com/ebitengine/purego": "Apache-2.0",
   "github.com/felixge/httpsnoop": "MIT",
   "github.com/GaijinEntertainment/go-exhaustruct/v3": "MIT",

@@ -756,3 +756,56 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "*.json" ]]
 }
+
+# Test 86: sanitize_numeric accepts valid number
+@test "sanitize_numeric accepts valid number" {
+    run sanitize_numeric "123" "TEST_FIELD"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "123" ]]
+}
+
+# Test 87: sanitize_numeric accepts number within range
+@test "sanitize_numeric accepts number within range" {
+    run sanitize_numeric "50" "TEST_FIELD" 1 100
+    [ "$status" -eq 0 ]
+    [[ "$output" == "50" ]]
+}
+
+# Test 88: sanitize_numeric removes non-numeric characters
+@test "sanitize_numeric removes non-numeric characters" {
+    run sanitize_numeric "1a2b3c" "TEST_FIELD"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "123" ]]
+}
+
+# Test 89: sanitize_numeric rejects non-numeric input
+@test "sanitize_numeric rejects non-numeric input" {
+    run sanitize_numeric "abc" "TEST_FIELD"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid numeric value for TEST_FIELD"* ]]
+}
+
+# Test 90: sanitize_numeric rejects number below minimum
+@test "sanitize_numeric rejects number below minimum" {
+    run sanitize_numeric "5" "TEST_FIELD" 10 100
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Numeric value for TEST_FIELD out of range"* ]]
+}
+
+# Test 91: sanitize_numeric rejects number above maximum
+@test "sanitize_numeric rejects number above maximum" {
+    run sanitize_numeric "150" "TEST_FIELD" 10 100
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Numeric value for TEST_FIELD out of range"* ]]
+}
+
+# Test 92: sanitize_numeric accepts boundary values
+@test "sanitize_numeric accepts boundary values" {
+    run sanitize_numeric "10" "TEST_FIELD" 10 100
+    [ "$status" -eq 0 ]
+    [[ "$output" == "10" ]]
+    
+    run sanitize_numeric "100" "TEST_FIELD" 10 100
+    [ "$status" -eq 0 ]
+    [[ "$output" == "100" ]]
+}

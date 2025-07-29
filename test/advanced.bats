@@ -795,7 +795,7 @@ EOF
 @test "sanitize_email prevents header injection" {
     run sanitize_email "user@example.com\nBcc: admin@evil.com"
     echo "$output"
-    [ "$status" -eq 0 ]
+    [ "$status" -eq 1 ]
     [ "$status" -eq 0 ]
     [[ "$output" == "user@example.comBcc:admin@evil.com" ]]
     # Should not contain newlines

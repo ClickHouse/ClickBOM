@@ -528,3 +528,155 @@ EOF
     final_format=$(jq -r '.bomFormat' "$converted_sbom")
     [ "$final_format" = "CycloneDX" ]
 }
+
+# ============================================================================
+# SANITIZE_INPUTS INTEGRATION TESTS
+# ============================================================================
+
+# Test 11: sanitize_inputs processes repository correctly
+@test "sanitize_inputs processes repository correctly" {
+    export REPOSITORY="test-org/test-repo"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized REPOSITORY: test-org/test-repo"* ]]
+}
+
+# Test 12: sanitize_inputs processes Mend email correctly
+@test "sanitize_inputs processes Mend email correctly" {
+    export SBOM_SOURCE="mend"
+    export MEND_EMAIL="test@example.com"
+    export MEND_ORG_UUID="123e4567-e89b-12d3-a456-426614174000"
+    export MEND_USER_KEY="test-key"
+    export MEND_BASE_URL="https://api.mend.io"
+    export MEND_PROJECT_UUID="123e4567-e89b-12d3-a456-426614174000"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized MEND_EMAIL: test@example.com"* ]]
+}
+
+# Test 13: sanitize_inputs processes S3 bucket correctly
+@test "sanitize_inputs processes S3 bucket correctly" {
+    export S3_BUCKET="My-Test-Bucket"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized S3_BUCKET: my-test-bucket"* ]]
+}
+
+# Test 14: sanitize_inputs validates SBOM_SOURCE enum
+@test "sanitize_inputs validates SBOM_SOURCE enum" {
+    export SBOM_SOURCE="invalid-source"
+    
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid SBOM_SOURCE: invalid-source"* ]]
+}
+
+# Test 15: sanitize_inputs validates SBOM_FORMAT enum
+@test "sanitize_inputs validates SBOM_FORMAT enum" {
+    export SBOM_FORMAT="invalid-format"
+    
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid SBOM_FORMAT: invalid-format"* ]]
+}
+
+# Test 16: sanitize_inputs validates MERGE boolean
+@test "sanitize_inputs validates MERGE boolean" {
+    export MERGE="maybe"
+    
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid MERGE value: maybe"* ]]
+}
+
+# Test 17: sanitize_inputs processes include patterns correctly
+@test "sanitize_inputs processes include patterns correctly" {
+    export INCLUDE=" *.json , test*.txt , file.log "
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized INCLUDE: *.json,test*.txt,file.log"* ]]
+}
+
+# Test 18: sanitize_inputs processes exclude patterns correctly
+@test "sanitize_inputs processes exclude patterns correctly" {
+    export EXCLUDE="*-dev.json,*-test.json"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized EXCLUDE: *-dev.json,*-test.json"* ]]
+}
+
+# Test 19: sanitize_inputs processes ClickHouse URL correctly
+@test "sanitize_inputs processes ClickHouse URL correctly" {
+    export CLICKHOUSE_URL="https://clickhouse.example.com:8443"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized CLICKHOUSE_URL: https://clickhouse.example.com:8443"* ]]
+}
+
+# Test 20: sanitize_inputs processes multiple Mend project UUIDs
+@test "sanitize_inputs processes multiple Mend project UUIDs" {
+    export MEND_PROJECT_UUIDS="123e4567-e89b-12d3-a456-426614174000, 456e7890-e89b-12d3-a456-426614174000"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized MEND_PROJECT_UUIDS: 123e4567-e89b-12d3-a456-426614174000,456e7890-e89b-12d3-a456-426614174000"* ]]
+}
+
+# Test 21: sanitize_inputs processes numeric values with validation
+@test "sanitize_inputs processes numeric values with validation" {
+    export MEND_MAX_WAIT_TIME="1800"
+    export MEND_POLL_INTERVAL="30"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized MEND_MAX_WAIT_TIME: 1800"* ]]
+    [[ "$output" == *"Sanitized MEND_POLL_INTERVAL: 30"* ]]
+}
+
+# Test 22: sanitize_inputs rejects invalid numeric values
+@test "sanitize_inputs rejects invalid numeric values" {
+    export MEND_MAX_WAIT_TIME="10000"  # Too high
+    
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Numeric value for MEND_MAX_WAIT_TIME out of range"* ]]
+}
+
+# Test 23: sanitize_inputs skips empty values
+@test "sanitize_inputs skips empty values" {
+    export REPOSITORY=""
+    export MEND_EMAIL=""
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    # Should not contain any sanitization messages for empty values
+    [[ "$output" != *"Sanitized REPOSITORY:"* ]]
+    [[ "$output" != *"Sanitized MEND_EMAIL:"* ]]
+}
+
+# Test 24: sanitize_inputs redacts sensitive information in logs
+@test "sanitize_inputs redacts sensitive information in logs" {
+    export GITHUB_TOKEN="secret-token"
+    export AWS_ACCESS_KEY_ID="secret-key"
+    export AWS_SECRET_ACCESS_KEY="secret-access-key"
+    export CLICKHOUSE_PASSWORD="secret-password"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Sanitized GITHUB_TOKEN: [REDACTED]"* ]]
+    [[ "$output" == *"Sanitized AWS_ACCESS_KEY_ID: [REDACTED]"* ]]
+    [[ "$output" == *"Sanitized AWS_SECRET_ACCESS_KEY: [REDACTED]"* ]]
+    [[ "$output" == *"Sanitized CLICKHOUSE_PASSWORD: [REDACTED]"* ]]
+    
+    # Make sure actual values are not in the output
+    [[ "$output" != *"secret-token"* ]]
+    [[ "$output" != *"secret-key"* ]]
+    [[ "$output" != *"secret-access-key"* ]]
+    [[ "$output" != *"secret-password"* ]]
+}

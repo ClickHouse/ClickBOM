@@ -761,5 +761,5 @@ EOF
 @test "sanitize_patterns rejects patterns with directory traversal" {
     run sanitize_patterns "../test.json,./test.txt"
     [ "$status" -eq 1 ]
-    [[ "$output" =~ Invalid pattern: ../test.json contains directory traversal sequences ]]
+    [[ "$output" =~ Invalid\ pattern\:\ \.\.\/test\.json\ contains\ directory\ traversal\ sequences ]]
 }

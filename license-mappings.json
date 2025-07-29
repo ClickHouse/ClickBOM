@@ -325,6 +325,8 @@
   "github.com/evanphx/json-patch/v5": "BSD-3-Clause",
   "github.com/exponent-io/jsonpath": "MIT",
   "github.com/expr-lang/expr": "MIT",
+  "github.com/facebookgo/clock": "MIT",
+  "github.com/facette/natsort": "BSD-3-Clause",
   "github.com/felixge/httpsnoop": "MIT",
   "github.com/GaijinEntertainment/go-exhaustruct/v3": "MIT",
   "github.com/go-faster/city": "MIT",

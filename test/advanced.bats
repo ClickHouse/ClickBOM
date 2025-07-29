@@ -539,7 +539,7 @@ EOF
     
     run sanitize_inputs
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Sanitized REPOSITORY: test-org/test-repo"* ]]
+    [[ "$output" == "test-org/test-repo" ]]
 }
 
 # Test 12: sanitize_inputs processes Mend email correctly

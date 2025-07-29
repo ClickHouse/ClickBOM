@@ -538,6 +538,7 @@ EOF
     export REPOSITORY="test-org/test-repo"
     
     run sanitize_inputs
+    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "test-org/test-repo" ]]
 }
@@ -552,6 +553,7 @@ EOF
     export MEND_PROJECT_UUID="123e4567-e89b-12d3-a456-426614174000"
     
     run sanitize_inputs
+    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Sanitized MEND_EMAIL: test@example.com"* ]]
 }

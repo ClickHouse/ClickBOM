@@ -176,6 +176,38 @@ sanitize_database_name() {
     echo "$sanitized"
 }
 
+# Sanitize comma-separated patterns (for include/exclude)
+sanitize_patterns() {
+    local patterns="$1"
+    
+    if [[ -z "$patterns" ]]; then
+        echo ""
+        return
+    fi
+    
+    # Split by comma and sanitize each pattern
+    local sanitized_patterns=()
+    IFS=',' read -ra pattern_array <<< "$patterns"
+    
+    for pattern in "${pattern_array[@]}"; do
+        # Trim whitespace
+        pattern=$(echo "$pattern" | xargs)
+        
+        # Remove dangerous characters but keep wildcards
+        local sanitized_pattern
+        sanitized_pattern=$(echo "$pattern" | sed 's/[^a-zA-Z0-9.*_-]//g')
+        
+        if [[ -n "$sanitized_pattern" ]]; then
+            sanitized_patterns+=("$sanitized_pattern")
+        fi
+    done
+    
+    # Join back with commas
+    local result
+    result=$(IFS=','; echo "${sanitized_patterns[*]}")
+    echo "$result"
+}
+
 # Main sanitization function - sanitizes all environment variables
 sanitize_inputs() {
     log_debug "Sanitizing input parameters..."
@@ -347,15 +379,15 @@ sanitize_inputs() {
     #     log_debug "Validated MERGE: $MERGE"
     # fi
     
-    # if [[ -n "${INCLUDE:-}" ]]; then
-    #     INCLUDE=$(sanitize_patterns "$INCLUDE")
-    #     log_debug "Sanitized INCLUDE: $INCLUDE"
-    # fi
+    if [[ -n "${INCLUDE:-}" ]]; then
+        INCLUDE=$(sanitize_patterns "$INCLUDE")
+        log_debug "Sanitized INCLUDE: $INCLUDE"
+    fi
     
-    # if [[ -n "${EXCLUDE:-}" ]]; then
-    #     EXCLUDE=$(sanitize_patterns "$EXCLUDE")
-    #     log_debug "Sanitized EXCLUDE: $EXCLUDE"
-    # fi
+    if [[ -n "${EXCLUDE:-}" ]]; then
+        EXCLUDE=$(sanitize_patterns "$EXCLUDE")
+        log_debug "Sanitized EXCLUDE: $EXCLUDE"
+    fi
     
     # Sanitize tokens (GitHub token, etc.) - just remove dangerous characters
     if [[ -n "${GITHUB_TOKEN:-}" ]]; then

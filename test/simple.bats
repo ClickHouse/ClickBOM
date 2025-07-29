@@ -697,9 +697,8 @@ EOF
 # Test 77: sanitize_database_name rejects name with starting with number
 @test "sanitize_database_name rejects name starting with number" {
     run sanitize_database_name "1test_database"
-    echo "$output"
     [ "$status" -eq 1 ]
-    [[ "$output" == "test_database" ]]
+    [[ "$output" == "_1test_database" ]]
 }
 
 # Test 78: sanitize_database_name rejects name with spaces

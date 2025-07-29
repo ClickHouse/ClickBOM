@@ -395,6 +395,8 @@
   "github.com/go-toolsmith/astequals": "MIT",
   "github.com/go-toolsmith/astfmt": "MIT",
   "github.com/go-toolsmith/astp": "MIT",
+  "github.com/go-toolsmith/strparse": "MIT",
+  "github.com/go-toolsmith/typep": "MIT",
   "github.com/gogo/protobuf": "BSD-3-Clause",
   "github.com/google/uuid": "BSD-3-Clause",
   "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp": "Apache-2.0",

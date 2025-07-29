@@ -794,12 +794,12 @@ EOF
 # Test 38: sanitize_email prevents email header injection
 @test "sanitize_email prevents header injection" {
     run sanitize_email "user@example.com\nBcc: admin@evil.com"
-    echo "$output"
+    echo "Status: $status"
+    echo "Output: $output"
+    
+    # The function should fail because the sanitized result has invalid format
     [ "$status" -eq 1 ]
-    [ "$status" -eq 0 ]
-    [[ "$output" == "user@example.comBcc:admin@evil.com" ]]
-    # Should not contain newlines
-    [[ "$output" != *$'\n'* ]]
+    [[ "$output" == *"Invalid email format"* ]]
 }
 
 @test "sanitize_database_name prevents SQL injection attempts" {

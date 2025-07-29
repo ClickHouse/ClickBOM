@@ -151,12 +151,12 @@ sanitize_uuid() {
 sanitize_email() {
     local email="$1"
     
-    # Basic email sanitization - remove dangerous characters
+    # Remove dangerous characters (newlines, carriage returns, control chars)
     local sanitized
-    sanitized=$(echo "$email" | sed 's/[^a-zA-Z0-9@._-]//g' | sed 's/@/\n&/;t;d' | tr -d '\n')
+    sanitized=$(echo "$email" | tr -d '\n\r\t\001-\037\177-\377' | sed 's/[^a-zA-Z0-9@._-]//g')
     
     # Basic email format validation
-    if [[ ! "$sanitized" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])*(\.[a-zA-Z]{2,})+$ ]]; then
+    if [[ ! "$sanitized" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
         log_error "Invalid email format: $email"
         log_error "Email must be in valid format: user@domain.com"
         exit 1

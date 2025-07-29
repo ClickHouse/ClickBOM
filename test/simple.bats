@@ -809,3 +809,11 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "100" ]]
 }
+
+# Test 93: sanitize_email removes newlines from input
+@test "sanitize_email removes newlines from input" {
+    run sanitize_email "user@example.com\n"  # Just a trailing newline
+    [ "$status" -eq 0 ]
+    [[ "$output" == "user@example.com" ]]
+    [[ "$output" != *$'\n'* ]]
+}

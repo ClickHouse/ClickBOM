@@ -210,10 +210,10 @@ sanitize_patterns() {
 
 # Sanitize numeric values
 sanitize_numeric() {
-    local value="$1"
+    local value=$1
     local field_name="$2"
-    local min_val="${3:-0}"
-    local max_val="${4:-999999}"
+    local min_val=${3:-0}
+    local max_val=${4:-999999}
     
     # Remove non-numeric characters
     local sanitized

@@ -640,7 +640,7 @@ EOF
 
 # Test 22: sanitize_inputs rejects invalid numeric values
 @test "sanitize_inputs rejects invalid numeric values" {
-    export MEND_MAX_WAIT_TIME="8000"  # Too high
+    export MEND_MAX_WAIT_TIME=8000  # Too high
 
     run sanitize_inputs
 

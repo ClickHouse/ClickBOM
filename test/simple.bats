@@ -813,6 +813,7 @@ EOF
 # Test 93: sanitize_email removes newlines from input
 @test "sanitize_email removes newlines from input" {
     run sanitize_email "user@example.com\n"  # Just a trailing newline
+    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "user@example.com" ]]
     [[ "$output" != *$'\n'* ]]

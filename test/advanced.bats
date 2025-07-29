@@ -791,8 +791,11 @@ EOF
     [[ "$output" == "file.json.sh" ]]
 }
 
+# Test 38: sanitize_email prevents email header injection
 @test "sanitize_email prevents header injection" {
     run sanitize_email "user@example.com\nBcc: admin@evil.com"
+    echo "$output"
+    [ "$status" -eq 0 ]
     [ "$status" -eq 0 ]
     [[ "$output" == "user@example.comBcc:admin@evil.com" ]]
     # Should not contain newlines

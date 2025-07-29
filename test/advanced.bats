@@ -644,8 +644,6 @@ EOF
     export MEND_MAX_WAIT_TIME=8000  # Too high
 
     run sanitize_inputs
-
-    echo "$output"  # Output for debugging
     [ "$status" -eq 1 ]
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
@@ -684,6 +682,7 @@ EOF
 # SECURITY ATTACK VECTOR TESTS
 # ============================================================================
 
+# Test 25: sanitize_string prevents command injection via backticks
 @test "sanitize_string prevents command injection via backticks" {
     run sanitize_string "normal\`rm -rf /\`text"
     [ "$status" -eq 0 ]
@@ -692,6 +691,7 @@ EOF
     [[ "$output" != *"\`"* ]]
 }
 
+# Test 26: sanitize_string prevents command injection via dollar parentheses
 @test "sanitize_string prevents command injection via dollar parentheses" {
     run sanitize_string "normal\$(rm -rf /)text"
     [ "$status" -eq 0 ]
@@ -701,6 +701,7 @@ EOF
     [[ "$output" != *")"* ]]
 }
 
+# Test 27: sanitize_string prevents pipe injection
 @test "sanitize_string prevents pipe injection" {
     run sanitize_string "normal|rm -rf /|text"
     [ "$status" -eq 0 ]
@@ -709,6 +710,7 @@ EOF
     [[ "$output" != *"|"* ]]
 }
 
+# Test 28: sanitize_string prevents semicolon command chaining
 @test "sanitize_string prevents semicolon command chaining" {
     run sanitize_string "normal;rm -rf /;text"
     [ "$status" -eq 0 ]
@@ -717,6 +719,7 @@ EOF
     [[ "$output" != *";"* ]]
 }
 
+# Test 29: sanitize_string prevents ampersand backgrounding
 @test "sanitize_string prevents ampersand backgrounding" {
     run sanitize_string "normal&rm -rf /&text"
     [ "$status" -eq 0 ]
@@ -725,6 +728,7 @@ EOF
     [[ "$output" != *"&"* ]]
 }
 
+# Test 30: sanitize_string prevents redirection attacks
 @test "sanitize_string prevents redirection attacks" {
     run sanitize_string "normal>>/etc/passwd<<EOF"
     [ "$status" -eq 0 ]
@@ -734,15 +738,18 @@ EOF
     [[ "$output" != *"<"* ]]
 }
 
+# Test 31: sanitize_repository prevents path traversal in repository names
 @test "sanitize_repository prevents path traversal in repository names" {
     run sanitize_repository "../../../etc/passwd"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
 
+# Test 32: sanitize_repository prevents null byte injection
 @test "sanitize_repository prevents null byte injection" {
     local test_repo=$(printf "owner/repo\000malicious")
     run sanitize_repository "$test_repo"
+    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "owner/repomalicious" ]]
     # Should not contain null bytes

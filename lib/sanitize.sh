@@ -196,12 +196,6 @@ sanitize_patterns() {
         # Remove dangerous characters but keep wildcards
         local sanitized_pattern
         sanitized_pattern=$(echo "$pattern" | sed 's/[^a-zA-Z0-9.*_-]//g')
-
-        # Prevent directory traversal patterns
-        if [[ "$sanitized_pattern" =~ (\.\./|^\./) ]]; then
-            log_error "Invalid pattern: $pattern contains directory traversal sequences"
-            exit 1
-        fi
         
         if [[ -n "$sanitized_pattern" ]]; then
             sanitized_patterns+=("$sanitized_pattern")

@@ -189,6 +189,7 @@
   "github.com/bytedance/sonic": "Apache-2.0",
   "github.com/bytedance/sonic/loader": "Apache-2.0",
   "github.com/c-bata/go-prompt": "MIT",
+  "github.com/cactus/go-statsd-client/statsd": "MIT",
   "github.com/Azure/azure-amqp-common-go/v3": "MIT",
   "github.com/Azure/azure-pipeline-go": "MIT",
   "github.com/Azure/azure-sdk-for-go-extensions": "MIT",

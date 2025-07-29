@@ -227,7 +227,7 @@ sanitize_numeric() {
     fi
     
     # Check range
-    if (( $sanitized < $min_val )) || (( $sanitized > $max_val )); then
+    if (( sanitized < min_val )) || (( sanitized > max_val )); then
         log_error "Numeric value for $field_name out of range: $sanitized"
         log_error "Value must be between $min_val and $max_val"
         exit 1

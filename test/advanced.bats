@@ -801,8 +801,6 @@ EOF
 # Test 39: sanitize_email prevents SQL injection attempts
 @test "sanitize_database_name prevents SQL injection attempts" {
     run sanitize_database_name "test'; DROP TABLE users; --"
-    echo "$status"
-    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "testDROPTABLEusers" ]]
 }
@@ -811,8 +809,11 @@ EOF
 # UNICODE AND ENCODING EDGE CASES
 # ============================================================================
 
+# Test 40: sanitize_string handles unicode characters
 @test "sanitize_string handles unicode characters" {
     run sanitize_string "test-üñíçødé-string"
+    echo "$status"
+    echo "$output"
     [ "$status" -eq 0 ]
     # Should remove non-ASCII characters
     [[ "$output" == "test--string" ]]

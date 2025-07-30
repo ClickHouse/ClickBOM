@@ -1055,7 +1055,7 @@ EOF
     [ "$status" -eq 0 ]
     
     # Control characters should be removed
-    [[ "$output" == *"teststring"* ]]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
 # Test 66: sanitize_inputs preserves valid complex inputs

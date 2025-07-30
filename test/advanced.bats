@@ -943,48 +943,56 @@ EOF
 # MALFORMED INPUT TESTS
 # ============================================================================
 
+# Test 55: sanitize_repository handles malformed repository - double slash
 @test "sanitize_repository handles malformed repository - double slash" {
     run sanitize_repository "owner//repo"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
 
+# Test 56: sanitize_repository handles malformed repository - trailing slash
 @test "sanitize_repository handles malformed repository - trailing slash" {
     run sanitize_repository "owner/repo/"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
 
+# Test 57: sanitize_url handles malformed URL - missing protocol
 @test "sanitize_url handles malformed URL - missing protocol" {
     run sanitize_url "example.com"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid URL format"* ]]
 }
 
+# Test 58: sanitize_url handles malformed URL - double protocol
 @test "sanitize_url handles malformed URL - double protocol" {
     run sanitize_url "https://http://example.com"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid URL format"* ]]
 }
 
+# Test 59: sanitize_email handles malformed email - double @
 @test "sanitize_email handles malformed email - double @" {
     run sanitize_email "user@@example.com"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid email format"* ]]
 }
 
+# Test 60: sanitize_email handles malformed email - missing domain
 @test "sanitize_email handles malformed email - missing domain" {
     run sanitize_email "user@"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid email format"* ]]
 }
 
+# Test 61: sanitize_patterns handles malformed patterns - only commas
 @test "sanitize_patterns handles malformed patterns - only commas" {
     run sanitize_patterns ",,,"
     [ "$status" -eq 0 ]
     [[ "$output" == "" ]]
 }
 
+# Test 62: sanitize_patterns handles malformed patterns - mixed valid/invalid
 @test "sanitize_patterns handles malformed patterns - mixed valid/invalid" {
     run sanitize_patterns "*.json,\$\$\$,test*.txt"
     [ "$status" -eq 0 ]
@@ -995,6 +1003,7 @@ EOF
 # INTEGRATION TESTS WITH REALISTIC ATTACK SCENARIOS
 # ============================================================================
 
+# Test 63: sanitize_inputs handles comprehensive injection attempt
 @test "sanitize_inputs handles comprehensive injection attempt" {
     # Set up a comprehensive attack scenario
     export REPOSITORY="evil\`rm -rf /\`/repo"
@@ -1006,6 +1015,8 @@ EOF
     export EXCLUDE="*.txt|cat /etc/passwd"
     
     run sanitize_inputs
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 1 ]  # Should fail validation
     
     # Check that dangerous characters were removed or validation failed

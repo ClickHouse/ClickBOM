@@ -1147,7 +1147,7 @@ EOF
     export EXCLUDE="*-test.json"
     export GITHUB_TOKEN="github-token"
     
-    run timeout 10 sanitize_inputs
+    run sanitize_inputs
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]

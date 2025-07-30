@@ -812,17 +812,17 @@ EOF
 # Test 40: sanitize_string handles unicode characters
 @test "sanitize_string handles unicode characters" {
     run sanitize_string "test-üñíçødé-string"
-    echo "$status"
-    echo "$output"
     [ "$status" -eq 0 ]
     # Should remove non-ASCII characters
-    [[ "$output" == "test--string" ]]
+    [[ "$output" == "test-d-string" ]]
 }
 
 @test "sanitize_string handles mixed encoding" {
     # Test with mixed ASCII and control characters
     local mixed_string=$(printf "test\x1b[31mred\x1b[0mnormal")
     run sanitize_string "$mixed_string"
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "testrednormal" ]]
 }

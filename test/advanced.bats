@@ -798,12 +798,13 @@ EOF
     [[ "$output" == *"Invalid email format"* ]]
 }
 
+# Test 39: sanitize_email prevents SQL injection attempts
 @test "sanitize_database_name prevents SQL injection attempts" {
     run sanitize_database_name "test'; DROP TABLE users; --"
     echo "$status"
     echo "$output"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"Invalid database name"* ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" == "testDROPTABLEusers" ]]
 }
 
 # ============================================================================

@@ -822,8 +822,6 @@ EOF
     # Test with mixed ASCII and control characters
     local mixed_string=$(printf "test\x1b[31mred\x1b[0mnormal")
     run sanitize_string "$mixed_string"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "test31mred0mnormal" ]]
 }
@@ -832,8 +830,6 @@ EOF
 @test "sanitize_repository handles locales with special characters" {
     # Note: This should fail validation as our regex is ASCII-only
     run sanitize_repository "üser/repö"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "ser/rep" ]]
 }
@@ -924,8 +920,6 @@ EOF
 # Test 53: sanitize_numeric handles leading zeros
 @test "sanitize_numeric handles leading zeros" {
     run sanitize_numeric "00123" "TEST_FIELD"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "00123" ]]
 }
@@ -933,8 +927,6 @@ EOF
 # Test 54: sanitize_uuid handles minimum valid length
 @test "sanitize_uuid handles minimum valid length" {
     run sanitize_uuid "12345678" "TEST_UUID"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid UUID format"* ]]
 }
@@ -1015,8 +1007,6 @@ EOF
     export EXCLUDE="*.txt|cat /etc/passwd"
     
     run sanitize_inputs
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]  # Handles sanitization without crashing
     
     # Check that dangerous characters were removed or validation failed
@@ -1035,8 +1025,6 @@ EOF
     export S3_BUCKET="$null_bucket"
     
     run sanitize_inputs
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]    
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
@@ -1050,8 +1038,6 @@ EOF
     export GITHUB_TOKEN="$control_string"
     
     run sanitize_inputs
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     
     # Control characters should be removed
@@ -1071,8 +1057,6 @@ EOF
     export MEND_PROJECT_UUIDS="123e4567-e89b-12d3-a456-426614174000,456e7890-e89b-12d3-a456-426614174001"
     
     run sanitize_inputs
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     
     # All valid inputs should be preserved
@@ -1089,8 +1073,6 @@ EOF
     local huge_string=$(printf 'a%.0s' {1..50000})
     
     run sanitize_string "$huge_string" 1000
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ "${#output}" -eq 1000 ]
 }
@@ -1105,8 +1087,6 @@ EOF
     many_patterns=${many_patterns:1}  # Remove leading comma
     
     run sanitize_patterns "$many_patterns"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == *"pattern1*.json"* ]]
     [[ "$output" == *"pattern100*.json"* ]]
@@ -1148,8 +1128,6 @@ EOF
     export GITHUB_TOKEN="github-token"
     
     run sanitize_inputs
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }

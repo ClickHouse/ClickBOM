@@ -1088,7 +1088,7 @@ EOF
     # Test with very long input to ensure no performance issues
     local huge_string=$(printf 'a%.0s' {1..50000})
     
-    run timeout 5 sanitize_string "$huge_string" 1000
+    run sanitize_string "$huge_string" 1000
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]

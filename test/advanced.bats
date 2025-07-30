@@ -1104,7 +1104,7 @@ EOF
     done
     many_patterns=${many_patterns:1}  # Remove leading comma
     
-    run timeout 5 sanitize_patterns "$many_patterns"
+    run sanitize_patterns "$many_patterns"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]

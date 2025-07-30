@@ -828,13 +828,17 @@ EOF
     [[ "$output" == "test31mred0mnormal" ]]
 }
 
-@test "sanitize_repository handles international domain names" {
+# Test 42: sanitize_repository handles locales with special characters
+@test "sanitize_repository handles locales with special characters" {
     # Note: This should fail validation as our regex is ASCII-only
     run sanitize_repository "üser/repö"
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
 
+# Test 43: sanitize_url handles internationalized domain names
 @test "sanitize_url handles internationalized domain names" {
     # Test with punycode (internationalized domain)
     run sanitize_url "https://xn--n3h.com"
@@ -842,6 +846,7 @@ EOF
     [[ "$output" == "https://xn--n3h.com" ]]
 }
 
+# Test 44: sanitize_email handles unicode in email addresses
 @test "sanitize_email handles unicode in email addresses" {
     # Should remove unicode characters
     run sanitize_email "üser@example.com"
@@ -853,12 +858,14 @@ EOF
 # BOUNDARY CONDITION TESTS
 # ============================================================================
 
+# Test 45: sanitize_string handles empty string
 @test "sanitize_string handles empty string" {
     run sanitize_string ""
     [ "$status" -eq 0 ]
     [[ "$output" == "" ]]
 }
 
+# Test 46: sanitize_string handles very long string
 @test "sanitize_string handles very long string" {
     local long_string=$(printf 'a%.0s' {1..10000})
     run sanitize_string "$long_string" 1000
@@ -867,18 +874,21 @@ EOF
     [[ "$output" == "$(printf 'a%.0s' {1..1000})" ]]
 }
 
+# Test 47: sanitize_string handles string with only dangerous characters
 @test "sanitize_string handles string with only dangerous characters" {
     run sanitize_string "\$\`(){}|;&<>"
     [ "$status" -eq 0 ]
     [[ "$output" == "" ]]
 }
 
+# Test 48: sanitize_repository handles minimum valid length
 @test "sanitize_repository handles minimum valid length" {
     run sanitize_repository "a/b"
     [ "$status" -eq 0 ]
     [[ "$output" == "a/b" ]]
 }
 
+# Test 49: sanitize_repository handles maximum practical length
 @test "sanitize_repository handles maximum practical length" {
     # GitHub has limits, but test with reasonable long names
     local long_owner=$(printf 'a%.0s' {1..50})
@@ -888,12 +898,14 @@ EOF
     [[ "$output" == "$long_owner/$long_repo" ]]
 }
 
+# Test 50: sanitize_s3_bucket handles minimum valid length
 @test "sanitize_s3_bucket handles minimum valid length" {
     run sanitize_s3_bucket "abc"
     [ "$status" -eq 0 ]
     [[ "$output" == "abc" ]]
 }
 
+# Test 51: sanitize_s3_bucket handles maximum valid length
 @test "sanitize_s3_bucket handles maximum valid length" {
     local max_bucket=$(printf 'a%.0s' {1..63})
     run sanitize_s3_bucket "$max_bucket"
@@ -901,20 +913,27 @@ EOF
     [[ "$output" == "$max_bucket" ]]
 }
 
+# Test 52: sanitize_numeric handles zero
 @test "sanitize_numeric handles zero" {
     run sanitize_numeric "0" "TEST_FIELD"
     [ "$status" -eq 0 ]
     [[ "$output" == "0" ]]
 }
 
+# Test 53: sanitize_numeric handles leading zeros
 @test "sanitize_numeric handles leading zeros" {
     run sanitize_numeric "00123" "TEST_FIELD"
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "123" ]]
 }
 
+# Test 54: sanitize_uuid handles minimum valid length
 @test "sanitize_uuid handles minimum valid length" {
     run sanitize_uuid "12345678" "TEST_UUID"
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "12345678" ]]
 }

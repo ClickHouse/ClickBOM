@@ -302,8 +302,6 @@ EOF
 # Test 22: sanitize_string removes dangerous characters
 @test "sanitize_string removes dangerous characters" {
     run sanitize_string "test\$command\`echo hello\`"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "testcommandecho hello" ]]
 }
@@ -328,8 +326,6 @@ EOF
 # Test 25: sanitize_string removes shell metacharacters
 @test "sanitize_string removes shell metacharacters" {
     run sanitize_string "test|command;rm -rf /&"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "testcommandrm -rf /" ]]
 }
@@ -337,8 +333,6 @@ EOF
 # Test 26: sanitize_string preserves safe characters
 @test "sanitize_string preserves safe characters" {
     run sanitize_string "test-string_with.safe@characters123"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "test-string_with.safecharacters123" ]]
 }
@@ -618,7 +612,6 @@ EOF
 # Test 65: sanitize_uuid rejects non-hex characters
 @test "sanitize_uuid rejects non-hex characters" {
     run sanitize_uuid "123g45678-e89b-12d3-a456-426614174000" "TEST_UUID"
-    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "12345678-e89b-12d3-a456-426614174000" ]]
 }
@@ -819,7 +812,6 @@ EOF
 # Test 93: sanitize_email removes newlines from input
 @test "sanitize_email removes newlines from input" {
     run sanitize_email "user@example.com\n"  # Just a trailing newline
-    echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == "user@example.com" ]]
     [[ "$output" != *$'\n'* ]]

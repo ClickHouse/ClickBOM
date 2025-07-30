@@ -434,6 +434,7 @@
   "github.com/gonvenience/text": "MIT",
   "github.com/gonvenience/wrap": "MIT",
   "github.com/gonvenience/ytbx": "MIT",
+  "github.com/google/btree": "Apache-2.0",
   "github.com/google/uuid": "BSD-3-Clause",
   "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp": "Apache-2.0",
   "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric": "Apache-2.0",

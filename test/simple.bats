@@ -299,9 +299,11 @@ EOF
     [[ ! "$result" =~ test-dev.json ]]
 }
 
-# Test 22: sanitize_string function basic functionality
+# Test 22: sanitize_string removes dangerous characters
 @test "sanitize_string removes dangerous characters" {
     run sanitize_string "test\$command\`echo hello\`"
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "testcommandecho hello" ]]
 }
@@ -326,6 +328,8 @@ EOF
 # Test 25: sanitize_string removes shell metacharacters
 @test "sanitize_string removes shell metacharacters" {
     run sanitize_string "test|command;rm -rf /&"
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "testcommandrm -rf /" ]]
 }
@@ -333,6 +337,8 @@ EOF
 # Test 26: sanitize_string preserves safe characters
 @test "sanitize_string preserves safe characters" {
     run sanitize_string "test-string_with.safe@characters123"
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == "test-string_with.safecharacters123" ]]
 }

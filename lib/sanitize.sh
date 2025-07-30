@@ -11,7 +11,7 @@ sanitize_string() {
     sanitized=$(echo "$input" | tr -d '\0' | tr -d '\001-\037' | tr -d '\177-\377' | cut -c1-"$max_length")
     
     # Remove potentially dangerous patterns
-    sanitized=$(echo "$sanitized" | sed 's/[$(){}|;&<>@\[\]]//g' | tr -d '`')
+    sanitized=$(echo "$sanitized" | sed 's/[]$(){}|;&<>@[]//g' | tr -d '`')
     
     echo "$sanitized"
 }

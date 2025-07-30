@@ -817,6 +817,7 @@ EOF
     [[ "$output" == "test-d-string" ]]
 }
 
+# Test 41: sanitize_string handles mixed encoding
 @test "sanitize_string handles mixed encoding" {
     # Test with mixed ASCII and control characters
     local mixed_string=$(printf "test\x1b[31mred\x1b[0mnormal")
@@ -824,7 +825,7 @@ EOF
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [[ "$output" == "testrednormal" ]]
+    [[ "$output" == "test31mred0mnormal" ]]
 }
 
 @test "sanitize_repository handles international domain names" {

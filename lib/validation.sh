@@ -45,8 +45,8 @@ validate_mend_env() {
         done
         
         # Validate at least one scope is provided
-        if [[ -z "${MEND_PROJECT_UUID:-}" && -z "${MEND_PRODUCT_UUID:-}" && -z "${MEND_ORG_UUID:-}" ]]; then
-            log_error "At least one Mend scope must be provided: MEND_PROJECT_UUID, MEND_PRODUCT_UUID, or MEND_ORG_UUID"
+        if [[ -z "${MEND_PROJECT_UUID:-}" && -z "${MEND_PRODUCT_UUID:-}" ]]; then
+            log_error "At least one Mend scope must be provided: MEND_PROJECT_UUID or MEND_PRODUCT_UUID"
             exit 1
         fi
         

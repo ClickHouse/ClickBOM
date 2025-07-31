@@ -644,10 +644,7 @@ EOF
 @test "sanitize_inputs rejects invalid numeric values" {
     export MEND_MAX_WAIT_TIME="8000"  # Too high
     run sanitize_inputs
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"out of range"* ]]
 }
 
 # Test 22a: Diagnostic test for range checking

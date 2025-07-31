@@ -651,6 +651,40 @@ EOF
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
+# Test 22a: Diagnostic test for range checking
+@test "diagnostic test for range checking" {
+    export MEND_MAX_WAIT_TIME="8000"  # Too high (max is 7200)
+    export DEBUG="true"  # Enable debug output
+
+    run sanitize_inputs
+    
+    # Debug output
+    echo "Status: $status"
+    echo "Output: $output"
+    
+    # This should fail if range checking works
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"out of range"* ]]
+}
+
+# Test 22b: Test with valid value to ensure function works
+@test "sanitize_inputs accepts valid numeric values" {
+    export MEND_MAX_WAIT_TIME="1800"  # Valid (within 60-7200 range)
+
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 22c: Test with value below minimum
+@test "sanitize_inputs rejects value below minimum" {
+    export MEND_MAX_WAIT_TIME="30"  # Too low (min is 60)
+
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"out of range"* ]]
+}
+
 # Test 23: sanitize_inputs skips empty values
 @test "sanitize_inputs skips empty values" {
     export REPOSITORY=""

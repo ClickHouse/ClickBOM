@@ -674,6 +674,14 @@ EOF
     [[ "$output" == "test_database" ]]
 }
 
+# Test 73a: sanitize_email removes newlines from input
+@test "sanitize_email removes newlines from input" {
+    run sanitize_email "user@example.com\n"  # Just a trailing newline
+    [ "$status" -eq 0 ]
+    [[ "$output" == "user@example.com" ]]
+    [[ "$output" != *$'\n'* ]]
+}
+
 # Test 74: sanitize_database_name accepts name with underscores
 @test "sanitize_database_name accepts name starting with underscore" {
     run sanitize_database_name "_test_database"
@@ -800,6 +808,13 @@ EOF
     [[ "$output" == *"Numeric value for TEST_FIELD out of range"* ]]
 }
 
+# Test 91: sanitize_numeric rejects number above maximum
+@test "sanitize_numeric rejects number above maximum" {
+    run sanitize_numeric "150" "TEST_FIELD" 10 100
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Numeric value for TEST_FIELD out of range"* ]]
+}
+
 # Test 92: sanitize_numeric accepts boundary values
 @test "sanitize_numeric accepts boundary values" {
     run sanitize_numeric "10" "TEST_FIELD" 10 100
@@ -811,10 +826,9 @@ EOF
     [[ "$output" == "100" ]]
 }
 
-# Test 93: sanitize_email removes newlines from input
-@test "sanitize_email removes newlines from input" {
-    run sanitize_email "user@example.com\n"  # Just a trailing newline
-    [ "$status" -eq 0 ]
-    [[ "$output" == "user@example.com" ]]
-    [[ "$output" != *$'\n'* ]]
+# Test 93: sanitize_numeric rejects empty input
+@test "sanitize_numeric rejects empty input" {
+    run sanitize_numeric "" "TEST_FIELD"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid numeric value for TEST_FIELD"* ]]
 }

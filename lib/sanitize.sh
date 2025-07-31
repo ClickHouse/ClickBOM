@@ -231,7 +231,7 @@ sanitize_numeric() {
     if [[ ! "$sanitized" =~ ^[0-9]+$ ]]; then
         log_error "Invalid numeric value for $field_name: $value"
         log_error "Value must be a positive integer"
-        exit 1
+        return 1
     fi
 
     # Convert to integer (removes leading zeros) for range checking

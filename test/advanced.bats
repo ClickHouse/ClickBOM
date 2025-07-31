@@ -653,11 +653,7 @@ EOF
     export DEBUG="true"  # Enable debug output
 
     run sanitize_inputs
-    
-    # Debug output
-    echo "Status: $status"
-    echo "Output: $output"
-    
+
     # This should fail if range checking works
     [ "$status" -eq 1 ]
     [[ "$output" == *"out of range"* ]]

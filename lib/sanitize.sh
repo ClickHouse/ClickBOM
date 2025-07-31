@@ -312,6 +312,7 @@ sanitize_inputs() {
     
     if [[ -n "${MEND_MAX_WAIT_TIME:-}" ]]; then
         if ! MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200); then
+            log_error "Invalid numeric value for MEND_MAX_WAIT_TIME: $MEND_MAX_WAIT_TIME"
             exit 1
         fi
         log_debug "Sanitized MEND_MAX_WAIT_TIME: $MEND_MAX_WAIT_TIME"
@@ -319,6 +320,7 @@ sanitize_inputs() {
     
     if [[ -n "${MEND_POLL_INTERVAL:-}" ]]; then
         if ! MEND_POLL_INTERVAL=$(sanitize_numeric "$MEND_POLL_INTERVAL" "MEND_POLL_INTERVAL" 10 300); then
+            log_error "Invalid numeric value for MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"
             exit 1
         fi
         log_debug "Sanitized MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"

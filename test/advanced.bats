@@ -644,9 +644,9 @@ EOF
 # Test 22: sanitize_inputs rejects invalid numeric values
 @test "sanitize_inputs rejects invalid numeric values" {
     export MEND_MAX_WAIT_TIME="30"  # Too high
+    run sanitize_inputs
     echo "$output"
     echo "$status"
-    run sanitize_inputs 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }

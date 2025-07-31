@@ -11,7 +11,7 @@ sanitize_string() {
     sanitized=$(echo "$input" | tr -d '\0' | tr -d '\001-\037' | tr -d '\177-\377' | cut -c1-"$max_length")
     
     # Remove potentially dangerous patterns
-    sanitized=$(echo "$sanitized" | sed 's/[$(){}|;&<>@]//g' | tr -d '`')
+    sanitized=$(echo "$sanitized" | sed 's/[]$(){}|;&<>@[]//g' | tr -d '`')
     
     echo "$sanitized"
 }
@@ -151,12 +151,20 @@ sanitize_uuid() {
 sanitize_email() {
     local email="$1"
     
-    # Basic email sanitization - remove dangerous characters
-    local sanitized
-    sanitized=$(echo "$email" | sed 's/[^a-zA-Z0-9@._-]//g' | sed 's/@/\n&/;t;d' | tr -d '\n')
+    # Handle both literal escape sequences and actual control characters
+    local sanitized="$email"
     
-    # Basic email format validation
-    if [[ ! "$sanitized" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])*(\.[a-zA-Z]{2,})+$ ]]; then
+    # Remove literal escape sequences
+    sanitized=$(echo "$sanitized" | sed 's/\\n//g; s/\\r//g; s/\\t//g; s/\\\\//g')
+    
+    # Remove actual control characters
+    sanitized=$(echo "$sanitized" | tr -d '\n\r\t\001-\037\177-\377')
+    
+    # Remove other dangerous characters but keep email-valid ones (including +)
+    sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9@._+-]//g')
+    
+    # Basic email format validation (updated regex to allow + in local part)
+    if [[ ! "$sanitized" =~ ^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
         log_error "Invalid email format: $email"
         log_error "Email must be in valid format: user@domain.com"
         exit 1
@@ -206,6 +214,34 @@ sanitize_patterns() {
     local result
     result=$(IFS=','; echo "${sanitized_patterns[*]}")
     echo "$result"
+}
+
+# Sanitize numeric values
+sanitize_numeric() {
+    local value="$1"
+    local field_name="$2"
+    local min_val="${3:-0}"
+    local max_val="${4:-999999}"
+    
+    # Remove non-numeric characters
+    local sanitized
+    sanitized=$(echo "$value" | sed 's/[^0-9]//g')
+    
+    # Validate it's a number
+    if [[ ! "$sanitized" =~ ^[0-9]+$ ]]; then
+        log_error "Invalid numeric value for $field_name: $value"
+        log_error "Value must be a positive integer"
+        exit 1
+    fi
+
+    # Check range
+    if (( sanitized < min_val )) || (( sanitized > max_val )); then
+        log_error "Numeric value for $field_name out of range: $sanitized"
+        log_error "Value must be between $min_val and $max_val"
+        exit 1
+    fi
+    
+    echo "$sanitized"
 }
 
 # Main sanitization function - sanitizes all environment variables
@@ -268,15 +304,15 @@ sanitize_inputs() {
         log_debug "Sanitized MEND_PROJECT_UUIDS: $MEND_PROJECT_UUIDS"
     fi
     
-    # if [[ -n "${MEND_MAX_WAIT_TIME:-}" ]]; then
-    #     MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200)
-    #     log_debug "Sanitized MEND_MAX_WAIT_TIME: $MEND_MAX_WAIT_TIME"
-    # fi
+    if [[ -n "${MEND_MAX_WAIT_TIME:-}" ]]; then
+        MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200)
+        log_debug "Sanitized MEND_MAX_WAIT_TIME: $MEND_MAX_WAIT_TIME"
+    fi
     
-    # if [[ -n "${MEND_POLL_INTERVAL:-}" ]]; then
-    #     MEND_POLL_INTERVAL=$(sanitize_numeric "$MEND_POLL_INTERVAL" "MEND_POLL_INTERVAL" 10 300)
-    #     log_debug "Sanitized MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"
-    # fi
+    if [[ -n "${MEND_POLL_INTERVAL:-}" ]]; then
+        MEND_POLL_INTERVAL=$(sanitize_numeric "$MEND_POLL_INTERVAL" "MEND_POLL_INTERVAL" 10 300)
+        log_debug "Sanitized MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"
+    fi
     
     # Wiz inputs
     if [[ -n "${WIZ_AUTH_ENDPOINT:-}" ]]; then
@@ -352,32 +388,32 @@ sanitize_inputs() {
     fi
     
     # General inputs
-    # if [[ -n "${SBOM_SOURCE:-}" ]]; then
-    #     if [[ ! "$SBOM_SOURCE" =~ ^(github|mend|wiz)$ ]]; then
-    #         log_error "Invalid SBOM_SOURCE: $SBOM_SOURCE"
-    #         log_error "SBOM_SOURCE must be one of: github, mend, wiz"
-    #         exit 1
-    #     fi
-    #     log_debug "Validated SBOM_SOURCE: $SBOM_SOURCE"
-    # fi
+    if [[ -n "${SBOM_SOURCE:-}" ]]; then
+        if [[ ! "$SBOM_SOURCE" =~ ^(github|mend|wiz)$ ]]; then
+            log_error "Invalid SBOM_SOURCE: $SBOM_SOURCE"
+            log_error "SBOM_SOURCE must be one of: github, mend, wiz"
+            exit 1
+        fi
+        log_debug "Validated SBOM_SOURCE: $SBOM_SOURCE"
+    fi
     
-    # if [[ -n "${SBOM_FORMAT:-}" ]]; then
-    #     if [[ ! "$SBOM_FORMAT" =~ ^(cyclonedx|spdxjson)$ ]]; then
-    #         log_error "Invalid SBOM_FORMAT: $SBOM_FORMAT"
-    #         log_error "SBOM_FORMAT must be one of: cyclonedx, spdxjson"
-    #         exit 1
-    #     fi
-    #     log_debug "Validated SBOM_FORMAT: $SBOM_FORMAT"
-    # fi
+    if [[ -n "${SBOM_FORMAT:-}" ]]; then
+        if [[ ! "$SBOM_FORMAT" =~ ^(cyclonedx|spdxjson)$ ]]; then
+            log_error "Invalid SBOM_FORMAT: $SBOM_FORMAT"
+            log_error "SBOM_FORMAT must be one of: cyclonedx, spdxjson"
+            exit 1
+        fi
+        log_debug "Validated SBOM_FORMAT: $SBOM_FORMAT"
+    fi
     
-    # if [[ -n "${MERGE:-}" ]]; then
-    #     if [[ ! "$MERGE" =~ ^(true|false)$ ]]; then
-    #         log_error "Invalid MERGE value: $MERGE"
-    #         log_error "MERGE must be either 'true' or 'false'"
-    #         exit 1
-    #     fi
-    #     log_debug "Validated MERGE: $MERGE"
-    # fi
+    if [[ -n "${MERGE:-}" ]]; then
+        if [[ ! "$MERGE" =~ ^(true|false)$ ]]; then
+            log_error "Invalid MERGE value: $MERGE"
+            log_error "MERGE must be either 'true' or 'false'"
+            exit 1
+        fi
+        log_debug "Validated MERGE: $MERGE"
+    fi
     
     if [[ -n "${INCLUDE:-}" ]]; then
         INCLUDE=$(sanitize_patterns "$INCLUDE")

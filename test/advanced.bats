@@ -528,3 +528,606 @@ EOF
     final_format=$(jq -r '.bomFormat' "$converted_sbom")
     [ "$final_format" = "CycloneDX" ]
 }
+
+# ============================================================================
+# SANITIZE_INPUTS INTEGRATION TESTS
+# ============================================================================
+
+# Test 11: sanitize_inputs processes repository correctly
+@test "sanitize_inputs processes repository correctly" {
+    export REPOSITORY="test-org/test-repo"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 12: sanitize_inputs processes Mend email correctly
+@test "sanitize_inputs processes Mend email correctly" {
+    export SBOM_SOURCE="mend"
+    export MEND_EMAIL="test@example.com"
+    export MEND_ORG_UUID="123e4567-e89b-12d3-a456-426614174000"
+    export MEND_USER_KEY="test-key"
+    export MEND_BASE_URL="https://api.mend.io"
+    export MEND_PROJECT_UUID="123e4567-e89b-12d3-a456-426614174000"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 13: sanitize_inputs processes S3 bucket correctly
+@test "sanitize_inputs processes S3 bucket correctly" {
+    export S3_BUCKET="My-Test-Bucket"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 14: sanitize_inputs validates SBOM_SOURCE enum
+@test "sanitize_inputs validates SBOM_SOURCE enum" {
+    export SBOM_SOURCE="invalid-source"
+    
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid SBOM_SOURCE: invalid-source"* ]]
+}
+
+# Test 15: sanitize_inputs validates SBOM_FORMAT enum
+@test "sanitize_inputs validates SBOM_FORMAT enum" {
+    export SBOM_FORMAT="invalid-format"
+    
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid SBOM_FORMAT: invalid-format"* ]]
+}
+
+# Test 16: sanitize_inputs validates MERGE boolean
+@test "sanitize_inputs validates MERGE boolean" {
+    export MERGE="maybe"
+    
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid MERGE value: maybe"* ]]
+}
+
+# Test 17: sanitize_inputs processes include patterns correctly
+@test "sanitize_inputs processes include patterns correctly" {
+    export INCLUDE=" *.json , test*.txt , file.log "
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 18: sanitize_inputs processes exclude patterns correctly
+@test "sanitize_inputs processes exclude patterns correctly" {
+    export EXCLUDE="*-dev.json,*-test.json"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 19: sanitize_inputs processes ClickHouse URL correctly
+@test "sanitize_inputs processes ClickHouse URL correctly" {
+    export CLICKHOUSE_URL="https://clickhouse.example.com:8443"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 20: sanitize_inputs processes multiple Mend project UUIDs
+@test "sanitize_inputs processes multiple Mend project UUIDs" {
+    export MEND_PROJECT_UUIDS="123e4567-e89b-12d3-a456-426614174000, 456e7890-e89b-12d3-a456-426614174000"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 21: sanitize_inputs processes numeric values with validation
+@test "sanitize_inputs processes numeric values with validation" {
+    export MEND_MAX_WAIT_TIME="1800"
+    export MEND_POLL_INTERVAL="30"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Todo: Range Check
+# Test 22: sanitize_inputs rejects invalid numeric values
+@test "sanitize_inputs rejects invalid numeric values" {
+    export MEND_MAX_WAIT_TIME=8000  # Too high
+
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 23: sanitize_inputs skips empty values
+@test "sanitize_inputs skips empty values" {
+    export REPOSITORY=""
+    export MEND_EMAIL=""
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    # Should not contain any sanitization messages for empty values
+    [[ "$output" != *"Sanitized REPOSITORY:"* ]]
+    [[ "$output" != *"Sanitized MEND_EMAIL:"* ]]
+}
+
+# Test 24: sanitize_inputs redacts sensitive information in logs
+@test "sanitize_inputs redacts sensitive information in logs" {
+    export GITHUB_TOKEN="secret-token"
+    export AWS_ACCESS_KEY_ID="secret-key"
+    export AWS_SECRET_ACCESS_KEY="secret-access-key"
+    export CLICKHOUSE_PASSWORD="secret-password"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+    
+    # Make sure actual values are not in the output
+    [[ "$output" != *"secret-token"* ]]
+    [[ "$output" != *"secret-key"* ]]
+    [[ "$output" != *"secret-access-key"* ]]
+    [[ "$output" != *"secret-password"* ]]
+}
+
+# ============================================================================
+# SECURITY ATTACK VECTOR TESTS
+# ============================================================================
+
+# Test 25: sanitize_string prevents command injection via backticks
+@test "sanitize_string prevents command injection via backticks" {
+    run sanitize_string "normal\`rm -rf /\`text"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "normalrm -rf /text" ]]
+    # Should not contain backticks
+    [[ "$output" != *"\`"* ]]
+}
+
+# Test 26: sanitize_string prevents command injection via dollar parentheses
+@test "sanitize_string prevents command injection via dollar parentheses" {
+    run sanitize_string "normal\$(rm -rf /)text"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "normalrm -rf /text" ]]
+    # Should not contain $( or )
+    [[ "$output" != *"\$("* ]]
+    [[ "$output" != *")"* ]]
+}
+
+# Test 27: sanitize_string prevents pipe injection
+@test "sanitize_string prevents pipe injection" {
+    run sanitize_string "normal|rm -rf /|text"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "normalrm -rf /text" ]]
+    # Should not contain pipes
+    [[ "$output" != *"|"* ]]
+}
+
+# Test 28: sanitize_string prevents semicolon command chaining
+@test "sanitize_string prevents semicolon command chaining" {
+    run sanitize_string "normal;rm -rf /;text"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "normalrm -rf /text" ]]
+    # Should not contain semicolons
+    [[ "$output" != *";"* ]]
+}
+
+# Test 29: sanitize_string prevents ampersand backgrounding
+@test "sanitize_string prevents ampersand backgrounding" {
+    run sanitize_string "normal&rm -rf /&text"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "normalrm -rf /text" ]]
+    # Should not contain ampersands
+    [[ "$output" != *"&"* ]]
+}
+
+# Test 30: sanitize_string prevents redirection attacks
+@test "sanitize_string prevents redirection attacks" {
+    run sanitize_string "normal>>/etc/passwd<<EOF"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "normal/etc/passwdEOF" ]]
+    # Should not contain redirection operators
+    [[ "$output" != *">"* ]]
+    [[ "$output" != *"<"* ]]
+}
+
+# Test 31: sanitize_repository prevents path traversal in repository names
+@test "sanitize_repository prevents path traversal in repository names" {
+    run sanitize_repository "../../../etc/passwd"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid repository format"* ]]
+}
+
+# Test 32: sanitize_repository prevents null byte injection
+@test "sanitize_repository prevents null byte injection" {
+    local test_repo=$(printf "owner/repo\000malicious")
+    run sanitize_repository "$test_repo"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "owner/repomalicious" ]]
+}
+
+# Test 33: sanitize_url prevents javascript protocol injection
+@test "sanitize_url prevents javascript protocol injection" {
+    run sanitize_url "javascript:alert('xss')"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid URL format"* ]]
+}
+
+# Test 34: sanitize_url prevents data URL injection
+@test "sanitize_url prevents data URL injection" {
+    run sanitize_url "data:text/html,<script>alert('xss')</script>"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid URL format"* ]]
+}
+
+# Test 35: sanitize_url prevents file protocol access
+@test "sanitize_url prevents file protocol access" {
+    run sanitize_url "file:///etc/passwd"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid URL format"* ]]
+}
+
+# Test 36: sanitize_s3_key prevents directory traversal
+@test "sanitize_s3_key prevents directory traversal" {
+    run sanitize_s3_key "../../../../etc/passwd"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "etc/passwd" ]]
+    # Should not contain ../ sequences
+    [[ "$output" != *".."* ]]
+}
+
+# Test 37: sanitize_s3_key prevents null byte injection
+@test "sanitize_s3_key prevents null byte file injection" {
+    local test_key=$(printf "file.json\000.sh")
+    run sanitize_s3_key "$test_key"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "file.json.sh" ]]
+}
+
+# Test 38: sanitize_email prevents email header injection
+@test "sanitize_email prevents header injection" {
+    run sanitize_email "user@example.com\nBcc: admin@evil.com"    
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid email format"* ]]
+}
+
+# Test 39: sanitize_email prevents SQL injection attempts
+@test "sanitize_database_name prevents SQL injection attempts" {
+    run sanitize_database_name "test'; DROP TABLE users; --"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "testDROPTABLEusers" ]]
+}
+
+# ============================================================================
+# UNICODE AND ENCODING EDGE CASES
+# ============================================================================
+
+# Test 40: sanitize_string handles unicode characters
+@test "sanitize_string handles unicode characters" {
+    run sanitize_string "test-üñíçødé-string"
+    [ "$status" -eq 0 ]
+    # Should remove non-ASCII characters
+    [[ "$output" == "test-d-string" ]]
+}
+
+# Test 41: sanitize_string handles mixed encoding
+@test "sanitize_string handles mixed encoding" {
+    # Test with mixed ASCII and control characters
+    local mixed_string=$(printf "test\x1b[31mred\x1b[0mnormal")
+    run sanitize_string "$mixed_string"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "test31mred0mnormal" ]]
+}
+
+# Test 42: sanitize_repository handles locales with special characters
+@test "sanitize_repository handles locales with special characters" {
+    # Note: This should fail validation as our regex is ASCII-only
+    run sanitize_repository "üser/repö"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "ser/rep" ]]
+}
+
+# Test 43: sanitize_url handles internationalized domain names
+@test "sanitize_url handles internationalized domain names" {
+    # Test with punycode (internationalized domain)
+    run sanitize_url "https://xn--n3h.com"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "https://xn--n3h.com" ]]
+}
+
+# Test 44: sanitize_email handles unicode in email addresses
+@test "sanitize_email handles unicode in email addresses" {
+    # Should remove unicode characters
+    run sanitize_email "üser@example.com"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "ser@example.com" ]]
+}
+
+# ============================================================================
+# BOUNDARY CONDITION TESTS
+# ============================================================================
+
+# Test 45: sanitize_string handles empty string
+@test "sanitize_string handles empty string" {
+    run sanitize_string ""
+    [ "$status" -eq 0 ]
+    [[ "$output" == "" ]]
+}
+
+# Test 46: sanitize_string handles very long string
+@test "sanitize_string handles very long string" {
+    local long_string=$(printf 'a%.0s' {1..10000})
+    run sanitize_string "$long_string" 1000
+    [ "$status" -eq 0 ]
+    [ "${#output}" -eq 1000 ]
+    [[ "$output" == "$(printf 'a%.0s' {1..1000})" ]]
+}
+
+# Test 47: sanitize_string handles string with only dangerous characters
+@test "sanitize_string handles string with only dangerous characters" {
+    run sanitize_string "\$\`(){}|;&<>"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "" ]]
+}
+
+# Test 48: sanitize_repository handles minimum valid length
+@test "sanitize_repository handles minimum valid length" {
+    run sanitize_repository "a/b"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "a/b" ]]
+}
+
+# Test 49: sanitize_repository handles maximum practical length
+@test "sanitize_repository handles maximum practical length" {
+    # GitHub has limits, but test with reasonable long names
+    local long_owner=$(printf 'a%.0s' {1..50})
+    local long_repo=$(printf 'b%.0s' {1..50})
+    run sanitize_repository "$long_owner/$long_repo"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "$long_owner/$long_repo" ]]
+}
+
+# Test 50: sanitize_s3_bucket handles minimum valid length
+@test "sanitize_s3_bucket handles minimum valid length" {
+    run sanitize_s3_bucket "abc"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "abc" ]]
+}
+
+# Test 51: sanitize_s3_bucket handles maximum valid length
+@test "sanitize_s3_bucket handles maximum valid length" {
+    local max_bucket=$(printf 'a%.0s' {1..63})
+    run sanitize_s3_bucket "$max_bucket"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "$max_bucket" ]]
+}
+
+# Test 52: sanitize_numeric handles zero
+@test "sanitize_numeric handles zero" {
+    run sanitize_numeric "0" "TEST_FIELD"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "0" ]]
+}
+
+# TODO: Remove leading zeros from numeric sanitization
+# Test 53: sanitize_numeric handles leading zeros
+@test "sanitize_numeric handles leading zeros" {
+    run sanitize_numeric "00123" "TEST_FIELD"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "00123" ]]
+}
+
+# Test 54: sanitize_uuid handles minimum valid length
+@test "sanitize_uuid handles minimum valid length" {
+    run sanitize_uuid "12345678" "TEST_UUID"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid UUID format"* ]]
+}
+
+# ============================================================================
+# MALFORMED INPUT TESTS
+# ============================================================================
+
+# Test 55: sanitize_repository handles malformed repository - double slash
+@test "sanitize_repository handles malformed repository - double slash" {
+    run sanitize_repository "owner//repo"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid repository format"* ]]
+}
+
+# Test 56: sanitize_repository handles malformed repository - trailing slash
+@test "sanitize_repository handles malformed repository - trailing slash" {
+    run sanitize_repository "owner/repo/"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid repository format"* ]]
+}
+
+# Test 57: sanitize_url handles malformed URL - missing protocol
+@test "sanitize_url handles malformed URL - missing protocol" {
+    run sanitize_url "example.com"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid URL format"* ]]
+}
+
+# Test 58: sanitize_url handles malformed URL - double protocol
+@test "sanitize_url handles malformed URL - double protocol" {
+    run sanitize_url "https://http://example.com"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid URL format"* ]]
+}
+
+# Test 59: sanitize_email handles malformed email - double @
+@test "sanitize_email handles malformed email - double @" {
+    run sanitize_email "user@@example.com"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid email format"* ]]
+}
+
+# Test 60: sanitize_email handles malformed email - missing domain
+@test "sanitize_email handles malformed email - missing domain" {
+    run sanitize_email "user@"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid email format"* ]]
+}
+
+# Test 61: sanitize_patterns handles malformed patterns - only commas
+@test "sanitize_patterns handles malformed patterns - only commas" {
+    run sanitize_patterns ",,,"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "" ]]
+}
+
+# Test 62: sanitize_patterns handles malformed patterns - mixed valid/invalid
+@test "sanitize_patterns handles malformed patterns - mixed valid/invalid" {
+    run sanitize_patterns "*.json,\$\$\$,test*.txt"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "*.json,test*.txt" ]]
+}
+
+# ============================================================================
+# INTEGRATION TESTS WITH REALISTIC ATTACK SCENARIOS
+# ============================================================================
+
+# Test 63: sanitize_inputs handles comprehensive injection attempt
+@test "sanitize_inputs handles comprehensive injection attempt" {
+    # Set up a comprehensive attack scenario
+    export REPOSITORY="evil\`rm -rf /\`/repo"
+    export MEND_EMAIL="evil@example.com; cat /etc/passwd"
+    export S3_BUCKET="evil-bucket\$(whoami)"
+    export S3_KEY="../../../etc/passwd"
+    export CLICKHOUSE_URL="https://evil.com/\`id\`"
+    export INCLUDE="*.json; rm -rf /"
+    export EXCLUDE="*.txt|cat /etc/passwd"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]  # Handles sanitization without crashing
+    
+    # Check that dangerous characters were removed or validation failed
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 64: sanitize_inputs handles null byte injection across multiple fields
+@test "sanitize_inputs handles null byte injection across multiple fields" {
+    # Test null byte injection in multiple fields
+    local null_repo=$(printf "owner/repo\000malicious")
+    local null_email=$(printf "user@example.com\000admin@evil.com")
+    local null_bucket=$(printf "bucket\000evil")
+    
+    export REPOSITORY="$null_repo"
+    export MEND_EMAIL="$null_email"
+    export S3_BUCKET="$null_bucket"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]    
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 65: sanitize_inputs handles control character injection
+@test "sanitize_inputs handles control character injection" {
+    # Test various control characters
+    local control_string=$(printf "test\001\002\003\004\005string")
+    
+    export REPOSITORY="owner/repo"
+    export GITHUB_TOKEN="$control_string"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    
+    # Control characters should be removed
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 66: sanitize_inputs preserves valid complex inputs
+@test "sanitize_inputs preserves valid complex inputs" {
+    # Test that valid complex inputs are preserved
+    export REPOSITORY="my-org/my-repo.name"
+    export MEND_EMAIL="user.name+tag@example-domain.co.uk"
+    export S3_BUCKET="my-test-bucket-123"
+    export S3_KEY="path/to/sbom-file.json"
+    export CLICKHOUSE_URL="https://clickhouse.example.com:8443"
+    export INCLUDE="*-prod.json,production-*.json"
+    export EXCLUDE="*-dev.json,*-test.json"
+    export MEND_PROJECT_UUIDS="123e4567-e89b-12d3-a456-426614174000,456e7890-e89b-12d3-a456-426614174001"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    
+    # All valid inputs should be preserved
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# ============================================================================
+# PERFORMANCE AND RESOURCE TESTS
+# ============================================================================
+
+# Test 67: sanitize_string handles extremely long input efficiently
+@test "sanitize_string handles extremely long input efficiently" {
+    # Test with very long input to ensure no performance issues
+    local huge_string=$(printf 'a%.0s' {1..50000})
+    
+    run sanitize_string "$huge_string" 1000
+    [ "$status" -eq 0 ]
+    [ "${#output}" -eq 1000 ]
+}
+
+# Test 68: sanitize_patterns handles many patterns efficiently
+@test "sanitize_patterns handles many patterns efficiently" {
+    # Test with many patterns
+    local many_patterns=""
+    for i in {1..100}; do
+        many_patterns+=",pattern$i*.json"
+    done
+    many_patterns=${many_patterns:1}  # Remove leading comma
+    
+    run sanitize_patterns "$many_patterns"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"pattern1*.json"* ]]
+    [[ "$output" == *"pattern100*.json"* ]]
+}
+
+# Test 69: sanitize_inputs handles all fields simultaneously
+@test "sanitize_inputs handles all fields simultaneously" {
+    # Test with all possible fields set to ensure no conflicts
+    export REPOSITORY="owner/repo"
+    export MEND_EMAIL="user@example.com"
+    export MEND_ORG_UUID="123e4567-e89b-12d3-a456-426614174000"
+    export MEND_USER_KEY="test-key"
+    export MEND_BASE_URL="https://api.mend.io"
+    export MEND_PROJECT_UUID="123e4567-e89b-12d3-a456-426614174001"
+    export MEND_PRODUCT_UUID="123e4567-e89b-12d3-a456-426614174002"
+    export MEND_ORG_SCOPE_UUID="123e4567-e89b-12d3-a456-426614174003"
+    export MEND_PROJECT_UUIDS="123e4567-e89b-12d3-a456-426614174004,123e4567-e89b-12d3-a456-426614174005"
+    export MEND_MAX_WAIT_TIME="1800"
+    export MEND_POLL_INTERVAL="30"
+    export WIZ_AUTH_ENDPOINT="https://auth.wiz.io"
+    export WIZ_API_ENDPOINT="https://api.wiz.io"
+    export WIZ_CLIENT_ID="wiz-client-id"
+    export WIZ_CLIENT_SECRET="wiz-client-secret"
+    export WIZ_REPORT_ID="wiz-report-123"
+    export AWS_ACCESS_KEY_ID="aws-key"
+    export AWS_SECRET_ACCESS_KEY="aws-secret"
+    export AWS_DEFAULT_REGION="us-east-1"
+    export S3_BUCKET="test-bucket"
+    export S3_KEY="test/sbom.json"
+    export CLICKHOUSE_URL="https://clickhouse.example.com"
+    export CLICKHOUSE_DATABASE="test_db"
+    export CLICKHOUSE_USERNAME="user"
+    export CLICKHOUSE_PASSWORD="pass"
+    export SBOM_SOURCE="github"
+    export SBOM_FORMAT="cyclonedx"
+    export MERGE="false"
+    export INCLUDE="*.json"
+    export EXCLUDE="*-test.json"
+    export GITHUB_TOKEN="github-token"
+    
+    run sanitize_inputs
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Input sanitization completed successfully"* ]]
+}

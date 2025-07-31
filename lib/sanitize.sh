@@ -243,7 +243,7 @@ sanitize_numeric() {
     if (( int_value < int_min )) || (( int_value > int_max )); then
         log_error "Numeric value for $field_name out of range: $int_value"
         log_error "Value must be between $int_min and $int_max"
-        exit 1
+        return 1
     fi
     
     # Return the integer value (without leading zeros)

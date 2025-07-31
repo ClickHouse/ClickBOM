@@ -923,7 +923,7 @@ EOF
 @test "sanitize_numeric handles leading zeros" {
     run sanitize_numeric "00123" "TEST_FIELD"
     [ "$status" -eq 0 ]
-    [[ "$output" == "00123" ]]
+    [[ "$output" == "123" ]]
 }
 
 # Test 54: sanitize_uuid handles minimum valid length

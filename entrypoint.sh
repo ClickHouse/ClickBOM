@@ -7,37 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source all library files
 source "$SCRIPT_DIR/lib/sanitize.sh"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-ORANGE='\033[0;33m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log_debug() {
-    if [[ "${DEBUG:-false}" == "true" ]]; then
-        echo -e "${ORANGE}[DEBUG]${NC} $1"
-    fi
-}
-
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+source "$SCRIPT_DIR/lib/common.sh"
 
 # Validate required environment variables
 validate_env() {
@@ -1787,14 +1757,6 @@ insert_sbom_data() {
 
 # Global variable for temp directory (so cleanup can access it)
 temp_dir=""
-
-# Cleanup function
-cleanup() {
-    if [[ -n "$temp_dir" && -d "$temp_dir" ]]; then
-        log_info "Cleaning up temporary files"
-        rm -rf "$temp_dir"
-    fi
-}
 
 # Main function
 main() {

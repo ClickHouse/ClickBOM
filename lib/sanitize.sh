@@ -234,14 +234,20 @@ sanitize_numeric() {
         exit 1
     fi
 
-    # Check range
-    if (( sanitized < min_val )) || (( sanitized > max_val )); then
-        log_error "Numeric value for $field_name out of range: $sanitized"
-        log_error "Value must be between $min_val and $max_val"
+    # Convert to integer (removes leading zeros) for range checking
+    local int_value=$((10#$sanitized))
+    local int_min=$((min_val))
+    local int_max=$((max_val))
+
+    # Check range using integer values
+    if (( int_value < int_min )) || (( int_value > int_max )); then
+        log_error "Numeric value for $field_name out of range: $int_value"
+        log_error "Value must be between $int_min and $int_max"
         exit 1
     fi
     
-    echo "$sanitized"
+    # Return the integer value (without leading zeros)
+    echo "$int_value"
 }
 
 # Main sanitization function - sanitizes all environment variables

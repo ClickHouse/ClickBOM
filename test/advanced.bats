@@ -640,15 +640,14 @@ EOF
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
-# Todo: Range Check
 # Test 22: sanitize_inputs rejects invalid numeric values
 @test "sanitize_inputs rejects invalid numeric values" {
-    export MEND_MAX_WAIT_TIME="30"  # Too high
+    export MEND_MAX_WAIT_TIME="800"  # Too high
     run sanitize_inputs
     echo "$output"
     echo "$status"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Input sanitization completed successfully"* ]]
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"out of range"* ]]
 }
 
 # Test 22a: Diagnostic test for range checking

@@ -231,7 +231,7 @@ sanitize_numeric() {
     if [[ ! "$sanitized" =~ ^[0-9]+$ ]]; then
         log_error "Invalid numeric value for $field_name: $value"
         log_error "Value must be a positive integer"
-        return 1
+        exit 1
     fi
 
     # Convert to integer (removes leading zeros) for range checking
@@ -243,7 +243,7 @@ sanitize_numeric() {
     if (( int_value < int_min )) || (( int_value > int_max )); then
         log_error "Numeric value for $field_name out of range: $int_value"
         log_error "Value must be between $int_min and $int_max"
-        return 1
+        exit 1
     fi
     
     # Return the integer value (without leading zeros)
@@ -311,12 +311,16 @@ sanitize_inputs() {
     fi
     
     if [[ -n "${MEND_MAX_WAIT_TIME:-}" ]]; then
-        MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200)
+        if ! MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200); then
+            exit 1
+        fi
         log_debug "Sanitized MEND_MAX_WAIT_TIME: $MEND_MAX_WAIT_TIME"
     fi
     
     if [[ -n "${MEND_POLL_INTERVAL:-}" ]]; then
-        MEND_POLL_INTERVAL=$(sanitize_numeric "$MEND_POLL_INTERVAL" "MEND_POLL_INTERVAL" 10 300)
+        if ! MEND_POLL_INTERVAL=$(sanitize_numeric "$MEND_POLL_INTERVAL" "MEND_POLL_INTERVAL" 10 300); then
+            exit 1
+        fi
         log_debug "Sanitized MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"
     fi
     

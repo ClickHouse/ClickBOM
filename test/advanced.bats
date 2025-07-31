@@ -15,8 +15,9 @@ setup() {
     # Extract only the functions from entrypoint.sh (everything before main function call)
     sed '/^# Run main function/,$d' "$PROJECT_ROOT/entrypoint.sh" > "$TEST_SCRIPT"
     
-    # Fix the lib/sanitize.sh source path in the extracted script
+    # Replace the source line in the extracted script
     sed -i "s|source \"\$SCRIPT_DIR/lib/sanitize.sh\"|source \"$PROJECT_ROOT/lib/sanitize.sh\"|" "$TEST_SCRIPT"
+    sed -i "s|source \"\$SCRIPT_DIR/lib/common.sh\"|source \"$PROJECT_ROOT/lib/common.sh\"|" "$TEST_SCRIPT"
     
     # Source the functions
     source "$TEST_SCRIPT"

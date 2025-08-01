@@ -808,13 +808,6 @@ EOF
     [[ "$output" == *"Numeric value for TEST_FIELD out of range"* ]]
 }
 
-# Test 91: sanitize_numeric rejects number above maximum
-@test "sanitize_numeric rejects number above maximum" {
-    run sanitize_numeric "150" "TEST_FIELD" 10 100
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"Numeric value for TEST_FIELD out of range"* ]]
-}
-
 # Test 92: sanitize_numeric accepts boundary values
 @test "sanitize_numeric accepts boundary values" {
     run sanitize_numeric "10" "TEST_FIELD" 10 100

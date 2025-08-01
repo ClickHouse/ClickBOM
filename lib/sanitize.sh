@@ -231,17 +231,23 @@ sanitize_numeric() {
     if [[ ! "$sanitized" =~ ^[0-9]+$ ]]; then
         log_error "Invalid numeric value for $field_name: $value"
         log_error "Value must be a positive integer"
-        exit 1
+        return 1
     fi
 
-    # Check range
-    if (( sanitized < min_val )) || (( sanitized > max_val )); then
-        log_error "Numeric value for $field_name out of range: $sanitized"
-        log_error "Value must be between $min_val and $max_val"
-        exit 1
+    # Convert to integer (removes leading zeros) for range checking
+    local int_value=$((10#$sanitized))
+    local int_min=$((min_val))
+    local int_max=$((max_val))
+
+    # Check range using integer values
+    if (( int_value < int_min )) || (( int_value > int_max )); then
+        log_error "Numeric value for $field_name out of range: $int_value"
+        log_error "Value must be between $int_min and $int_max"
+        return 1
     fi
     
-    echo "$sanitized"
+    # Return the integer value (without leading zeros)
+    echo "$int_value"
 }
 
 # Main sanitization function - sanitizes all environment variables
@@ -305,12 +311,18 @@ sanitize_inputs() {
     fi
     
     if [[ -n "${MEND_MAX_WAIT_TIME:-}" ]]; then
-        MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200)
+        if ! MEND_MAX_WAIT_TIME=$(sanitize_numeric "$MEND_MAX_WAIT_TIME" "MEND_MAX_WAIT_TIME" 60 7200); then
+            log_error "Invalid numeric value for MEND_MAX_WAIT_TIME: $MEND_MAX_WAIT_TIME"
+            exit 1
+        fi
         log_debug "Sanitized MEND_MAX_WAIT_TIME: $MEND_MAX_WAIT_TIME"
     fi
     
     if [[ -n "${MEND_POLL_INTERVAL:-}" ]]; then
-        MEND_POLL_INTERVAL=$(sanitize_numeric "$MEND_POLL_INTERVAL" "MEND_POLL_INTERVAL" 10 300)
+        if ! MEND_POLL_INTERVAL=$(sanitize_numeric "$MEND_POLL_INTERVAL" "MEND_POLL_INTERVAL" 10 300); then
+            log_error "Invalid numeric value for MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"
+            exit 1
+        fi
         log_debug "Sanitized MEND_POLL_INTERVAL: $MEND_POLL_INTERVAL"
     fi
     

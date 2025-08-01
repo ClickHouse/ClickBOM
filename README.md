@@ -305,7 +305,7 @@ jobs:
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
-          s3-key: clickbom.json
+          s3-key: ${{ matrix.repository }}.json
           repository: ${{ github.repository_owner }}/${{ matrix.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
@@ -369,7 +369,7 @@ jobs:
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
-          s3-key: clickbom.json
+          s3-key: ${{ matrix.repository }}.json
           repository: ${{ github.repository_owner }}/${{ matrix.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}

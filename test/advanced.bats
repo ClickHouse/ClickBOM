@@ -18,6 +18,7 @@ setup() {
     # Replace the source line in the extracted script
     sed -i "s|source \"\$SCRIPT_DIR/lib/sanitize.sh\"|source \"$PROJECT_ROOT/lib/sanitize.sh\"|" "$TEST_SCRIPT"
     sed -i "s|source \"\$SCRIPT_DIR/lib/common.sh\"|source \"$PROJECT_ROOT/lib/common.sh\"|" "$TEST_SCRIPT"
+    sed -i "s|source \"\$SCRIPT_DIR/lib/validation.sh\"|source \"$PROJECT_ROOT/lib/validation.sh\"|" "$TEST_SCRIPT"
     
     # Source the functions
     source "$TEST_SCRIPT"
@@ -639,14 +640,41 @@ EOF
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
-# Todo: Range Check
 # Test 22: sanitize_inputs rejects invalid numeric values
 @test "sanitize_inputs rejects invalid numeric values" {
-    export MEND_MAX_WAIT_TIME=8000  # Too high
+    export MEND_MAX_WAIT_TIME="8000"  # Too high
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+}
+
+# Test 22a: Diagnostic test for range checking
+@test "diagnostic test for range checking" {
+    export MEND_MAX_WAIT_TIME="8000"  # Too high (max is 7200)
+    export DEBUG="true"  # Enable debug output
+
+    run sanitize_inputs
+
+    # This should fail if range checking works
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"out of range"* ]]
+}
+
+# Test 22b: Test with valid value to ensure function works
+@test "sanitize_inputs accepts valid numeric values" {
+    export MEND_MAX_WAIT_TIME="1800"  # Valid (within 60-7200 range)
 
     run sanitize_inputs
     [ "$status" -eq 0 ]
     [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# Test 22c: Test with value below minimum
+@test "sanitize_inputs rejects value below minimum" {
+    export MEND_MAX_WAIT_TIME="30"  # Too low (min is 60)
+
+    run sanitize_inputs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"out of range"* ]]
 }
 
 # Test 23: sanitize_inputs skips empty values
@@ -917,12 +945,11 @@ EOF
     [[ "$output" == "0" ]]
 }
 
-# TODO: Remove leading zeros from numeric sanitization
 # Test 53: sanitize_numeric handles leading zeros
 @test "sanitize_numeric handles leading zeros" {
     run sanitize_numeric "00123" "TEST_FIELD"
     [ "$status" -eq 0 ]
-    [[ "$output" == "00123" ]]
+    [[ "$output" == "123" ]]
 }
 
 # Test 54: sanitize_uuid handles minimum valid length

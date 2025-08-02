@@ -1023,7 +1023,7 @@ EOF
     done
 }
 
-# Create ClickHouse table if it doesn't exist, or truncate if it does
+# Set up ClickHouse table
 setup_clickhouse_table() {
     local table_name="$1"
     
@@ -1059,12 +1059,17 @@ setup_clickhouse_table() {
     local table_exists
     if table_exists=$(curl -s ${auth_params} --data "SELECT COUNT(*) FROM system.tables WHERE database='${CLICKHOUSE_DATABASE}' AND name='${table_name}'" "${clickhouse_url}"); then
         if [[ "$table_exists" == "1" ]]; then
-            log_info "Table $table_name exists, truncating..."
-            if curl -s ${auth_params} --data "TRUNCATE TABLE ${CLICKHOUSE_DATABASE}.${table_name}" "${clickhouse_url}"; then
-                log_success "Table $table_name truncated"
+            log_info "Table $table_name already exists"
+            if [[ "${TRUNCATE_TABLE:-false}" == "true" ]]; then
+                log_info "Truncating existing table: $table_name"
+                if curl -s ${auth_params} --data "TRUNCATE TABLE ${CLICKHOUSE_DATABASE}.${table_name}" "${clickhouse_url}"; then
+                    log_success "Table $table_name truncated"
+                else
+                    log_error "Failed to truncate table $table_name"
+                    return 1
+                fi
             else
-                log_error "Failed to truncate table $table_name"
-                return 1
+                log_info "New data will be appended to existing table: $table_name"
             fi
         else
             log_info "Creating new table: $table_name"

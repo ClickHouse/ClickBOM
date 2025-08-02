@@ -259,6 +259,11 @@ sanitize_inputs() {
         REPOSITORY=$(sanitize_repository "$REPOSITORY")
         log_debug "Sanitized REPOSITORY: $REPOSITORY"
     fi
+
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        GITHUB_TOKEN=$(sanitize_string "$GITHUB_TOKEN" 1000)
+        log_debug "Sanitized GITHUB_TOKEN: [REDACTED]"
+    fi
     
     # Mend inputs
     if [[ -n "${MEND_EMAIL:-}" ]]; then
@@ -398,6 +403,15 @@ sanitize_inputs() {
         CLICKHOUSE_PASSWORD=$(sanitize_string "$CLICKHOUSE_PASSWORD" 500)
         log_debug "Sanitized CLICKHOUSE_PASSWORD: [REDACTED]"
     fi
+
+    if [[ -n "${TRUNCATE_TABLE:-}" ]]; then
+        if [[ ! "$TRUNCATE_TABLE" =~ ^(true|false)$ ]]; then
+            log_error "Invalid TRUNCATE_TABLE value: $TRUNCATE_TABLE"
+            log_error "TRUNCATE_TABLE must be either 'true' or 'false'"
+            exit 1
+        fi
+        log_debug "Validated TRUNCATE_TABLE: $TRUNCATE_TABLE"
+    fi
     
     # General inputs
     if [[ -n "${SBOM_SOURCE:-}" ]]; then
@@ -436,12 +450,15 @@ sanitize_inputs() {
         EXCLUDE=$(sanitize_patterns "$EXCLUDE")
         log_debug "Sanitized EXCLUDE: $EXCLUDE"
     fi
-    
-    # Sanitize tokens (GitHub token, etc.) - just remove dangerous characters
-    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        GITHUB_TOKEN=$(sanitize_string "$GITHUB_TOKEN" 1000)
-        log_debug "Sanitized GITHUB_TOKEN: [REDACTED]"
-    fi
+
+    if [[ -n "${DEBUG:-}" ]]; then
+        if [[ ! "$DEBUG" =~ ^(true|false)$ ]]; then
+            log_error "Invalid DEBUG value: $DEBUG"
+            log_error "DEBUG must be either 'true' or 'false'"
+            exit 1
+        fi
+        log_debug "Validated DEBUG: $DEBUG"
+    fi    
     
     log_success "Input sanitization completed successfully"
 }

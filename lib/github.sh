@@ -20,7 +20,7 @@ download_sbom() {
     
     for attempt in $(seq 1 $max_attempts); do
         # Download SBOM file with optimizations for large files
-        log_info "Starting SBOM download $attempt/$max_attempts (may take time for large files)..."
+        log_info "Starting SBOM download, attempt $attempt/$max_attempts (may take time for large files)..."
 
         # Calculate delay for this attempt (exponential backoff)
         local delay=$((base_delay * attempt))

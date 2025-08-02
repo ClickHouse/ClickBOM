@@ -97,6 +97,10 @@ inputs:
     description: 'ClickHouse password'
     required: false
     default: ''
+  truncate-table:
+    description: 'Truncate ClickHouse table before inserting new data'
+    required: false
+    default: 'false'
   # General inputs
   sbom-source:
     description: 'SBOM source: github or mend'
@@ -158,6 +162,7 @@ runs:
     CLICKHOUSE_DATABASE: ${{ inputs.clickhouse-database }}
     CLICKHOUSE_USERNAME: ${{ inputs.clickhouse-username }}
     CLICKHOUSE_PASSWORD: ${{ inputs.clickhouse-password }}
+    TRUNCATE_TABLE: ${{ inputs.truncate-table }}
     # General
     SBOM_SOURCE: ${{ inputs.sbom-source }}
     SBOM_FORMAT: ${{ inputs.sbom-format }}

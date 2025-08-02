@@ -20,6 +20,7 @@ setup() {
     sed -i "s|source \"\$SCRIPT_DIR/lib/sanitize.sh\"|source \"$PROJECT_ROOT/lib/sanitize.sh\"|" "$TEST_SCRIPT"
     sed -i "s|source \"\$SCRIPT_DIR/lib/common.sh\"|source \"$PROJECT_ROOT/lib/common.sh\"|" "$TEST_SCRIPT"
     sed -i "s|source \"\$SCRIPT_DIR/lib/validation.sh\"|source \"$PROJECT_ROOT/lib/validation.sh\"|" "$TEST_SCRIPT"
+    sed -i "s|source \"\$SCRIPT_DIR/lib/github.sh\"|source \"$PROJECT_ROOT/lib/github.sh\"|" "$TEST_SCRIPT"
     
     # Source the functions
     source "$TEST_SCRIPT"

@@ -691,6 +691,40 @@ EOF
     done
 }
 
+# Check if table needs migration for repository column
+check_and_migrate_table() {
+    local table_name="$1"
+    local clickhouse_url="$2"
+    local auth_params="$3"
+    
+    log_info "Checking if table $table_name needs migration for repository column"
+    
+    # Check if repository column exists
+    local column_exists
+    if column_exists=$(curl -s ${auth_params} --data "SELECT COUNT(*) FROM system.columns WHERE database='${CLICKHOUSE_DATABASE}' AND table='${table_name}' AND name='repository'" "${clickhouse_url}"); then
+        if [[ "$column_exists" == "0" ]]; then
+            log_info "Repository column not found, migrating table: $table_name"
+            
+            # Add repository column with default value
+            local alter_sql="ALTER TABLE ${CLICKHOUSE_DATABASE}.${table_name} ADD COLUMN repository LowCardinality(String) DEFAULT 'unknown'"
+            
+            if curl -s ${auth_params} --data "$alter_sql" "${clickhouse_url}"; then
+                log_success "Repository column added to table $table_name"
+                return 0
+            else
+                log_error "Failed to add repository column to table $table_name"
+                return 1
+            fi
+        else
+            log_info "Repository column already exists in table $table_name"
+            return 0
+        fi
+    else
+        log_error "Failed to check column existence for table $table_name"
+        return 1
+    fi
+}
+
 # Set up ClickHouse table
 setup_clickhouse_table() {
     local table_name="$1"
@@ -728,6 +762,13 @@ setup_clickhouse_table() {
     if table_exists=$(curl -s ${auth_params} --data "SELECT COUNT(*) FROM system.tables WHERE database='${CLICKHOUSE_DATABASE}' AND name='${table_name}'" "${clickhouse_url}"); then
         if [[ "$table_exists" == "1" ]]; then
             log_info "Table $table_name already exists"
+
+            # Check and migrate table if needed
+            if ! check_and_migrate_table "$table_name" "$clickhouse_url" "$auth_params"; then
+                log_error "Table migration failed"
+                return 1
+            fi
+
             if [[ "${TRUNCATE_TABLE:-false}" == "true" ]]; then
                 log_info "Truncating existing table: $table_name"
                 if curl -s ${auth_params} --data "TRUNCATE TABLE ${CLICKHOUSE_DATABASE}.${table_name}" "${clickhouse_url}"; then
@@ -746,6 +787,7 @@ setup_clickhouse_table() {
                 name String,
                 version String,
                 license String,
+                repository LowCardinality(String),
                 inserted_at DateTime DEFAULT now()
             ) ENGINE = MergeTree()
             ORDER BY (name, version, license);
@@ -780,11 +822,11 @@ map_unknown_licenses() {
     BEGIN { OFS="\t" }
     NR==FNR { licenses[$1] = $2; next }
     {
-        name = $1; version = $2; license = $3
+        name = $1; version = $2; license = $3; repository = $4;
         if (license == "unknown" || license == "" || license == "null") {
             if (name in licenses) license = licenses[name]
         }
-        print name, version, license
+        print name, version, license, repository
     }
     ' "$mappings_tsv" "$input_file" > "$output_file"
     
@@ -810,6 +852,32 @@ insert_sbom_data() {
         auth_params="-u ${CLICKHOUSE_USERNAME}:"
         log_info "Using basic auth with username only: ${CLICKHOUSE_USERNAME}"
     fi
+
+    # Determine repository value based on context
+    local repository_value="unknown"
+    local sbom_source="${SBOM_SOURCE:-github}"
+    local merge_mode="${MERGE:-false}"
+
+    if [[ "$merge_mode" == "true" ]]; then
+        repository_value="merged"
+    else
+        case "$sbom_source" in
+            "github")
+                repository_value="${REPOSITORY:-unknown}"
+                ;;
+            "mend")
+                repository_value="mend:${MEND_PROJECT_UUID:-${MEND_PRODUCT_UUID:-${MEND_ORG_SCOPE_UUID:-unknown}}}"
+                ;;
+            "wiz")
+                repository_value="wiz:${WIZ_REPORT_ID:-unknown}"
+                ;;
+            *)
+                repository_value="$sbom_source"
+                ;;
+        esac
+    fi
+    
+    log_info "Repository value for ClickHouse: $repository_value"
     
     # Create temporary file for data
     local data_file="$temp_dir/clickhouse_data.tsv"
@@ -823,7 +891,7 @@ insert_sbom_data() {
                 jq -r '.components[0] | {name: .name, version: .version, licenses: .licenses}' "$sbom_file" 2>/dev/null || echo "No components found"
             fi
             # Extract from CycloneDX format
-            jq -r '
+            jq -r --arg repo "$repository_value" '
                 .components[]? // empty |
                 [
                     .name // "unknown",
@@ -856,19 +924,21 @@ insert_sbom_data() {
                         ) //
                         # Final fallback
                         "unknown"
-                    )
+                    ),
+                    $repo
                 ] | @tsv
             ' "$sbom_file" > "$data_file"
             ;;
         "spdxjson")
             # Extract from SPDX format
-            jq -r '
+            jq -r --arg repo "$repository_value" '
                 .packages[]? // empty |
                 select(.name != null) |
                 [
                     .name // "unknown",
                     .versionInfo // "unknown",
-                    (.licenseConcluded // .licenseDeclared // "unknown")
+                    (.licenseConcluded // .licenseDeclared // "unknown"),
+                    $repo
                 ] | @tsv
             ' "$sbom_file" > "$data_file"
             ;;
@@ -894,7 +964,7 @@ insert_sbom_data() {
     if curl -s ${auth_params} \
            -H "Content-Type: text/tab-separated-values" \
            --data-binary "@$mapped_data_file" \
-           "${clickhouse_url}/?query=INSERT%20INTO%20${CLICKHOUSE_DATABASE}.${table_name}%20(name,%20version,%20license)%20FORMAT%20TSV"; then
+           "${clickhouse_url}/?query=INSERT%20INTO%20${CLICKHOUSE_DATABASE}.${table_name}%20(name,%20version,%20license,%20repository)%20FORMAT%20TSV"; then
         log_success "Inserted $component_count components into ClickHouse table $table_name"
         return 0
     else

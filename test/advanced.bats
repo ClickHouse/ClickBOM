@@ -1169,6 +1169,7 @@ EOF
 
 # Test 70: check_and_migrate_table adds missing repository column
 @test "check_and_migrate_table adds missing repository column" {
+    export CLICKHOUSE_DATABASE="test_db"
     # Mock curl command that simulates column doesn't exist (returns 0)
     cat > "$MOCK_DIR/curl" << 'EOF'
 #!/bin/bash
@@ -1211,6 +1212,7 @@ EOF
 
 # Test 71: check_and_migrate_table skips migration when column exists
 @test "check_and_migrate_table skips migration when column exists" {
+    export CLICKHOUSE_DATABASE="test_db"
     # Mock curl command that simulates column exists (returns 1)
     cat > "$MOCK_DIR/curl" << 'EOF'
 #!/bin/bash

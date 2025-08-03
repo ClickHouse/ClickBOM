@@ -21,6 +21,7 @@ setup() {
     sed -i "s|source \"\$SCRIPT_DIR/lib/validation.sh\"|source \"$PROJECT_ROOT/lib/validation.sh\"|" "$TEST_SCRIPT"
     sed -i "s|source \"\$SCRIPT_DIR/lib/github.sh\"|source \"$PROJECT_ROOT/lib/github.sh\"|" "$TEST_SCRIPT"
     sed -i "s|source \"\$SCRIPT_DIR/lib/mend.sh\"|source \"$PROJECT_ROOT/lib/mend.sh\"|" "$TEST_SCRIPT"
+    sed -i "s|source \"\$SCRIPT_DIR/lib/wiz.sh\"|source \"$PROJECT_ROOT/lib/wiz.sh\"|" "$TEST_SCRIPT"
     
     # Source the functions
     source "$TEST_SCRIPT"
@@ -649,7 +650,7 @@ EOF
     [ "$status" -eq 1 ]
 }
 
-# Test 22a: Diagnostic test for range checking
+# Test 23: Diagnostic test for range checking
 @test "diagnostic test for range checking" {
     export MEND_MAX_WAIT_TIME="8000"  # Too high (max is 7200)
     export DEBUG="true"  # Enable debug output
@@ -661,7 +662,7 @@ EOF
     [[ "$output" == *"out of range"* ]]
 }
 
-# Test 22b: Test with valid value to ensure function works
+# Test 24: Test with valid value to ensure function works
 @test "sanitize_inputs accepts valid numeric values" {
     export MEND_MAX_WAIT_TIME="1800"  # Valid (within 60-7200 range)
 
@@ -670,7 +671,7 @@ EOF
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
-# Test 22c: Test with value below minimum
+# Test 25: Test with value below minimum
 @test "sanitize_inputs rejects value below minimum" {
     export MEND_MAX_WAIT_TIME="30"  # Too low (min is 60)
 
@@ -679,7 +680,7 @@ EOF
     [[ "$output" == *"out of range"* ]]
 }
 
-# Test 23: sanitize_inputs skips empty values
+# Test 26: sanitize_inputs skips empty values
 @test "sanitize_inputs skips empty values" {
     export REPOSITORY=""
     export MEND_EMAIL=""
@@ -691,7 +692,7 @@ EOF
     [[ "$output" != *"Sanitized MEND_EMAIL:"* ]]
 }
 
-# Test 24: sanitize_inputs redacts sensitive information in logs
+# Test 27: sanitize_inputs redacts sensitive information in logs
 @test "sanitize_inputs redacts sensitive information in logs" {
     export GITHUB_TOKEN="secret-token"
     export AWS_ACCESS_KEY_ID="secret-key"
@@ -713,7 +714,7 @@ EOF
 # SECURITY ATTACK VECTOR TESTS
 # ============================================================================
 
-# Test 25: sanitize_string prevents command injection via backticks
+# Test 28: sanitize_string prevents command injection via backticks
 @test "sanitize_string prevents command injection via backticks" {
     run sanitize_string "normal\`rm -rf /\`text"
     [ "$status" -eq 0 ]
@@ -722,7 +723,7 @@ EOF
     [[ "$output" != *"\`"* ]]
 }
 
-# Test 26: sanitize_string prevents command injection via dollar parentheses
+# Test 29: sanitize_string prevents command injection via dollar parentheses
 @test "sanitize_string prevents command injection via dollar parentheses" {
     run sanitize_string "normal\$(rm -rf /)text"
     [ "$status" -eq 0 ]
@@ -732,7 +733,7 @@ EOF
     [[ "$output" != *")"* ]]
 }
 
-# Test 27: sanitize_string prevents pipe injection
+# Test 30: sanitize_string prevents pipe injection
 @test "sanitize_string prevents pipe injection" {
     run sanitize_string "normal|rm -rf /|text"
     [ "$status" -eq 0 ]
@@ -741,7 +742,7 @@ EOF
     [[ "$output" != *"|"* ]]
 }
 
-# Test 28: sanitize_string prevents semicolon command chaining
+# Test 31: sanitize_string prevents semicolon command chaining
 @test "sanitize_string prevents semicolon command chaining" {
     run sanitize_string "normal;rm -rf /;text"
     [ "$status" -eq 0 ]
@@ -750,7 +751,7 @@ EOF
     [[ "$output" != *";"* ]]
 }
 
-# Test 29: sanitize_string prevents ampersand backgrounding
+# Test 32: sanitize_string prevents ampersand backgrounding
 @test "sanitize_string prevents ampersand backgrounding" {
     run sanitize_string "normal&rm -rf /&text"
     [ "$status" -eq 0 ]
@@ -759,7 +760,7 @@ EOF
     [[ "$output" != *"&"* ]]
 }
 
-# Test 30: sanitize_string prevents redirection attacks
+# Test 33: sanitize_string prevents redirection attacks
 @test "sanitize_string prevents redirection attacks" {
     run sanitize_string "normal>>/etc/passwd<<EOF"
     [ "$status" -eq 0 ]
@@ -769,14 +770,14 @@ EOF
     [[ "$output" != *"<"* ]]
 }
 
-# Test 31: sanitize_repository prevents path traversal in repository names
+# Test 34: sanitize_repository prevents path traversal in repository names
 @test "sanitize_repository prevents path traversal in repository names" {
     run sanitize_repository "../../../etc/passwd"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
 
-# Test 32: sanitize_repository prevents null byte injection
+# Test 35: sanitize_repository prevents null byte injection
 @test "sanitize_repository prevents null byte injection" {
     local test_repo=$(printf "owner/repo\000malicious")
     run sanitize_repository "$test_repo"
@@ -784,28 +785,28 @@ EOF
     [[ "$output" == "owner/repomalicious" ]]
 }
 
-# Test 33: sanitize_url prevents javascript protocol injection
+# Test 36: sanitize_url prevents javascript protocol injection
 @test "sanitize_url prevents javascript protocol injection" {
     run sanitize_url "javascript:alert('xss')"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid URL format"* ]]
 }
 
-# Test 34: sanitize_url prevents data URL injection
+# Test 37: sanitize_url prevents data URL injection
 @test "sanitize_url prevents data URL injection" {
     run sanitize_url "data:text/html,<script>alert('xss')</script>"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid URL format"* ]]
 }
 
-# Test 35: sanitize_url prevents file protocol access
+# Test 38: sanitize_url prevents file protocol access
 @test "sanitize_url prevents file protocol access" {
     run sanitize_url "file:///etc/passwd"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid URL format"* ]]
 }
 
-# Test 36: sanitize_s3_key prevents directory traversal
+# Test 39: sanitize_s3_key prevents directory traversal
 @test "sanitize_s3_key prevents directory traversal" {
     run sanitize_s3_key "../../../../etc/passwd"
     [ "$status" -eq 0 ]
@@ -814,7 +815,7 @@ EOF
     [[ "$output" != *".."* ]]
 }
 
-# Test 37: sanitize_s3_key prevents null byte injection
+# Test 40: sanitize_s3_key prevents null byte injection
 @test "sanitize_s3_key prevents null byte file injection" {
     local test_key=$(printf "file.json\000.sh")
     run sanitize_s3_key "$test_key"
@@ -822,14 +823,14 @@ EOF
     [[ "$output" == "file.json.sh" ]]
 }
 
-# Test 38: sanitize_email prevents email header injection
+# Test 41: sanitize_email prevents email header injection
 @test "sanitize_email prevents header injection" {
     run sanitize_email "user@example.com\nBcc: admin@evil.com"    
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid email format"* ]]
 }
 
-# Test 39: sanitize_email prevents SQL injection attempts
+# Test 42: sanitize_email prevents SQL injection attempts
 @test "sanitize_database_name prevents SQL injection attempts" {
     run sanitize_database_name "test'; DROP TABLE users; --"
     [ "$status" -eq 0 ]
@@ -840,7 +841,7 @@ EOF
 # UNICODE AND ENCODING EDGE CASES
 # ============================================================================
 
-# Test 40: sanitize_string handles unicode characters
+# Test 43: sanitize_string handles unicode characters
 @test "sanitize_string handles unicode characters" {
     run sanitize_string "test-üñíçødé-string"
     [ "$status" -eq 0 ]
@@ -848,7 +849,7 @@ EOF
     [[ "$output" == "test-d-string" ]]
 }
 
-# Test 41: sanitize_string handles mixed encoding
+# Test 44: sanitize_string handles mixed encoding
 @test "sanitize_string handles mixed encoding" {
     # Test with mixed ASCII and control characters
     local mixed_string=$(printf "test\x1b[31mred\x1b[0mnormal")
@@ -857,7 +858,7 @@ EOF
     [[ "$output" == "test31mred0mnormal" ]]
 }
 
-# Test 42: sanitize_repository handles locales with special characters
+# Test 45: sanitize_repository handles locales with special characters
 @test "sanitize_repository handles locales with special characters" {
     # Note: This should fail validation as our regex is ASCII-only
     run sanitize_repository "üser/repö"
@@ -865,7 +866,7 @@ EOF
     [[ "$output" == "ser/rep" ]]
 }
 
-# Test 43: sanitize_url handles internationalized domain names
+# Test 46: sanitize_url handles internationalized domain names
 @test "sanitize_url handles internationalized domain names" {
     # Test with punycode (internationalized domain)
     run sanitize_url "https://xn--n3h.com"
@@ -873,7 +874,7 @@ EOF
     [[ "$output" == "https://xn--n3h.com" ]]
 }
 
-# Test 44: sanitize_email handles unicode in email addresses
+# Test 47: sanitize_email handles unicode in email addresses
 @test "sanitize_email handles unicode in email addresses" {
     # Should remove unicode characters
     run sanitize_email "üser@example.com"
@@ -885,14 +886,14 @@ EOF
 # BOUNDARY CONDITION TESTS
 # ============================================================================
 
-# Test 45: sanitize_string handles empty string
+# Test 48: sanitize_string handles empty string
 @test "sanitize_string handles empty string" {
     run sanitize_string ""
     [ "$status" -eq 0 ]
     [[ "$output" == "" ]]
 }
 
-# Test 46: sanitize_string handles very long string
+# Test 49: sanitize_string handles very long string
 @test "sanitize_string handles very long string" {
     local long_string=$(printf 'a%.0s' {1..10000})
     run sanitize_string "$long_string" 1000
@@ -901,21 +902,21 @@ EOF
     [[ "$output" == "$(printf 'a%.0s' {1..1000})" ]]
 }
 
-# Test 47: sanitize_string handles string with only dangerous characters
+# Test 50: sanitize_string handles string with only dangerous characters
 @test "sanitize_string handles string with only dangerous characters" {
     run sanitize_string "\$\`(){}|;&<>"
     [ "$status" -eq 0 ]
     [[ "$output" == "" ]]
 }
 
-# Test 48: sanitize_repository handles minimum valid length
+# Test 51: sanitize_repository handles minimum valid length
 @test "sanitize_repository handles minimum valid length" {
     run sanitize_repository "a/b"
     [ "$status" -eq 0 ]
     [[ "$output" == "a/b" ]]
 }
 
-# Test 49: sanitize_repository handles maximum practical length
+# Test 52: sanitize_repository handles maximum practical length
 @test "sanitize_repository handles maximum practical length" {
     # GitHub has limits, but test with reasonable long names
     local long_owner=$(printf 'a%.0s' {1..50})
@@ -925,14 +926,14 @@ EOF
     [[ "$output" == "$long_owner/$long_repo" ]]
 }
 
-# Test 50: sanitize_s3_bucket handles minimum valid length
+# Test 53: sanitize_s3_bucket handles minimum valid length
 @test "sanitize_s3_bucket handles minimum valid length" {
     run sanitize_s3_bucket "abc"
     [ "$status" -eq 0 ]
     [[ "$output" == "abc" ]]
 }
 
-# Test 51: sanitize_s3_bucket handles maximum valid length
+# Test 54: sanitize_s3_bucket handles maximum valid length
 @test "sanitize_s3_bucket handles maximum valid length" {
     local max_bucket=$(printf 'a%.0s' {1..63})
     run sanitize_s3_bucket "$max_bucket"
@@ -940,21 +941,21 @@ EOF
     [[ "$output" == "$max_bucket" ]]
 }
 
-# Test 52: sanitize_numeric handles zero
+# Test 55: sanitize_numeric handles zero
 @test "sanitize_numeric handles zero" {
     run sanitize_numeric "0" "TEST_FIELD"
     [ "$status" -eq 0 ]
     [[ "$output" == "0" ]]
 }
 
-# Test 53: sanitize_numeric handles leading zeros
+# Test 56: sanitize_numeric handles leading zeros
 @test "sanitize_numeric handles leading zeros" {
     run sanitize_numeric "00123" "TEST_FIELD"
     [ "$status" -eq 0 ]
     [[ "$output" == "123" ]]
 }
 
-# Test 54: sanitize_uuid handles minimum valid length
+# Test 57: sanitize_uuid handles minimum valid length
 @test "sanitize_uuid handles minimum valid length" {
     run sanitize_uuid "12345678" "TEST_UUID"
     [ "$status" -eq 1 ]
@@ -965,56 +966,56 @@ EOF
 # MALFORMED INPUT TESTS
 # ============================================================================
 
-# Test 55: sanitize_repository handles malformed repository - double slash
+# Test 58: sanitize_repository handles malformed repository - double slash
 @test "sanitize_repository handles malformed repository - double slash" {
     run sanitize_repository "owner//repo"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
 
-# Test 56: sanitize_repository handles malformed repository - trailing slash
+# Test 59: sanitize_repository handles malformed repository - trailing slash
 @test "sanitize_repository handles malformed repository - trailing slash" {
     run sanitize_repository "owner/repo/"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid repository format"* ]]
 }
 
-# Test 57: sanitize_url handles malformed URL - missing protocol
+# Test 60: sanitize_url handles malformed URL - missing protocol
 @test "sanitize_url handles malformed URL - missing protocol" {
     run sanitize_url "example.com"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid URL format"* ]]
 }
 
-# Test 58: sanitize_url handles malformed URL - double protocol
+# Test 61: sanitize_url handles malformed URL - double protocol
 @test "sanitize_url handles malformed URL - double protocol" {
     run sanitize_url "https://http://example.com"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid URL format"* ]]
 }
 
-# Test 59: sanitize_email handles malformed email - double @
+# Test 62: sanitize_email handles malformed email - double @
 @test "sanitize_email handles malformed email - double @" {
     run sanitize_email "user@@example.com"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid email format"* ]]
 }
 
-# Test 60: sanitize_email handles malformed email - missing domain
+# Test 63: sanitize_email handles malformed email - missing domain
 @test "sanitize_email handles malformed email - missing domain" {
     run sanitize_email "user@"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid email format"* ]]
 }
 
-# Test 61: sanitize_patterns handles malformed patterns - only commas
+# Test 64: sanitize_patterns handles malformed patterns - only commas
 @test "sanitize_patterns handles malformed patterns - only commas" {
     run sanitize_patterns ",,,"
     [ "$status" -eq 0 ]
     [[ "$output" == "" ]]
 }
 
-# Test 62: sanitize_patterns handles malformed patterns - mixed valid/invalid
+# Test 65: sanitize_patterns handles malformed patterns - mixed valid/invalid
 @test "sanitize_patterns handles malformed patterns - mixed valid/invalid" {
     run sanitize_patterns "*.json,\$\$\$,test*.txt"
     [ "$status" -eq 0 ]
@@ -1025,7 +1026,7 @@ EOF
 # INTEGRATION TESTS WITH REALISTIC ATTACK SCENARIOS
 # ============================================================================
 
-# Test 63: sanitize_inputs handles comprehensive injection attempt
+# Test 66: sanitize_inputs handles comprehensive injection attempt
 @test "sanitize_inputs handles comprehensive injection attempt" {
     # Set up a comprehensive attack scenario
     export REPOSITORY="evil\`rm -rf /\`/repo"
@@ -1043,7 +1044,7 @@ EOF
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
-# Test 64: sanitize_inputs handles null byte injection across multiple fields
+# Test 67: sanitize_inputs handles null byte injection across multiple fields
 @test "sanitize_inputs handles null byte injection across multiple fields" {
     # Test null byte injection in multiple fields
     local null_repo=$(printf "owner/repo\000malicious")
@@ -1059,7 +1060,7 @@ EOF
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
-# Test 65: sanitize_inputs handles control character injection
+# Test 68: sanitize_inputs handles control character injection
 @test "sanitize_inputs handles control character injection" {
     # Test various control characters
     local control_string=$(printf "test\001\002\003\004\005string")
@@ -1074,7 +1075,7 @@ EOF
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
 
-# Test 66: sanitize_inputs preserves valid complex inputs
+# Test 69: sanitize_inputs preserves valid complex inputs
 @test "sanitize_inputs preserves valid complex inputs" {
     # Test that valid complex inputs are preserved
     export REPOSITORY="my-org/my-repo.name"
@@ -1097,7 +1098,7 @@ EOF
 # PERFORMANCE AND RESOURCE TESTS
 # ============================================================================
 
-# Test 67: sanitize_string handles extremely long input efficiently
+# Test 70: sanitize_string handles extremely long input efficiently
 @test "sanitize_string handles extremely long input efficiently" {
     # Test with very long input to ensure no performance issues
     local huge_string=$(printf 'a%.0s' {1..50000})
@@ -1107,7 +1108,7 @@ EOF
     [ "${#output}" -eq 1000 ]
 }
 
-# Test 68: sanitize_patterns handles many patterns efficiently
+# Test 71: sanitize_patterns handles many patterns efficiently
 @test "sanitize_patterns handles many patterns efficiently" {
     # Test with many patterns
     local many_patterns=""
@@ -1122,7 +1123,7 @@ EOF
     [[ "$output" == *"pattern100*.json"* ]]
 }
 
-# Test 69: sanitize_inputs handles all fields simultaneously
+# Test 72: sanitize_inputs handles all fields simultaneously
 @test "sanitize_inputs handles all fields simultaneously" {
     # Test with all possible fields set to ensure no conflicts
     export REPOSITORY="owner/repo"
@@ -1160,4 +1161,361 @@ EOF
     run sanitize_inputs
     [ "$status" -eq 0 ]
     [[ "$output" == *"Input sanitization completed successfully"* ]]
+}
+
+# ============================================================================
+# CHECK_AND_MIGRATE_TABLE TESTS
+# ============================================================================
+
+# Test 73: check_and_migrate_table adds missing source column
+@test "check_and_migrate_table adds missing source column" {
+    export CLICKHOUSE_DATABASE="test_db"
+    # Mock curl command that simulates column doesn't exist (returns 0)
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]] && [[ "$*" == *"name='source'"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]] && [[ "$*" == *"ADD COLUMN source"* ]]; then
+    # ALTER TABLE succeeds
+    echo "ALTER TABLE executed"
+    exit 0
+else
+    # Other queries succeed
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"source column not found, migrating table: test_table"* ]]
+    [[ "$output" == *"source column added to table test_table"* ]]
+    
+    # Verify curl was called correctly
+    [ -f "$BATS_TEST_TMPDIR/curl_calls.log" ]
+    local curl_calls
+    curl_calls=$(cat "$BATS_TEST_TMPDIR/curl_calls.log")
+    
+    # Should have been called twice: once to check, once to alter
+    [[ "$curl_calls" == *"system.columns"* ]]
+    [[ "$curl_calls" == *"ALTER TABLE"* ]]
+    [[ "$curl_calls" == *"ADD COLUMN source LowCardinality(String) DEFAULT 'unknown'"* ]]
+}
+
+# Test 74: check_and_migrate_table skips migration when column exists
+@test "check_and_migrate_table skips migration when column exists" {
+    export CLICKHOUSE_DATABASE="test_db"
+    # Mock curl command that simulates column exists (returns 1)
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]] && [[ "$*" == *"name='source'"* ]]; then
+    # Column exists
+    echo "1"
+    exit 0
+else
+    # Other queries succeed
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function
+    run check_and_migrate_table "existing_table" "http://clickhouse:8123" "-u user:pass"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"source column already exists in table existing_table"* ]]
+    [[ "$output" != *"migrating table"* ]]
+    
+    # Verify curl was called only once (to check)
+    [ -f "$BATS_TEST_TMPDIR/curl_calls.log" ]
+    local curl_calls
+    curl_calls=$(cat "$BATS_TEST_TMPDIR/curl_calls.log")
+    
+    # Should only have column check, no ALTER
+    [[ "$curl_calls" == *"system.columns"* ]]
+    [[ "$curl_calls" != *"ALTER TABLE"* ]]
+}
+
+# Test 75: check_and_migrate_table handles column check failure
+@test "check_and_migrate_table handles column check failure" {
+    # Mock curl command that fails on column check
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]]; then
+    # Column check fails
+    echo "Error: Connection failed" >&2
+    exit 1
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function - should fail
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Failed to check column existence for table test_table"* ]]
+}
+
+# Test 76: check_and_migrate_table handles ALTER TABLE failure
+@test "check_and_migrate_table handles ALTER TABLE failure" {
+    export CLICKHOUSE_DATABASE="test_db"
+    # Mock curl command that succeeds on check but fails on ALTER
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]] && [[ "$*" == *"name='source'"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    # ALTER TABLE fails
+    echo "Error: ALTER failed" >&2
+    exit 1
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function - should fail
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"source column not found, migrating table: test_table"* ]]
+    [[ "$output" == *"Failed to add source column to table test_table"* ]]
+}
+
+# Test 77: check_and_migrate_table uses correct database and table names
+@test "check_and_migrate_table uses correct database and table names" {
+    export CLICKHOUSE_DATABASE="custom_db"
+    
+    # Mock curl command that captures the exact queries
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "QUERY: $*" >> "$BATS_TEST_TMPDIR/detailed_calls.log"
+
+if [[ "$*" == *"system.columns"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    # ALTER TABLE succeeds
+    echo "ALTER success"
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test with custom database and table
+    run check_and_migrate_table "my_custom_table" "http://clickhouse:8123" ""
+    
+    [ "$status" -eq 0 ]
+    
+    # Verify the correct database and table names were used
+    [ -f "$BATS_TEST_TMPDIR/detailed_calls.log" ]
+    local detailed_calls
+    detailed_calls=$(cat "$BATS_TEST_TMPDIR/detailed_calls.log")
+    
+    # Check column query includes correct database and table
+    [[ "$detailed_calls" == *"database='custom_db'"* ]]
+    [[ "$detailed_calls" == *"table='my_custom_table'"* ]]
+    [[ "$detailed_calls" == *"name='source'"* ]]
+    
+    # Check ALTER query includes correct database and table
+    [[ "$detailed_calls" == *"ALTER TABLE custom_db.my_custom_table"* ]]
+    [[ "$detailed_calls" == *"ADD COLUMN source LowCardinality(String) DEFAULT 'unknown'"* ]]
+}
+
+# Test 78: check_and_migrate_table handles authentication parameters correctly
+@test "check_and_migrate_table handles authentication parameters correctly" {
+    export CLICKHOUSE_DATABASE="auth_db"
+    # Mock curl command that logs authentication
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+# Log all arguments to see auth parameters
+echo "FULL_ARGS: $*" >> "$BATS_TEST_TMPDIR/auth_calls.log"
+
+# Extract auth parameters if present
+for arg in "$@"; do
+    if [[ "$arg" == "-u" ]]; then
+        echo "AUTH_FOUND: -u" >> "$BATS_TEST_TMPDIR/auth_calls.log"
+    elif [[ "$arg" =~ ^user: ]]; then
+        echo "AUTH_CREDS: $arg" >> "$BATS_TEST_TMPDIR/auth_calls.log"
+    fi
+done
+
+if [[ "$*" == *"system.columns"* ]]; then
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test with authentication parameters
+    run check_and_migrate_table "auth_table" "http://clickhouse:8123" "-u testuser:testpass"
+    [ "$status" -eq 0 ]
+    
+    # Verify authentication parameters were passed correctly
+    [ -f "$BATS_TEST_TMPDIR/auth_calls.log" ]
+    local auth_calls
+    auth_calls=$(cat "$BATS_TEST_TMPDIR/auth_calls.log")
+    
+    [[ "$auth_calls" == *"AUTH_FOUND: -u"* ]]
+    [[ "$auth_calls" == *"testuser:testpass"* ]]
+}
+
+# Test 79: check_and_migrate_table handles empty auth parameters
+@test "check_and_migrate_table handles empty auth parameters" {
+    export CLICKHOUSE_DATABASE="no_auth_db"
+    # Mock curl command
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "NO_AUTH_CALL: $*" >> "$BATS_TEST_TMPDIR/no_auth_calls.log"
+
+if [[ "$*" == *"system.columns"* ]]; then
+    echo "1"  # Column exists
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test with empty authentication
+    run check_and_migrate_table "no_auth_table" "http://clickhouse:8123" ""
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"source column already exists"* ]]
+    
+    # Verify no auth parameters were passed
+    [ -f "$BATS_TEST_TMPDIR/no_auth_calls.log" ]
+    local no_auth_calls
+    no_auth_calls=$(cat "$BATS_TEST_TMPDIR/no_auth_calls.log")
+    
+    [[ "$no_auth_calls" != *"-u"* ]]
+}
+
+# Test 80: check_and_migrate_table generates correct SQL with proper escaping
+@test "check_and_migrate_table generates correct SQL with proper escaping" {
+    # Mock curl that captures exact SQL
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+# Capture the SQL data parameter
+if [[ "$*" == *"--data"* ]]; then
+    # Find the --data parameter and log it
+    local capture_next=false
+    for arg in "$@"; do
+        if [[ "$capture_next" == "true" ]]; then
+            echo "SQL: $arg" >> "$BATS_TEST_TMPDIR/sql_calls.log"
+            capture_next=false
+        elif [[ "$arg" == "--data" ]]; then
+            capture_next=true
+        fi
+    done
+fi
+
+if [[ "$*" == *"system.columns"* ]]; then
+    echo "0"  # Column missing
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    exit 0  # ALTER succeeds
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    export CLICKHOUSE_DATABASE="test_db"
+    
+    # Test the function
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" ""
+    
+    [ "$status" -eq 0 ]
+    
+    # Verify the SQL was generated correctly
+    [ -f "$BATS_TEST_TMPDIR/sql_calls.log" ]
+    local sql_calls
+    sql_calls=$(cat "$BATS_TEST_TMPDIR/sql_calls.log")
+    
+    # Check column existence query
+    [[ "$sql_calls" == *"SELECT COUNT(*) FROM system.columns"* ]]
+    [[ "$sql_calls" == *"database='test_db'"* ]]
+    [[ "$sql_calls" == *"table='test_table'"* ]]
+    [[ "$sql_calls" == *"name='source'"* ]]
+    
+    # Check ALTER TABLE query
+    [[ "$sql_calls" == *"ALTER TABLE test_db.test_table ADD COLUMN source LowCardinality(String) DEFAULT 'unknown'"* ]]
+}
+
+# Test 81: check_and_migrate_table integration with setup_clickhouse_table
+@test "check_and_migrate_table integrates properly with setup_clickhouse_table" {
+    # Mock curl for the complete workflow
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "INTEGRATION_CALL: $*" >> "$BATS_TEST_TMPDIR/integration_calls.log"
+
+if [[ "$*" == *"SELECT 1"* ]]; then
+    # Connection test
+    echo "1"
+    exit 0
+elif [[ "$*" == *"system.tables"* ]]; then
+    # Table exists
+    echo "1"
+    exit 0
+elif [[ "$*" == *"system.columns"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    # ALTER succeeds
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Set up environment for ClickHouse
+    export CLICKHOUSE_URL="http://localhost:8123"
+    export CLICKHOUSE_DATABASE="integration_test"
+    export CLICKHOUSE_USERNAME="testuser"
+    export CLICKHOUSE_PASSWORD="testpass"
+    export DEBUG="true"
+    
+    # Test setup_clickhouse_table which should call check_and_migrate_table
+    run setup_clickhouse_table "integration_table"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Table integration_table already exists"* ]]
+    [[ "$output" == *"source column not found, migrating table"* ]]
+    [[ "$output" == *"source column added to table integration_table"* ]]
+    
+    # Verify the complete workflow was executed
+    [ -f "$BATS_TEST_TMPDIR/integration_calls.log" ]
+    local integration_calls
+    integration_calls=$(cat "$BATS_TEST_TMPDIR/integration_calls.log")
+    
+    # Should have connection test, table check, column check, and ALTER
+    [[ "$integration_calls" == *"SELECT 1"* ]]
+    [[ "$integration_calls" == *"system.tables"* ]]
+    [[ "$integration_calls" == *"system.columns"* ]]
+    [[ "$integration_calls" == *"ALTER TABLE"* ]]
 }

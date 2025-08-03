@@ -1230,7 +1230,8 @@ EOF
     
     # Test the migration function
     run check_and_migrate_table "existing_table" "http://clickhouse:8123" "-u user:pass"
-    
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Repository column already exists in table existing_table"* ]]
     [[ "$output" != *"migrating table"* ]]

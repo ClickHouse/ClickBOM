@@ -75,12 +75,13 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 
 ### ClickHouse
 
-| Name                  | Description                         | Default        | Required | Sensitive |
-| --------------------- | ----------------------------------- | -------------- | -------- | --------- |
-| clickhouse-url        | ClickHouse URL                      |                | false    | true      |
-| clickhouse-database   | ClickHouse Database Name            | default        | false    | false     |
-| clickhouse-username   | ClickHouse Username                 | default        | false    | false     |
-| clickhouse-password   | ClickHouse Password                 | (empty)        | false    | true      |
+| Name                | Description                         | Default        | Required | Sensitive |
+| ------------------- | ----------------------------------- | -------------- | -------- | --------- |
+| clickhouse-url      | ClickHouse URL                      |                | false    | true      |
+| clickhouse-database | ClickHouse Database Name            | default        | false    | false     |
+| clickhouse-username | ClickHouse Username                 | default        | false    | false     |
+| clickhouse-password | ClickHouse Password                 | (empty)        | false    | true      |
+| truncate-table      | Truncate table before insert        | false          | false    | false     |
 
 - At the moment, ClickHouse ingestion is only supported over HTTP.
 
@@ -137,7 +138,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -180,7 +181,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -234,7 +235,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -299,7 +300,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -363,7 +364,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -405,7 +406,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -459,7 +460,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Merge Production SBOMs Only
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -514,7 +515,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM from Mend
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
@@ -565,7 +566,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM from Wiz
-        uses: ClickHouse/ClickBom@v1.0.7
+        uses: ClickHouse/ClickBom@v1.0.8
         with:
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}

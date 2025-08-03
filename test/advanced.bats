@@ -1297,7 +1297,8 @@ EOF
     
     # Test the migration function - should fail
     run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
-    
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Repository column not found, migrating table: test_table"* ]]
     [[ "$output" == *"Failed to add repository column to table test_table"* ]]
@@ -1376,7 +1377,8 @@ EOF
     
     # Test with authentication parameters
     run check_and_migrate_table "auth_table" "http://clickhouse:8123" "-u testuser:testpass"
-    
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     
     # Verify authentication parameters were passed correctly
@@ -1406,7 +1408,8 @@ EOF
     
     # Test with empty authentication
     run check_and_migrate_table "no_auth_table" "http://clickhouse:8123" ""
-    
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Repository column already exists"* ]]
     
@@ -1507,7 +1510,8 @@ EOF
     
     # Test setup_clickhouse_table which should call check_and_migrate_table
     run setup_clickhouse_table "integration_table"
-    
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Table integration_table already exists"* ]]
     [[ "$output" == *"Repository column not found, migrating table"* ]]

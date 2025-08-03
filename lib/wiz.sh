@@ -7,17 +7,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 authenticate_wiz() {
     log_info "Authenticating with Wiz API"
     
-    # Prepare authentication payload
-    local auth_payload=$(cat <<EOF
-{
-    "audience": "wiz-api",
-    "grant_type": "client_credentials",
-    "client_id": "$WIZ_CLIENT_ID",
-    "client_secret": "$WIZ_CLIENT_SECRET"
-}
-EOF
-)
-    
     # Get access token
     local auth_response
     if auth_response=$(curl -s \

@@ -1275,6 +1275,7 @@ EOF
 
 # Test 73: check_and_migrate_table handles ALTER TABLE failure
 @test "check_and_migrate_table handles ALTER TABLE failure" {
+    export CLICKHOUSE_DATABASE="test_db"
     # Mock curl command that succeeds on check but fails on ALTER
     cat > "$MOCK_DIR/curl" << 'EOF'
 #!/bin/bash
@@ -1349,6 +1350,7 @@ EOF
 
 # Test 75: check_and_migrate_table handles authentication parameters correctly
 @test "check_and_migrate_table handles authentication parameters correctly" {
+    export CLICKHOUSE_DATABASE="auth_db"
     # Mock curl command that logs authentication
     cat > "$MOCK_DIR/curl" << 'EOF'
 #!/bin/bash
@@ -1392,6 +1394,7 @@ EOF
 
 # Test 76: check_and_migrate_table handles empty auth parameters
 @test "check_and_migrate_table handles empty auth parameters" {
+    export CLICKHOUSE_DATABASE="no_auth_db"
     # Mock curl command
     cat > "$MOCK_DIR/curl" << 'EOF'
 #!/bin/bash

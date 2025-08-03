@@ -1167,7 +1167,7 @@ EOF
 # CHECK_AND_MIGRATE_TABLE TESTS
 # ============================================================================
 
-# Test 70: check_and_migrate_table detects missing repository column and adds it
+# Test 70: check_and_migrate_table adds missing repository column
 @test "check_and_migrate_table adds missing repository column" {
     # Mock curl command that simulates column doesn't exist (returns 0)
     cat > "$MOCK_DIR/curl" << 'EOF'
@@ -1192,7 +1192,8 @@ EOF
     
     # Test the migration function
     run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
-    
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Repository column not found, migrating table: test_table"* ]]
     [[ "$output" == *"Repository column added to table test_table"* ]]

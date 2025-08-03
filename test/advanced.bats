@@ -1162,3 +1162,361 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"Input sanitization completed successfully"* ]]
 }
+
+# ============================================================================
+# CHECK_AND_MIGRATE_TABLE TESTS
+# ============================================================================
+
+# Test 70: check_and_migrate_table detects missing repository column and adds it
+@test "check_and_migrate_table adds missing repository column" {
+    # Mock curl command that simulates column doesn't exist (returns 0)
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]] && [[ "$*" == *"name='repository'"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]] && [[ "$*" == *"ADD COLUMN repository"* ]]; then
+    # ALTER TABLE succeeds
+    echo "ALTER TABLE executed"
+    exit 0
+else
+    # Other queries succeed
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Repository column not found, migrating table: test_table"* ]]
+    [[ "$output" == *"Repository column added to table test_table"* ]]
+    
+    # Verify curl was called correctly
+    [ -f "$BATS_TEST_TMPDIR/curl_calls.log" ]
+    local curl_calls
+    curl_calls=$(cat "$BATS_TEST_TMPDIR/curl_calls.log")
+    
+    # Should have been called twice: once to check, once to alter
+    [[ "$curl_calls" == *"system.columns"* ]]
+    [[ "$curl_calls" == *"ALTER TABLE"* ]]
+    [[ "$curl_calls" == *"ADD COLUMN repository LowCardinality(String) DEFAULT 'unknown'"* ]]
+}
+
+# Test 71: check_and_migrate_table skips migration when column exists
+@test "check_and_migrate_table skips migration when column exists" {
+    # Mock curl command that simulates column exists (returns 1)
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]] && [[ "$*" == *"name='repository'"* ]]; then
+    # Column exists
+    echo "1"
+    exit 0
+else
+    # Other queries succeed
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function
+    run check_and_migrate_table "existing_table" "http://clickhouse:8123" "-u user:pass"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Repository column already exists in table existing_table"* ]]
+    [[ "$output" != *"migrating table"* ]]
+    
+    # Verify curl was called only once (to check)
+    [ -f "$BATS_TEST_TMPDIR/curl_calls.log" ]
+    local curl_calls
+    curl_calls=$(cat "$BATS_TEST_TMPDIR/curl_calls.log")
+    
+    # Should only have column check, no ALTER
+    [[ "$curl_calls" == *"system.columns"* ]]
+    [[ "$curl_calls" != *"ALTER TABLE"* ]]
+}
+
+# Test 72: check_and_migrate_table handles column check failure
+@test "check_and_migrate_table handles column check failure" {
+    # Mock curl command that fails on column check
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]]; then
+    # Column check fails
+    echo "Error: Connection failed" >&2
+    exit 1
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function - should fail
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Failed to check column existence for table test_table"* ]]
+}
+
+# Test 73: check_and_migrate_table handles ALTER TABLE failure
+@test "check_and_migrate_table handles ALTER TABLE failure" {
+    # Mock curl command that succeeds on check but fails on ALTER
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "curl called with: $*" >> "$BATS_TEST_TMPDIR/curl_calls.log"
+
+# Check what query is being executed
+if [[ "$*" == *"system.columns"* ]] && [[ "$*" == *"name='repository'"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    # ALTER TABLE fails
+    echo "Error: ALTER failed" >&2
+    exit 1
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test the migration function - should fail
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" "-u user:pass"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Repository column not found, migrating table: test_table"* ]]
+    [[ "$output" == *"Failed to add repository column to table test_table"* ]]
+}
+
+# Test 74: check_and_migrate_table uses correct database and table names
+@test "check_and_migrate_table uses correct database and table names" {
+    export CLICKHOUSE_DATABASE="custom_db"
+    
+    # Mock curl command that captures the exact queries
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "QUERY: $*" >> "$BATS_TEST_TMPDIR/detailed_calls.log"
+
+if [[ "$*" == *"system.columns"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    # ALTER TABLE succeeds
+    echo "ALTER success"
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test with custom database and table
+    run check_and_migrate_table "my_custom_table" "http://clickhouse:8123" ""
+    
+    [ "$status" -eq 0 ]
+    
+    # Verify the correct database and table names were used
+    [ -f "$BATS_TEST_TMPDIR/detailed_calls.log" ]
+    local detailed_calls
+    detailed_calls=$(cat "$BATS_TEST_TMPDIR/detailed_calls.log")
+    
+    # Check column query includes correct database and table
+    [[ "$detailed_calls" == *"database='custom_db'"* ]]
+    [[ "$detailed_calls" == *"table='my_custom_table'"* ]]
+    [[ "$detailed_calls" == *"name='repository'"* ]]
+    
+    # Check ALTER query includes correct database and table
+    [[ "$detailed_calls" == *"ALTER TABLE custom_db.my_custom_table"* ]]
+    [[ "$detailed_calls" == *"ADD COLUMN repository LowCardinality(String) DEFAULT 'unknown'"* ]]
+}
+
+# Test 75: check_and_migrate_table handles authentication parameters correctly
+@test "check_and_migrate_table handles authentication parameters correctly" {
+    # Mock curl command that logs authentication
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+# Log all arguments to see auth parameters
+echo "FULL_ARGS: $*" >> "$BATS_TEST_TMPDIR/auth_calls.log"
+
+# Extract auth parameters if present
+for arg in "$@"; do
+    if [[ "$arg" == "-u" ]]; then
+        echo "AUTH_FOUND: -u" >> "$BATS_TEST_TMPDIR/auth_calls.log"
+    elif [[ "$arg" =~ ^user: ]]; then
+        echo "AUTH_CREDS: $arg" >> "$BATS_TEST_TMPDIR/auth_calls.log"
+    fi
+done
+
+if [[ "$*" == *"system.columns"* ]]; then
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test with authentication parameters
+    run check_and_migrate_table "auth_table" "http://clickhouse:8123" "-u testuser:testpass"
+    
+    [ "$status" -eq 0 ]
+    
+    # Verify authentication parameters were passed correctly
+    [ -f "$BATS_TEST_TMPDIR/auth_calls.log" ]
+    local auth_calls
+    auth_calls=$(cat "$BATS_TEST_TMPDIR/auth_calls.log")
+    
+    [[ "$auth_calls" == *"AUTH_FOUND: -u"* ]]
+    [[ "$auth_calls" == *"testuser:testpass"* ]]
+}
+
+# Test 76: check_and_migrate_table handles empty auth parameters
+@test "check_and_migrate_table handles empty auth parameters" {
+    # Mock curl command
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "NO_AUTH_CALL: $*" >> "$BATS_TEST_TMPDIR/no_auth_calls.log"
+
+if [[ "$*" == *"system.columns"* ]]; then
+    echo "1"  # Column exists
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Test with empty authentication
+    run check_and_migrate_table "no_auth_table" "http://clickhouse:8123" ""
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Repository column already exists"* ]]
+    
+    # Verify no auth parameters were passed
+    [ -f "$BATS_TEST_TMPDIR/no_auth_calls.log" ]
+    local no_auth_calls
+    no_auth_calls=$(cat "$BATS_TEST_TMPDIR/no_auth_calls.log")
+    
+    [[ "$no_auth_calls" != *"-u"* ]]
+}
+
+# Test 77: check_and_migrate_table generates correct SQL with proper escaping
+@test "check_and_migrate_table generates correct SQL with proper escaping" {
+    # Mock curl that captures exact SQL
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+# Capture the SQL data parameter
+if [[ "$*" == *"--data"* ]]; then
+    # Find the --data parameter and log it
+    local capture_next=false
+    for arg in "$@"; do
+        if [[ "$capture_next" == "true" ]]; then
+            echo "SQL: $arg" >> "$BATS_TEST_TMPDIR/sql_calls.log"
+            capture_next=false
+        elif [[ "$arg" == "--data" ]]; then
+            capture_next=true
+        fi
+    done
+fi
+
+if [[ "$*" == *"system.columns"* ]]; then
+    echo "0"  # Column missing
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    exit 0  # ALTER succeeds
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    export CLICKHOUSE_DATABASE="test_db"
+    
+    # Test the function
+    run check_and_migrate_table "test_table" "http://clickhouse:8123" ""
+    
+    [ "$status" -eq 0 ]
+    
+    # Verify the SQL was generated correctly
+    [ -f "$BATS_TEST_TMPDIR/sql_calls.log" ]
+    local sql_calls
+    sql_calls=$(cat "$BATS_TEST_TMPDIR/sql_calls.log")
+    
+    # Check column existence query
+    [[ "$sql_calls" == *"SELECT COUNT(*) FROM system.columns"* ]]
+    [[ "$sql_calls" == *"database='test_db'"* ]]
+    [[ "$sql_calls" == *"table='test_table'"* ]]
+    [[ "$sql_calls" == *"name='repository'"* ]]
+    
+    # Check ALTER TABLE query
+    [[ "$sql_calls" == *"ALTER TABLE test_db.test_table ADD COLUMN repository LowCardinality(String) DEFAULT 'unknown'"* ]]
+}
+
+# Test 78: check_and_migrate_table integration with setup_clickhouse_table
+@test "check_and_migrate_table integrates properly with setup_clickhouse_table" {
+    # Mock curl for the complete workflow
+    cat > "$MOCK_DIR/curl" << 'EOF'
+#!/bin/bash
+echo "INTEGRATION_CALL: $*" >> "$BATS_TEST_TMPDIR/integration_calls.log"
+
+if [[ "$*" == *"SELECT 1"* ]]; then
+    # Connection test
+    echo "1"
+    exit 0
+elif [[ "$*" == *"system.tables"* ]]; then
+    # Table exists
+    echo "1"
+    exit 0
+elif [[ "$*" == *"system.columns"* ]]; then
+    # Column doesn't exist
+    echo "0"
+    exit 0
+elif [[ "$*" == *"ALTER TABLE"* ]]; then
+    # ALTER succeeds
+    exit 0
+else
+    exit 0
+fi
+EOF
+    chmod +x "$MOCK_DIR/curl"
+    
+    # Set up environment for ClickHouse
+    export CLICKHOUSE_URL="http://localhost:8123"
+    export CLICKHOUSE_DATABASE="integration_test"
+    export CLICKHOUSE_USERNAME="testuser"
+    export CLICKHOUSE_PASSWORD="testpass"
+    export DEBUG="true"
+    
+    # Test setup_clickhouse_table which should call check_and_migrate_table
+    run setup_clickhouse_table "integration_table"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Table integration_table already exists"* ]]
+    [[ "$output" == *"Repository column not found, migrating table"* ]]
+    [[ "$output" == *"Repository column added to table integration_table"* ]]
+    
+    # Verify the complete workflow was executed
+    [ -f "$BATS_TEST_TMPDIR/integration_calls.log" ]
+    local integration_calls
+    integration_calls=$(cat "$BATS_TEST_TMPDIR/integration_calls.log")
+    
+    # Should have connection test, table check, column check, and ALTER
+    [[ "$integration_calls" == *"SELECT 1"* ]]
+    [[ "$integration_calls" == *"system.tables"* ]]
+    [[ "$integration_calls" == *"system.columns"* ]]
+    [[ "$integration_calls" == *"ALTER TABLE"* ]]
+}

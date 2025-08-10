@@ -1691,8 +1691,74 @@ EOF
 
     # Test the function
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "my-project-sbom" ]
+}
+
+# Test #87: extract_sbom_source_reference finds tool name hint
+@test "extract_sbom_source_reference finds tool name hint" {
+    # Create a SBOM with custom tool name
+    local test_sbom="$TEST_TEMP_DIR/tool_hint_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "metadata": {
+        "timestamp": "2025-08-03T17:52:15Z",
+        "tools": [
+            {
+                "name": "my-custom-scanner",
+                "version": "1.2.3"
+            },
+            {
+                "name": "GitHub.com-Dependency",
+                "version": "Graph"
+            }
+        ]
+    }
+}
+EOF
+
+    # Test the function
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "my-project-sbom" ]
+    [ "$output" = "my-custom-scanner" ]
+}
+
+# Test #88: extract_sbom_source_reference ignores common tool names
+@test "extract_sbom_source_reference ignores common tool names" {
+    # Create a SBOM with only common tool names that should be ignored
+    local test_sbom="$TEST_TEMP_DIR/common_tools_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "metadata": {
+        "timestamp": "2025-08-03T17:52:15Z",
+        "tools": [
+            {
+                "name": "GitHub.com-Dependency",
+                "version": "Graph"
+            },
+            {
+                "name": "protobom-v1.0.0",
+                "version": "1.0.0"
+            },
+            {
+                "name": "CycloneDX",
+                "version": "1.6"
+            }
+        ]
+    }
+}
+EOF
+
+    # Test the function - should use fallback since all tools are ignored
+    run extract_sbom_source_reference "$test_sbom" "my-fallback.json"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ "$output" = "my-fallback" ]
 }

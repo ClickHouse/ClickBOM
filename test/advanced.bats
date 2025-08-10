@@ -1789,6 +1789,8 @@ EOF
 
     # Test the function without fallback
     run extract_sbom_source_reference "$test_sbom" ""
+    echo "$output"
+    echo "$status"
     [ "$status" -eq 0 ]
     [ "$output" == *"unknown"* ]
 }
@@ -1883,7 +1885,7 @@ EOF
     [ "$output" = "fallback" ]
 }
 
-# Test 13: extract_sbom_source_reference handles missing file
+# Test 94: extract_sbom_source_reference handles missing file
 @test "extract_sbom_source_reference handles missing file" {
     # Test with non-existent file
     run extract_sbom_source_reference "/nonexistent/file.json" "missing-fallback.json"

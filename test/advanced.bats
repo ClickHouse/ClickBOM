@@ -1569,8 +1569,42 @@ EOF
 
     # Test the function
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "com.github.ClickHouse/clickhouse-js" ]
+}
+
+# Test #83: extract_sbom_source_reference finds component name from Wiz SBOM
+@test "extract_sbom_source_reference finds component name from Wiz SBOM" {
+    # Create a Wiz-style SBOM with metadata.component.name
+    local test_sbom="$TEST_TEMP_DIR/wiz_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "serialNumber": "urn:uuid:4cda9e9d4700eae5ccb87782970170e4",
+    "version": 1,
+    "metadata": {
+        "timestamp": "2025-08-03T17:54:23Z",
+        "tools": [
+            {
+                "vendor": "ClickBOM",
+                "name": "cyclonedx-merge",
+                "version": "1.0.0"
+            }
+        ],
+        "component": {
+            "type": "application",
+            "name": "wiz-merged-sbom",
+            "version": "1.0.0"
+        }
+    }
+}
+EOF
+
+    # Test the function
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "com.github.ClickHouse/clickhouse-js" ]
+    [ "$output" = "wiz-merged-sbom" ]
 }

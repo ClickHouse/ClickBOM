@@ -1893,7 +1893,6 @@ EOF
 
 # Test 95: collect_components_with_source adds source to components
 @test "collect_components_with_source adds source to components" {
-    export DEBUG="true"  # Enable debug mode for this test
     # Create a SBOM with components
     local test_sbom="$TEST_TEMP_DIR/components_sbom.json"
     cat > "$test_sbom" << 'EOF'
@@ -1937,23 +1936,9 @@ EOF
     [ "$status" -eq 0 ]
     [ -f "$output_file" ]
     
-    # Debug: show what's actually in the file
-    if [[ "${DEBUG:-false}" == "true" ]]; then
-        echo "DEBUG: Output file contents:"
-        cat "$output_file"
-        echo "DEBUG: Line count using different methods:"
-        wc -l "$output_file"
-        grep -c . "$output_file" || echo "grep failed"
-    fi
-    
-    # Count non-empty lines more reliably
-    local component_count=0
-    while IFS= read -r line; do
-        if [[ -n "$line" ]]; then
-            component_count=$((component_count + 1))
-        fi
-    done < "$output_file"
-    
+    # With compact JSON output (-c flag), each component should be on one line
+    local component_count
+    component_count=$(wc -l < "$output_file")
     [ "$component_count" -eq 2 ]
     
     # Check that both components have the source field

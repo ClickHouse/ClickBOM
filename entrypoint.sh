@@ -111,7 +111,7 @@ collect_components_with_source() {
     log_debug "Collecting components from $(basename "$sbom_file") with source: $source_ref"
     
     # Extract components and add source reference to each
-    if jq --arg source "$source_ref" '
+    if jq -c --arg source "$source_ref" '
         .components[]? // empty |
         . + {"source": $source}
     ' "$sbom_file" > "$output_file" 2>/dev/null; then

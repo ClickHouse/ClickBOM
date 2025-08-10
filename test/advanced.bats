@@ -1670,8 +1670,29 @@ EOF
 
     # Test the function
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "5ee38db1-6bec-449c-9908-070b77ac10db" ]
+}
+
+# Test #86: extract_sbom_source_reference finds top-level name field
+@test "extract_sbom_source_reference finds top-level name field" {
+    # Create a SBOM with top-level name
+    local test_sbom="$TEST_TEMP_DIR/toplevel_name_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "name": "my-project-sbom",
+    "metadata": {
+        "timestamp": "2025-08-03T17:52:15Z"
+    }
+}
+EOF
+
+    # Test the function
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "5ee38db1-6bec-449c-9908-070b77ac10db" ]
+    [ "$output" = "my-project-sbom" ]
 }

@@ -12,154 +12,7 @@ source "$SCRIPT_DIR/lib/validation.sh"
 source "$SCRIPT_DIR/lib/github.sh"
 source "$SCRIPT_DIR/lib/mend.sh"
 source "$SCRIPT_DIR/lib/wiz.sh"
-
-# Fix SPDX compatibility issues for CycloneDX conversion
-fix_spdx_compatibility() {
-    local input_file="$1"
-    local output_file="$2"
-    
-    log_info "Fixing SPDX compatibility issues for CycloneDX conversion"
-    
-    # Fix referenceCategory values that CycloneDX doesn't recognize
-    # Based on SPDX 2.2 spec, valid values are: SECURITY, PACKAGE_MANAGER, PERSISTENT_ID, OTHER
-    if jq '
-        walk(
-            if type == "object" and has("referenceCategory") then
-                .referenceCategory = (
-                    if .referenceCategory == "PACKAGE-MANAGER" then "PACKAGE_MANAGER"
-                    elif .referenceCategory == "SECURITY" then "SECURITY"
-                    elif .referenceCategory == "PERSISTENT_ID" then "PERSISTENT_ID"
-                    elif .referenceCategory == "OTHER" then "OTHER"
-                    else "OTHER"
-                    end
-                )
-            else .
-            end
-        )
-    ' "$input_file" > "$output_file"; then
-        log_success "SPDX compatibility fixes applied"
-    else
-        log_error "Failed to apply SPDX compatibility fixes"
-        exit 1
-    fi
-}
-
-# Extract SBOM from wrapper if needed
-extract_sbom_from_wrapper() {
-    local input_file="$1"
-    local output_file="$2"
-    
-    # Check if the file has the .sbom wrapper structure
-    if jq -e '.sbom' "$input_file" > /dev/null 2>&1; then
-        log_info "Detected SBOM wrapper, extracting nested SBOM"
-        if jq '.sbom' "$input_file" > "$output_file"; then
-            log_success "SBOM extracted from wrapper"
-        else
-            log_error "Failed to extract SBOM from wrapper"
-            exit 1
-        fi
-    else
-        log_info "No wrapper detected, using SBOM as-is"
-        cp "$input_file" "$output_file"
-    fi
-}
-
-# Detect SBOM format
-detect_sbom_format() {
-    local sbom_file="$1"
-    
-    if ! [[ -f "$sbom_file" ]]; then
-        log_error "SBOM file not found: $sbom_file"
-        exit 1
-    fi
-    
-    # Check if it's already CycloneDX format
-    if jq -e '.bomFormat // .metadata.component' "$sbom_file" > /dev/null 2>&1; then
-        local format
-        format=$(jq -r '.bomFormat // "cyclonedx"' "$sbom_file" 2>/dev/null || echo "unknown")
-        
-        if [[ "$format" == "CycloneDX" ]] || jq -e '.metadata.component' "$sbom_file" > /dev/null 2>&1; then
-            echo "cyclonedx"
-            return
-        fi
-    fi
-    
-    # Check if it's SPDX format
-    if jq -e '.spdxVersion // .SPDXID' "$sbom_file" > /dev/null 2>&1; then
-        echo "spdxjson"
-        return
-    fi
-    
-    # Check if it's SWID format (basic check)
-    if jq -e '.SoftwareIdentity' "$sbom_file" > /dev/null 2>&1; then
-        echo "swid"
-        return
-    fi
-    
-    log_warning "Unable to detect SBOM format, assuming SPDX"
-    echo "spdxjson"
-}
-
-# Convert SBOM to desired format
-convert_sbom() {
-    local input_file="$1"
-    local output_file="$2"
-    local detected_format="$3"
-    local desired_format="$4"
-
-    # If no desired format specified, keep original
-    if [[ -z "$desired_format" ]]; then
-        log_info "No format conversion requested, keeping original format ($detected_format)"
-        cp "$input_file" "$output_file"
-        return
-    fi
-
-    # Normalize format names for comparison
-    local detected_lower=$(echo "$detected_format" | tr '[:upper:]' '[:lower:]')
-    local desired_lower=$(echo "$desired_format" | tr '[:upper:]' '[:lower:]')
-
-    # Map detected format to CLI input format
-    local cli_input_format="$detected_format"
-    case "$detected_lower" in
-        "spdxjson") cli_input_format="spdxjson" ;;
-        "cyclonedx") cli_input_format="json" ;;
-        *) cli_input_format="autodetect" ;;
-    esac
-
-    # If already in desired format, no conversion needed
-    if [[ "$detected_lower" == "$desired_lower" ]]; then
-        log_info "SBOM is already in the desired format ($desired_format)"
-        cp "$input_file" "$output_file"
-        return
-    fi
-
-    # Perform conversion based on desired format
-    case "$desired_lower" in
-        "cyclonedx")
-            log_info "Converting $detected_format SBOM to CycloneDX format"
-            if cyclonedx convert --input-file "$input_file" --input-format "$cli_input_format" --output-version v1_6 --output-file "$output_file" --output-format json; then
-                log_success "SBOM converted to CycloneDX format"
-            else
-                log_error "Failed to convert SBOM to CycloneDX format"
-                exit 1
-            fi
-            ;;
-        "spdxjson")
-            log_info "Converting $detected_format SBOM to SPDX format"
-            if cyclonedx convert --input-file "$input_file" --input-format "$cli_input_format" --output-file "$output_file" --output-format spdxjson; then
-                log_success "SBOM converted to SPDX format"
-            else
-                log_error "Failed to convert SBOM to SPDX format"
-                exit 1
-            fi
-            ;;
-        *)
-            log_error "Unsupported target format: $desired_format"
-            log_error "Supported formats: cyclonedx, spdxjson"
-            exit 1
-            ;;
-    esac
-}
+source "$SCRIPT_DIR/lib/sbom-processing.sh"
 
 # Upload to S3
 upload_to_s3() {
@@ -177,6 +30,98 @@ upload_to_s3() {
     else
         log_error "Failed to upload SBOM to S3"
         exit 1
+    fi
+}
+
+# Extract source document reference from an SBOM
+extract_sbom_source_reference() {
+    local sbom_file="$1"
+    local fallback_name="$2"  # Fallback name (e.g., filename)
+    
+    log_debug "Extracting source reference from $(basename "$sbom_file")"
+    
+    # Try multiple strategies to extract the source reference
+    local source_ref=""
+    
+    # Strategy 1: Check for spdx:document:name in properties (GitHub SBOMs)
+    if source_ref=$(jq -r '.metadata.properties[]? | select(.name == "spdx:document:name") | .value' "$sbom_file" 2>/dev/null); then
+        if [[ -n "$source_ref" && "$source_ref" != "null" ]]; then
+            log_debug "Found SPDX document name: $source_ref"
+            echo "$source_ref"
+            return 0
+        fi
+    fi
+    
+    # Strategy 2: Check metadata.component.name (Wiz/Mend SBOMs)
+    if source_ref=$(jq -r '.metadata.component.name // empty' "$sbom_file" 2>/dev/null); then
+        if [[ -n "$source_ref" && "$source_ref" != "null" ]]; then
+            log_debug "Found component name: $source_ref"
+            echo "$source_ref"
+            return 0
+        fi
+    fi
+    
+    # Strategy 3: Check metadata.component.bom-ref (Mend SBOMs)
+    if source_ref=$(jq -r '.metadata.component."bom-ref" // empty' "$sbom_file" 2>/dev/null); then
+        if [[ -n "$source_ref" && "$source_ref" != "null" ]]; then
+            log_debug "Found bom-ref: $source_ref"
+            echo "$source_ref"
+            return 0
+        fi
+    fi
+    
+    # Strategy 4: Check top-level name field
+    if source_ref=$(jq -r '.name // empty' "$sbom_file" 2>/dev/null); then
+        if [[ -n "$source_ref" && "$source_ref" != "null" ]]; then
+            log_debug "Found top-level name: $source_ref"
+            echo "$source_ref"
+            return 0
+        fi
+    fi
+    
+    # Strategy 5: Check metadata.tools for document name hints
+    if source_ref=$(jq -r '.metadata.tools[]?.name // empty' "$sbom_file" 2>/dev/null | grep -v "GitHub.com-Dependency\|protobom\|CycloneDX\|cyclonedx-merge" | head -1); then
+        if [[ -n "$source_ref" && "$source_ref" != "null" ]]; then
+            log_debug "Found tool name hint: $source_ref"
+            echo "$source_ref"
+            return 0
+        fi
+    fi
+    
+    # Strategy 6: Use fallback (usually filename without extension)
+    if [[ -n "$fallback_name" ]]; then
+        local clean_fallback=$(basename "$fallback_name" .json)
+        log_debug "Using fallback name: $clean_fallback"
+        echo "$clean_fallback"
+        return 0
+    fi
+    
+    # Final fallback
+    log_warning "Could not extract source reference, using 'unknown'"
+    echo "unknown"
+    return 0
+}
+
+# Enhanced component collection with source tracking
+collect_components_with_source() {
+    local sbom_file="$1"
+    local source_ref="$2"
+    local output_file="$3"
+    
+    log_debug "Collecting components from $(basename "$sbom_file") with source: $source_ref"
+    
+    # Extract components and add source reference to each
+    if jq -c --arg source "$source_ref" '
+        .components[]? // empty |
+        . + {"source": $source}
+    ' "$sbom_file" > "$output_file" 2>/dev/null; then
+        local component_count=$(wc -l < "$output_file" 2>/dev/null || echo "0")
+        log_debug "Collected $component_count components with source: $source_ref"
+        return 0
+    else
+        log_warning "Failed to collect components from $(basename "$sbom_file")"
+        touch "$output_file"  # Create empty file
+        return 1
     fi
 }
 
@@ -257,7 +202,7 @@ filter_files() {
 merge_cyclonedx_sboms() {
     local output_file="$1"
     
-    log_info "Merging all CycloneDX SBOMs from S3 bucket: $S3_BUCKET"
+    log_info "Merging all CycloneDX SBOMs from S3 bucket: $S3_BUCKET with source tracking"
     
     # Log include/exclude patterns if specified
     if [[ -n "${INCLUDE:-}" ]]; then
@@ -284,7 +229,7 @@ merge_cyclonedx_sboms() {
         fi
     fi
 
-    # Extract JSON files (excluding vulns/ directory and target S3_KEY file)
+    # Extract JSON files
     log_info "Extracting JSON file paths..."
     
     # Debug: Show the filtering process step by step
@@ -326,20 +271,20 @@ merge_cyclonedx_sboms() {
         exit 1
     fi
 
-    # Download and validate CycloneDX SBOMs
+    # Download and validate CycloneDX SBOMs with source tracking
     local cyclonedx_files=()
+    local source_references=()  # Parallel array to track source references
     local file_count=0
     local total_files=0
-    
-    log_info "Starting download loop..."
-    
-    # Use a different approach to avoid issues with the while loop
+
+    log_info "Starting download loop with source tracking..."
+
     local files_array=()
     while IFS= read -r line; do
         [[ -n "$line" ]] && files_array+=("$line")
     done <<< "$s3_files"
     
-    log_info "Processing ${#files_array[@]} files..."
+    log_info "Processing ${#files_array[@]} files with source extraction..."
     
     for s3_key_to_merge in "${files_array[@]}"; do
         log_debug "Processing file: '$s3_key_to_merge'"
@@ -401,9 +346,14 @@ merge_cyclonedx_sboms() {
             fi
             
             if [[ "$is_cyclonedx" == "true" ]]; then
+                # Extract source reference before adding to processing list
+                local source_ref
+                source_ref=$(extract_sbom_source_reference "$local_file" "$filename")
+
                 cyclonedx_files+=("$local_file")
+                source_references+=("$source_ref")
                 file_count=$((file_count + 1))
-                log_success "Valid CycloneDX SBOM: $filename"
+                log_success "Valid CycloneDX SBOM: $filename (source: $source_ref)"
             else
                 log_warning "Skipping $filename - bomFormat is '$bom_format', not 'CycloneDX'"
                 
@@ -443,11 +393,11 @@ merge_cyclonedx_sboms() {
         done
         exit 1
     fi
-    
-    log_info "Found $file_count CycloneDX SBOMs to merge"
-    
+
+    log_info "Found $file_count CycloneDX SBOMs to merge with source tracking"
+
     # Create the merged SBOM structure
-    log_info "Creating merged CycloneDX SBOM..."
+    log_info "Creating merged CycloneDX SBOM with source tracking..."
     
     # Start with a proper CycloneDX template
     local merged_metadata
@@ -462,7 +412,7 @@ merge_cyclonedx_sboms() {
         "tools": [{
             "vendor": "ClickBOM",
             "name": "cyclonedx-merge", 
-            "version": "1.0.0"
+            "version": "1.0.9"
         }],
         "component": {
             "type": "application",
@@ -490,23 +440,26 @@ EOF
         .serialNumber = $sn
     ')
     
-    # Collect all components from all SBOMs
+    # Collect all components from all SBOMs with source tracking
     log_info "Collecting components from all SBOMs..."
     local all_components="$temp_dir/all_components.json"
     
     # Initialize empty array
     echo "[]" > "$all_components"
-    
-    # Collect all components
+
+    # Collect all components with source information
     for sbom_file in "${cyclonedx_files[@]}"; do
+        local sbom_file="${cyclonedx_files[i]}"
+        local source_ref="${source_references[i]}"
+
         local component_count
         component_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || component_count=0
-        log_info "Processing $(basename "$sbom_file"): $component_count components"
-        
-        # Extract components and append to collection
+        log_info "Processing $(basename "$sbom_file"): $component_count components (source: $source_ref)"
+
+        # Extract components with source tracking
         if [[ "$component_count" -gt 0 ]]; then
             local temp_components="$temp_dir/temp_components_$(basename "$sbom_file").json"
-            if jq '.components[]' "$sbom_file" > "$temp_components" 2>/dev/null; then
+            if collect_components_with_source "$sbom_file" "$source_ref" "$temp_components"; then
                 # Merge with existing components
                 if jq -s 'flatten' "$all_components" "$temp_components" > "$temp_dir/merged_temp.json"; then
                     mv "$temp_dir/merged_temp.json" "$all_components"
@@ -519,20 +472,20 @@ EOF
         fi
     done
     
-    # Remove duplicates based on name+version+purl combination (more reliable deduplication)
-    log_info "Removing duplicate components..."
+    # Remove duplicates based on name+version+purl combination
+    log_info "Removing duplicate components (preserving source information)..."
     local unique_components="$temp_dir/unique_components.json"
-    if jq 'unique_by((.name // "unknown") + "@" + (.version // "unknown") + "#" + (.purl // ""))' "$all_components" > "$unique_components"; then
-        log_success "Deduplication completed"
+    if jq 'unique_by((.name // "unknown") + "@" + (.version // "unknown") + "#" + (.purl // "") + "^" + (.source // "unknown"))' "$all_components" > "$unique_components"; then
+        log_success "Deduplication completed with source preservation"
     else
         log_error "Failed to deduplicate components"
         exit 1
     fi
     
     # Create final merged SBOM
-    log_info "Assembling final merged SBOM..."
+    log_info "Assembling final merged SBOM with source tracking..."
     if echo "$merged_metadata" | jq --slurpfile comps "$unique_components" '. + {components: $comps[0]}' > "$output_file"; then
-        log_success "Final SBOM assembled"
+        log_success "Final SBOM assembled with source tracking"
     else
         log_error "Failed to assemble final SBOM"
         exit 1
@@ -553,15 +506,17 @@ EOF
     local component_count
     component_count=$(jq '.components | length' "$output_file")
     
-    log_success "Successfully merged $file_count SBOMs into one with $component_count unique components"
+    log_success "Successfully merged $file_count SBOMs into one with $component_count unique components (with source tracking)"
     
-    # Show a summary of what was merged
-    log_info "Merge summary:"
-    for sbom_file in "${cyclonedx_files[@]}"; do
+    # Show a summary of what was merged with source information
+    log_info "Merge summary with source tracking:"
+    for i in "${!cyclonedx_files[@]}"; do
+        local sbom_file="${cyclonedx_files[i]}"
+        local source_ref="${source_references[i]}"
         local fname=$(basename "$sbom_file" .json)
         local comp_count
         comp_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || comp_count=0
-        log_info "  - $fname: $comp_count components"
+        log_info "  - $fname: $comp_count components (source: $source_ref)"
     done
 }
 
@@ -570,10 +525,10 @@ merge_local_cyclonedx_sboms() {
     local output_file="${!#}"  # Last argument is the output file
     local input_files=("${@:1:$#-1}")  # All arguments except the last one
     
-    log_info "Merging ${#input_files[@]} local CycloneDX SBOMs"
+    log_info "Merging ${#input_files[@]} local CycloneDX SBOMs with source tracking"
     
     # Create the merged SBOM structure
-    log_info "Creating merged CycloneDX SBOM..."
+    log_info "Creating merged CycloneDX SBOM with source tracking..."
     
     # Start with a proper CycloneDX template
     local merged_metadata
@@ -588,7 +543,7 @@ merge_local_cyclonedx_sboms() {
         "tools": [{
             "vendor": "ClickBOM",
             "name": "cyclonedx-merge", 
-            "version": "1.0.0"
+            "version": "1.0.9"
         }],
         "component": {
             "type": "application",
@@ -616,23 +571,27 @@ EOF
         .serialNumber = $sn
     ')
     
-    # Collect all components from all SBOMs
-    log_info "Collecting components from all SBOMs..."
+    # Collect all components from all SBOMs with source tracking
+    log_info "Collecting components from all SBOMs with source tracking..."
     local all_components="$temp_dir/wiz_all_components.json"
     
     # Initialize empty array
     echo "[]" > "$all_components"
     
-    # Collect all components from input files
+    # Collect all components with source tracking from input files
     for sbom_file in "${input_files[@]}"; do
+        # Extract source reference for this SBOM
+        local source_ref
+        source_ref=$(extract_sbom_source_reference "$sbom_file" "$(basename "$sbom_file")")
+        
         local component_count
         component_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || component_count=0
-        log_info "Processing $(basename "$sbom_file"): $component_count components"
+        log_info "Processing $(basename "$sbom_file"): $component_count components (source: $source_ref)"
         
-        # Extract components and append to collection
+        # Extract components with source tracking
         if [[ "$component_count" -gt 0 ]]; then
             local temp_components="$temp_dir/wiz_temp_components_$(basename "$sbom_file").json"
-            if jq '.components[]' "$sbom_file" > "$temp_components" 2>/dev/null; then
+            if collect_components_with_source "$sbom_file" "$source_ref" "$temp_components"; then
                 # Merge with existing components
                 if jq -s 'flatten' "$all_components" "$temp_components" > "$temp_dir/wiz_merged_temp.json"; then
                     mv "$temp_dir/wiz_merged_temp.json" "$all_components"
@@ -645,20 +604,20 @@ EOF
         fi
     done
     
-    # Remove duplicates based on name+version+purl combination
-    log_info "Removing duplicate components..."
+    # Remove duplicates based on name+version+purl+source combination
+    log_info "Removing duplicate components (preserving source information)..."
     local unique_components="$temp_dir/wiz_unique_components.json"
-    if jq 'unique_by((.name // "unknown") + "@" + (.version // "unknown") + "#" + (.purl // ""))' "$all_components" > "$unique_components"; then
-        log_success "Deduplication completed"
+    if jq 'unique_by((.name // "unknown") + "@" + (.version // "unknown") + "#" + (.purl // "") + "^" + (.source // "unknown"))' "$all_components" > "$unique_components"; then
+        log_success "Deduplication completed with source preservation"
     else
         log_error "Failed to deduplicate components"
         exit 1
     fi
     
     # Create final merged SBOM
-    log_info "Assembling final merged SBOM..."
+    log_info "Assembling final merged SBOM with source tracking..."
     if echo "$merged_metadata" | jq --slurpfile comps "$unique_components" '. + {components: $comps[0]}' > "$output_file"; then
-        log_success "Final SBOM assembled"
+        log_success "Final SBOM assembled with source tracking"
     else
         log_error "Failed to assemble final SBOM"
         exit 1
@@ -679,15 +638,17 @@ EOF
     local component_count
     component_count=$(jq '.components | length' "$output_file")
     
-    log_success "Successfully merged ${#input_files[@]} SBOMs into one with $component_count unique components"
+    log_success "Successfully merged ${#input_files[@]} SBOMs into one with $component_count unique components (with source tracking)"
     
-    # Show a summary of what was merged
-    log_info "Merge summary:"
+    # Show a summary of what was merged with source information
+    log_info "Merge summary with source tracking:"
     for sbom_file in "${input_files[@]}"; do
+        local source_ref
+        source_ref=$(extract_sbom_source_reference "$sbom_file" "$(basename "$sbom_file")")
         local fname=$(basename "$sbom_file" .json)
         local comp_count
         comp_count=$(jq '.components | length' "$sbom_file" 2>/dev/null) || comp_count=0
-        log_info "  - $fname: $comp_count components"
+        log_info "  - $fname: $comp_count components (source: $source_ref)"
     done
 }
 
@@ -854,31 +815,30 @@ insert_sbom_data() {
     fi
 
     # Determine source value based on context
-    local source_value="unknown"
+    local default_source_value="unknown"
     local sbom_source="${SBOM_SOURCE:-github}"
     local merge_mode="${MERGE:-false}"
 
-    if [[ "$merge_mode" == "true" ]]; then
-        source_value="merged"
-    else
+    if [[ "$merge_mode" != "true" ]]; then
+        # For non-merged SBOMs, determine source from context
         case "$sbom_source" in
             "github")
-                source_value="${REPOSITORY:-unknown}"
+                default_source_value="${REPOSITORY:-unknown}"
                 ;;
             "mend")
-                source_value="mend:${MEND_PROJECT_UUID:-${MEND_PRODUCT_UUID:-${MEND_ORG_SCOPE_UUID:-unknown}}}"
+                default_source_value="mend:${MEND_PROJECT_UUID:-${MEND_PRODUCT_UUID:-${MEND_ORG_SCOPE_UUID:-unknown}}}"
                 ;;
             "wiz")
-                source_value="wiz:${WIZ_REPORT_ID:-unknown}"
+                default_source_value="wiz:${WIZ_REPORT_ID:-unknown}"
                 ;;
             *)
-                source_value="$sbom_source"
+                default_source_value="$sbom_source"
                 ;;
         esac
     fi
 
-    log_info "Source value for ClickHouse: $source_value"
-    
+    log_info "Source value for ClickHouse: $default_source_value"
+
     # Create temporary file for data
     local data_file="$temp_dir/clickhouse_data.tsv"
     local mapped_data_file="$temp_dir/clickhouse_data_mapped.tsv"
@@ -890,8 +850,8 @@ insert_sbom_data() {
             if [[ "${DEBUG:-false}" == "true" ]]; then
                 jq -r '.components[0] | {name: .name, version: .version, licenses: .licenses}' "$sbom_file" 2>/dev/null || echo "No components found"
             fi
-            # Extract from CycloneDX format
-            jq -r --arg repo "$source_value" '
+            # Enhanced extraction to handle component-level source references
+            jq -r --arg default_source "$default_source_value" '
                 .components[]? // empty |
                 [
                     .name // "unknown",
@@ -925,20 +885,27 @@ insert_sbom_data() {
                         # Final fallback
                         "unknown"
                     ),
-                    $repo
+                    (
+                        # Use component-level source if available, otherwise use default
+                        .source // $default_source
+                    )
                 ] | @tsv
             ' "$sbom_file" > "$data_file"
             ;;
         "spdxjson")
             # Extract from SPDX format
-            jq -r --arg repo "$source_value" '
+            # SPDX format doesn't have component-level source in merged SBOMs
+            # so always use the default source
+            jq -r --arg default_source "$default_source_value" '
                 .packages[]? // empty |
                 select(.name != null) |
                 [
                     .name // "unknown",
                     .versionInfo // "unknown",
                     (.licenseConcluded // .licenseDeclared // "unknown"),
-                    $repo
+                    (
+                        $default_source
+                    )
                 ] | @tsv
             ' "$sbom_file" > "$data_file"
             ;;
@@ -958,14 +925,14 @@ insert_sbom_data() {
     map_unknown_licenses "$data_file" "$mapped_data_file"
     
     local component_count=$(wc -l < "$mapped_data_file")
-    log_info "Found $component_count components to insert (with license mapping applied)"
+    log_info "Found $component_count components to insert (with license mapping and source tracking applied)"
     
     # Insert data into ClickHouse
     if curl -s ${auth_params} \
            -H "Content-Type: text/tab-separated-values" \
            --data-binary "@$mapped_data_file" \
            "${clickhouse_url}/?query=INSERT%20INTO%20${CLICKHOUSE_DATABASE}.${table_name}%20(name,%20version,%20license,%20source)%20FORMAT%20TSV"; then
-        log_success "Inserted $component_count components into ClickHouse table $table_name"
+        log_success "Inserted $component_count components with source tracking into ClickHouse table $table_name"
         return 0
     else
         log_error "Failed to insert data into ClickHouse"

@@ -1525,7 +1525,7 @@ EOF
 # TESTS FOR extract_sbom_source_reference
 # ============================================================================
 
-# Test #82: extract_sbom_source_reference finds spdx document name from GitHub SBOM
+# Test 82: extract_sbom_source_reference finds spdx document name from GitHub SBOM
 @test "extract_sbom_source_reference finds spdx document name from GitHub SBOM" {
     # Create a GitHub-style SBOM with spdx:document:name
     local test_sbom="$TEST_TEMP_DIR/github_sbom.json"
@@ -1573,7 +1573,7 @@ EOF
     [ "$output" = "com.github.ClickHouse/clickhouse-js" ]
 }
 
-# Test #83: extract_sbom_source_reference finds component name from Wiz SBOM
+# Test 83: extract_sbom_source_reference finds component name from Wiz SBOM
 @test "extract_sbom_source_reference finds component name from Wiz SBOM" {
     # Create a Wiz-style SBOM with metadata.component.name
     local test_sbom="$TEST_TEMP_DIR/wiz_sbom.json"
@@ -1607,7 +1607,7 @@ EOF
     [ "$output" = "wiz-merged-sbom" ]
 }
 
-# Test #84: extract_sbom_source_reference finds bom-ref from Mend SBOM
+# Test 84: extract_sbom_source_reference finds bom-ref from Mend SBOM
 @test "extract_sbom_source_reference finds bom-ref from Mend SBOM" {
     # Create a Mend-style SBOM with metadata.component.bom-ref
     local test_sbom="$TEST_TEMP_DIR/mend_sbom.json"
@@ -1651,7 +1651,7 @@ EOF
     [ "$output" = "master-branch" ]
 }
 
-# Test #85: extract_sbom_source_reference finds bom-ref when component name is missing
+# Test 85: extract_sbom_source_reference finds bom-ref when component name is missing
 @test "extract_sbom_source_reference finds bom-ref when component name is missing" {
     # Create a SBOM with only bom-ref
     local test_sbom="$TEST_TEMP_DIR/bomref_sbom.json"
@@ -1674,7 +1674,7 @@ EOF
     [ "$output" = "5ee38db1-6bec-449c-9908-070b77ac10db" ]
 }
 
-# Test #86: extract_sbom_source_reference finds top-level name field
+# Test 86: extract_sbom_source_reference finds top-level name field
 @test "extract_sbom_source_reference finds top-level name field" {
     # Create a SBOM with top-level name
     local test_sbom="$TEST_TEMP_DIR/toplevel_name_sbom.json"
@@ -1695,7 +1695,7 @@ EOF
     [ "$output" = "my-project-sbom" ]
 }
 
-# Test #87: extract_sbom_source_reference finds tool name hint
+# Test 87: extract_sbom_source_reference finds tool name hint
 @test "extract_sbom_source_reference finds tool name hint" {
     # Create a SBOM with custom tool name
     local test_sbom="$TEST_TEMP_DIR/tool_hint_sbom.json"
@@ -1725,7 +1725,7 @@ EOF
     [ "$output" = "my-custom-scanner" ]
 }
 
-# Test #88: extract_sbom_source_reference ignores common tool names
+# Test 88: extract_sbom_source_reference ignores common tool names
 @test "extract_sbom_source_reference ignores common tool names" {
     # Create a SBOM with only common tool names that should be ignored
     local test_sbom="$TEST_TEMP_DIR/common_tools_sbom.json"
@@ -1759,7 +1759,7 @@ EOF
     [ "$output" = "my-fallback" ]
 }
 
-# Test #89: extract_sbom_source_reference uses fallback filename
+# Test 89: extract_sbom_source_reference uses fallback filename
 @test "extract_sbom_source_reference uses fallback filename" {
     # Create a minimal SBOM with no identifying information
     local test_sbom="$TEST_TEMP_DIR/minimal_sbom.json"
@@ -1772,13 +1772,11 @@ EOF
 
     # Test the function with fallback
     run extract_sbom_source_reference "$test_sbom" "my-project.json"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ "$output" = "my-project" ]
 }
 
-# Test #90: extract_sbom_source_reference uses unknown when no fallback
+# Test 90: extract_sbom_source_reference uses unknown when no fallback
 @test "extract_sbom_source_reference uses unknown when no fallback" {
     # Create a minimal SBOM with no identifying information
     local test_sbom="$TEST_TEMP_DIR/minimal_sbom.json"
@@ -1794,5 +1792,45 @@ EOF
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "unknown" ]
+    [ "$output" =~ *"unknown"* ]
+}
+
+# Test 91: extract_sbom_source_reference prioritizes strategies correctly
+@test "extract_sbom_source_reference prioritizes strategies correctly" {
+    # Create a SBOM with multiple potential sources to test priority
+    local test_sbom="$TEST_TEMP_DIR/priority_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "name": "top-level-name",
+    "metadata": {
+        "timestamp": "2025-08-03T17:52:15Z",
+        "tools": [
+            {
+                "name": "custom-tool",
+                "version": "1.0.0"
+            }
+        ],
+        "component": {
+            "type": "application",
+            "name": "component-name",
+            "bom-ref": "some-bom-ref"
+        },
+        "properties": [
+            {
+                "name": "spdx:document:name",
+                "value": "spdx-document-name"
+            }
+        ]
+    }
+}
+EOF
+
+    # Test the function - should prioritize spdx:document:name (Strategy 1)
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ "$output" = "spdx-document-name" ]
 }

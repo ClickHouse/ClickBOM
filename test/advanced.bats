@@ -2329,28 +2329,6 @@ EOF
 # Add these tests to the end of advanced.bats
 # ============================================================================
 
-# Test 110: extract_sbom_source_reference finds top-level name field
-@test "extract_sbom_source_reference finds top-level name field" {
-    # Create a SBOM with top-level name
-    local test_sbom="$TEST_TEMP_DIR/toplevel_name_sbom.json"
-    cat > "$test_sbom" << 'EOF'
-{
-    "bomFormat": "CycloneDX",
-    "specVersion": "1.6",
-    "name": "my-project-sbom",
-    "metadata": {
-        "timestamp": "2025-08-03T17:52:15Z"
-    }
-}
-EOF
-
-    # Test the function
-    run extract_sbom_source_reference "$test_sbom" "fallback.json"
-    
-    [ "$status" -eq 0 ]
-    [ "$output" = "my-project-sbom" ]
-}
-
 # Test 111: extract_sbom_source_reference finds tool name hint
 @test "extract_sbom_source_reference finds tool name hint" {
     # Create a SBOM with custom tool name

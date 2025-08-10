@@ -1946,18 +1946,22 @@ EOF
     [ -f "$output_file" ]
     
     # Verify the output contains components with source field
-    local component_count=$(jq '. | length' "$output_file")
+    local component_count
+    component_count=$(jq '. | length' "$output_file" 2>/dev/null || echo "0")
     [ "$component_count" -eq 2 ]
     
     # Check that both components have the source field
-    local lodash_source=$(jq -r '. | select(.name == "lodash") | .source' "$output_file")
+    local lodash_source
+    lodash_source=$(jq -r '. | select(.name == "lodash") | .source' "$output_file" 2>/dev/null || echo "")
     [ "$lodash_source" = "test-source-ref" ]
     
-    local express_source=$(jq -r '. | select(.name == "express") | .source' "$output_file")
+    local express_source
+    express_source=$(jq -r '. | select(.name == "express") | .source' "$output_file" 2>/dev/null || echo "")
     [ "$express_source" = "test-source-ref" ]
     
     # Verify original fields are preserved
-    local lodash_version=$(jq -r '. | select(.name == "lodash") | .version' "$output_file")
+    local lodash_version
+    lodash_version=$(jq -r '. | select(.name == "lodash") | .version' "$output_file" 2>/dev/null || echo "")
     [ "$lodash_version" = "4.17.21" ]
 }
 

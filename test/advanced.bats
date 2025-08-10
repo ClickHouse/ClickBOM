@@ -1792,7 +1792,7 @@ EOF
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" == *"unknown"* ]
+    [[ "$output" == *"unknown"* ]]
 }
 
 # Test 91: extract_sbom_source_reference prioritizes strategies correctly
@@ -1898,3 +1898,420 @@ EOF
 # ============================================================================
 # TESTS FOR collect_components_with_source
 # ============================================================================
+
+# Test 85: collect_components_with_source adds source to components
+@test "collect_components_with_source adds source to components" {
+    # Create a SBOM with components
+    local test_sbom="$TEST_TEMP_DIR/components_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+        {
+            "name": "lodash",
+            "version": "4.17.21",
+            "type": "library",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "express",
+            "version": "4.18.2",
+            "type": "library",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ]
+        }
+    ]
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/output_components.json"
+    
+    # Test the function
+    run collect_components_with_source "$test_sbom" "test-source-ref" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Verify the output contains components with source field
+    local component_count=$(jq '. | length' "$output_file")
+    [ "$component_count" -eq 2 ]
+    
+    # Check that both components have the source field
+    local lodash_source=$(jq -r '. | select(.name == "lodash") | .source' "$output_file")
+    [ "$lodash_source" = "test-source-ref" ]
+    
+    local express_source=$(jq -r '. | select(.name == "express") | .source' "$output_file")
+    [ "$express_source" = "test-source-ref" ]
+    
+    # Verify original fields are preserved
+    local lodash_version=$(jq -r '. | select(.name == "lodash") | .version' "$output_file")
+    [ "$lodash_version" = "4.17.21" ]
+}
+
+# Test 96: collect_components_with_source handles SBOM with no components
+@test "collect_components_with_source handles SBOM with no components" {
+    # Create a SBOM with no components array
+    local test_sbom="$TEST_TEMP_DIR/no_components_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "metadata": {
+        "component": {
+            "name": "test-project",
+            "version": "1.0.0"
+        }
+    }
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/empty_output.json"
+    
+    # Test the function
+    run collect_components_with_source "$test_sbom" "test-source" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 1 ]  # Should fail but not crash
+    [ -f "$output_file" ]  # Should create empty file
+}
+
+# Test 97: collect_components_with_source handles empty components array
+@test "collect_components_with_source handles empty components array" {
+    # Create a SBOM with empty components array
+    local test_sbom="$TEST_TEMP_DIR/empty_components_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": []
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/empty_components_output.json"
+    
+    # Test the function
+    run collect_components_with_source "$test_sbom" "test-source" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Output file should be empty (no components to process)
+    [ ! -s "$output_file" ]  # File should be empty
+}
+
+# Test 98: collect_components_with_source handles components with existing source field
+@test "collect_components_with_source overwrites existing source field" {
+    # Create a SBOM with components that already have source fields
+    local test_sbom="$TEST_TEMP_DIR/existing_source_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+        {
+            "name": "lodash",
+            "version": "4.17.21",
+            "source": "old-source",
+            "type": "library"
+        }
+    ]
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/overwrite_source_output.json"
+    
+    # Test the function
+    run collect_components_with_source "$test_sbom" "new-source-ref" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Check that the source field was overwritten
+    local component_source=$(jq -r '.source' "$output_file")
+    [ "$component_source" = "new-source-ref" ]
+}
+
+# Test 99: collect_components_with_source handles components with complex structure
+@test "collect_components_with_source preserves complex component structure" {
+    # Create a SBOM with complex components
+    local test_sbom="$TEST_TEMP_DIR/complex_components_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+        {
+            "name": "@types/node",
+            "version": "18.15.0",
+            "type": "library",
+            "scope": "optional",
+            "purl": "pkg:npm/%40types/node@18.15.0",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "name": "cdx:npm:package:path",
+                    "value": "node_modules/@types/node"
+                }
+            ],
+            "externalReferences": [
+                {
+                    "type": "website",
+                    "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git"
+                }
+            ]
+        }
+    ]
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/complex_output.json"
+    
+    # Test the function
+    run collect_components_with_source "$test_sbom" "complex-source" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Verify all original fields are preserved
+    local component_name=$(jq -r '.name' "$output_file")
+    [ "$component_name" = "@types/node" ]
+    
+    local component_purl=$(jq -r '.purl' "$output_file")
+    [ "$component_purl" = "pkg:npm/%40types/node@18.15.0" ]
+    
+    local component_properties_count=$(jq '.properties | length' "$output_file")
+    [ "$component_properties_count" -eq 1 ]
+    
+    local component_refs_count=$(jq '.externalReferences | length' "$output_file")
+    [ "$component_refs_count" -eq 1 ]
+    
+    # Verify source was added
+    local component_source=$(jq -r '.source' "$output_file")
+    [ "$component_source" = "complex-source" ]
+}
+
+# Test 100: collect_components_with_source handles invalid JSON
+@test "collect_components_with_source handles invalid JSON gracefully" {
+    # Create an invalid JSON file
+    local test_sbom="$TEST_TEMP_DIR/invalid_json.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "components": [
+        {
+            "name": "test"
+            # missing comma
+            "version": "1.0.0"
+        }
+    ]
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/invalid_json_output.json"
+    
+    # Test the function
+    run collect_components_with_source "$test_sbom" "source-ref" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 1 ]
+    [ -f "$output_file" ]  # Should create empty file
+}
+
+# Test 101: collect_components_with_source handles missing input file
+@test "collect_components_with_source handles missing input file" {
+    local output_file="$TEST_TEMP_DIR/missing_input_output.json"
+    
+    # Test with non-existent input file
+    run collect_components_with_source "/nonexistent/file.json" "source-ref" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 1 ]
+    [ -f "$output_file" ]  # Should create empty file
+}
+
+# Test 102: collect_components_with_source handles special characters in source
+@test "collect_components_with_source handles special characters in source" {
+    # Create a SBOM with components
+    local test_sbom="$TEST_TEMP_DIR/special_chars_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+        {
+            "name": "test-component",
+            "version": "1.0.0",
+            "type": "library"
+        }
+    ]
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/special_chars_output.json"
+    local special_source="com.github.ClickHouse/clickhouse-js@main:v2.0.0"
+    
+    # Test the function with special characters in source
+    run collect_components_with_source "$test_sbom" "$special_source" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Check that special characters are preserved
+    local component_source=$(jq -r '.source' "$output_file")
+    [ "$component_source" = "$special_source" ]
+}
+
+# Test 103: collect_components_with_source produces valid JSON output
+@test "collect_components_with_source produces valid JSON output" {
+    # Create a SBOM with multiple components
+    local test_sbom="$TEST_TEMP_DIR/multi_components_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+        {
+            "name": "component1",
+            "version": "1.0.0"
+        },
+        {
+            "name": "component2",
+            "version": "2.0.0"
+        },
+        {
+            "name": "component3",
+            "version": "3.0.0"
+        }
+    ]
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/valid_json_output.json"
+    
+    # Test the function
+    run collect_components_with_source "$test_sbom" "multi-source" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Verify output is valid JSON by parsing it
+    run jq '.' "$output_file"
+    [ "$status" -eq 0 ]
+    
+    # Verify it's an array of components
+    local is_array=$(jq 'type' "$output_file")
+    [ "$is_array" = '"array"' ]
+    
+    # Verify each component has the source field
+    local components_with_source=$(jq 'map(select(has("source"))) | length' "$output_file")
+    [ "$components_with_source" -eq 3 ]
+}
+
+# Test 104: collect_components_with_source handles unicode in source reference
+@test "collect_components_with_source handles unicode in source reference" {
+    # Create a simple SBOM
+    local test_sbom="$TEST_TEMP_DIR/unicode_source_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+        {
+            "name": "test-component",
+            "version": "1.0.0"
+        }
+    ]
+}
+EOF
+
+    local output_file="$TEST_TEMP_DIR/unicode_source_output.json"
+    local unicode_source="测试项目/test-project"
+    
+    # Test the function with unicode in source
+    run collect_components_with_source "$test_sbom" "$unicode_source" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Check that unicode is preserved (this may depend on locale settings)
+    local component_source=$(jq -r '.source' "$output_file")
+    [ "$component_source" = "$unicode_source" ]
+}
+
+# Test 105: Integration test - extract source and collect components
+@test "integration test - extract source and collect components work together" {
+    # Create a realistic GitHub SBOM
+    local test_sbom="$TEST_TEMP_DIR/integration_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "metadata": {
+        "properties": [
+            {
+                "name": "spdx:document:name",
+                "value": "com.github.ClickHouse/clickhouse-js"
+            }
+        ]
+    },
+    "components": [
+        {
+            "name": "lodash",
+            "version": "4.17.21",
+            "type": "library"
+        },
+        {
+            "name": "express",
+            "version": "4.18.2",
+            "type": "library"
+        }
+    ]
+}
+EOF
+
+    # First extract the source reference
+    local extracted_source
+    extracted_source=$(extract_sbom_source_reference "$test_sbom" "fallback.json")
+    
+    [ "$extracted_source" = "com.github.ClickHouse/clickhouse-js" ]
+    
+    # Then collect components with that source
+    local output_file="$TEST_TEMP_DIR/integration_output.json"
+    run collect_components_with_source "$test_sbom" "$extracted_source" "$output_file"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ -f "$output_file" ]
+    
+    # Verify both components have the extracted source
+    local lodash_source=$(jq -r '. | select(.name == "lodash") | .source' "$output_file")
+    [ "$lodash_source" = "com.github.ClickHouse/clickhouse-js" ]
+    
+    local express_source=$(jq -r '. | select(.name == "express") | .source' "$output_file")
+    [ "$express_source" = "com.github.ClickHouse/clickhouse-js" ]
+}

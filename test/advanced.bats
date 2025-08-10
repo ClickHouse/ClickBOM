@@ -1789,8 +1789,6 @@ EOF
 
     # Test the function without fallback
     run extract_sbom_source_reference "$test_sbom" ""
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ "$output" =~ *"unknown"* ]
 }
@@ -1829,8 +1827,58 @@ EOF
 
     # Test the function - should prioritize spdx:document:name (Strategy 1)
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "spdx-document-name" ]
+}
+
+# Test 92: extract_sbom_source_reference handles invalid JSON
+@test "extract_sbom_source_reference handles invalid JSON gracefully" {
+    # Create an invalid JSON file
+    local test_sbom="$TEST_TEMP_DIR/invalid_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6"
+    # invalid comment
+}
+EOF
+
+    # Test the function - should use fallback when jq fails
+    run extract_sbom_source_reference "$test_sbom" "fallback-name.json"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "spdx-document-name" ]
+    [ "$output" = "fallback-name" ]
+}
+
+# Test 93: extract_sbom_source_reference handles empty values gracefully
+@test "extract_sbom_source_reference handles empty values gracefully" {
+    # Create a SBOM with empty/null values
+    local test_sbom="$TEST_TEMP_DIR/empty_values_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "name": "",
+    "metadata": {
+        "component": {
+            "name": null,
+            "bom-ref": ""
+        },
+        "properties": [
+            {
+                "name": "spdx:document:name",
+                "value": ""
+            }
+        ]
+    }
+}
+EOF
+
+    # Test the function - should use fallback when values are empty/null
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ "$output" = "fallback" ]
 }

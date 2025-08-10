@@ -1603,8 +1603,52 @@ EOF
 
     # Test the function
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "wiz-merged-sbom" ]
+}
+
+# Test #84: extract_sbom_source_reference finds bom-ref from Mend SBOM
+@test "extract_sbom_source_reference finds bom-ref from Mend SBOM" {
+    # Create a Mend-style SBOM with metadata.component.bom-ref
+    local test_sbom="$TEST_TEMP_DIR/mend_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.5",
+    "serialNumber": "urn:uuid:1fb54e69-e58c-49c0-81a7-49cbb81a54ed",
+    "version": 1,
+    "metadata": {
+        "timestamp": "2025-08-03T17:54:34Z",
+        "tools": {
+            "components": [{
+                "author": "Mend.io",
+                "name": "CycloneDX report generator",
+                "version": "1.0.0",
+                "type": "application"
+            }]
+        },
+        "authors": [{
+            "name": "Organization: ClickHouse"
+        }, {
+            "name": "Person: sbom_download (sbom_download@clickhouse.com)"
+        }],
+        "component": {
+            "name": "master-branch",
+            "type": "application",
+            "bom-ref": "5ee38db1-6bec-449c-9908-070b77ac10db"
+        },
+        "properties": [{
+            "name": "reportName",
+            "value": "test"
+        }]
+    }
+}
+EOF
+
+    # Test the function - should prefer component.name over bom-ref
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "wiz-merged-sbom" ]
+    [ "$output" = "master-branch" ]
 }

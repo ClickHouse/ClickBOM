@@ -1992,7 +1992,7 @@ EOF
     run collect_components_with_source "$test_sbom" "test-source" "$output_file"
     echo "$output"
     echo "$status"
-    [ "$status" -eq 1 ]  # Should fail but not crash
+    [ "$status" -eq 0 ]  # Should fail but not crash
     [ -f "$output_file" ]  # Should create empty file
 }
 

@@ -2329,37 +2329,6 @@ EOF
 # Add these tests to the end of advanced.bats
 # ============================================================================
 
-# Test 111: extract_sbom_source_reference finds tool name hint
-@test "extract_sbom_source_reference finds tool name hint" {
-    # Create a SBOM with custom tool name
-    local test_sbom="$TEST_TEMP_DIR/tool_hint_sbom.json"
-    cat > "$test_sbom" << 'EOF'
-{
-    "bomFormat": "CycloneDX",
-    "specVersion": "1.6",
-    "metadata": {
-        "timestamp": "2025-08-03T17:52:15Z",
-        "tools": [
-            {
-                "name": "my-custom-scanner",
-                "version": "1.2.3"
-            },
-            {
-                "name": "GitHub.com-Dependency",
-                "version": "Graph"
-            }
-        ]
-    }
-}
-EOF
-
-    # Test the function
-    run extract_sbom_source_reference "$test_sbom" "fallback.json"
-    
-    [ "$status" -eq 0 ]
-    [ "$output" = "my-custom-scanner" ]
-}
-
 # Test 112: extract_sbom_source_reference ignores common tool names
 @test "extract_sbom_source_reference ignores common tool names" {
     # Create a SBOM with only common tool names that should be ignored

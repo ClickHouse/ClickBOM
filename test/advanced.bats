@@ -1520,3 +1520,57 @@ EOF
     [[ "$integration_calls" == *"system.columns"* ]]
     [[ "$integration_calls" == *"ALTER TABLE"* ]]
 }
+
+# ============================================================================
+# TESTS FOR extract_sbom_source_reference
+# ============================================================================
+
+# Test #82: extract_sbom_source_reference finds spdx document name from GitHub SBOM
+@test "extract_sbom_source_reference finds spdx document name from GitHub SBOM" {
+    # Create a GitHub-style SBOM with spdx:document:name
+    local test_sbom="$TEST_TEMP_DIR/github_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "metadata": {
+        "timestamp": "2025-08-03T17:52:15Z",
+        "tools": [
+            {
+                "name": "protobom-v0.0.0-20250731140552",
+                "version": "613e75aeb253+dirty"
+            },
+            {
+                "name": "GitHub.com-Dependency",
+                "version": "Graph"
+            }
+        ],
+        "properties": [
+            {
+                "name": "spdx:spdxid",
+                "value": "SPDXRef-DOCUMENT"
+            },
+            {
+                "name": "spdx:document:spdx-version",
+                "value": "SPDX-2.2"
+            },
+            {
+                "name": "spdx:document:name",
+                "value": "com.github.ClickHouse/clickhouse-js"
+            },
+            {
+                "name": "spdx:document:document-namespace",
+                "value": "https://spdx.org/spdxdocs/protobom/f00b0bff-1270-4c18-aae2-8c69fab0d995"
+            }
+        ]
+    }
+}
+EOF
+
+    # Test the function
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ "$output" = "com.github.ClickHouse/clickhouse-js" ]
+}

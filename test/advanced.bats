@@ -1647,8 +1647,31 @@ EOF
 
     # Test the function - should prefer component.name over bom-ref
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "master-branch" ]
+}
+
+# Test #85: extract_sbom_source_reference finds bom-ref when component name is missing
+@test "extract_sbom_source_reference finds bom-ref when component name is missing" {
+    # Create a SBOM with only bom-ref
+    local test_sbom="$TEST_TEMP_DIR/bomref_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.5",
+    "metadata": {
+        "component": {
+            "type": "application",
+            "bom-ref": "5ee38db1-6bec-449c-9908-070b77ac10db"
+        }
+    }
+}
+EOF
+
+    # Test the function
+    run extract_sbom_source_reference "$test_sbom" "fallback.json"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "master-branch" ]
+    [ "$output" = "5ee38db1-6bec-449c-9908-070b77ac10db" ]
 }

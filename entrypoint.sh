@@ -472,6 +472,7 @@ EOF
                 log_warning "Failed to extract components from $(basename "$sbom_file")"
             fi
         fi
+        ((i++))
     done
     
     # Remove duplicates based on name+version+purl combination

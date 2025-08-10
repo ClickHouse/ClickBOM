@@ -447,6 +447,8 @@ EOF
     # Initialize empty array
     echo "[]" > "$all_components"
 
+    local i=0
+
     # Collect all components with source information
     for sbom_file in "${cyclonedx_files[@]}"; do
         local sbom_file="${cyclonedx_files[i]}"

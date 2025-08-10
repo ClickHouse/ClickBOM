@@ -1990,8 +1990,6 @@ EOF
     
     # Test the function
     run collect_components_with_source "$test_sbom" "test-source" "$output_file"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]  # Should fail but not crash
     [ -f "$output_file" ]  # Should create empty file
 }
@@ -2012,8 +2010,6 @@ EOF
     
     # Test the function
     run collect_components_with_source "$test_sbom" "test-source" "$output_file"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ -f "$output_file" ]
     
@@ -2044,8 +2040,6 @@ EOF
     
     # Test the function
     run collect_components_with_source "$test_sbom" "new-source-ref" "$output_file"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ -f "$output_file" ]
     
@@ -2097,8 +2091,6 @@ EOF
     
     # Test the function
     run collect_components_with_source "$test_sbom" "complex-source" "$output_file"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ -f "$output_file" ]
     
@@ -2141,8 +2133,6 @@ EOF
     
     # Test the function
     run collect_components_with_source "$test_sbom" "source-ref" "$output_file"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 1 ]
     [ -f "$output_file" ]  # Should create empty file
 }
@@ -2153,8 +2143,6 @@ EOF
     
     # Test with non-existent input file
     run collect_components_with_source "/nonexistent/file.json" "source-ref" "$output_file"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 1 ]
     [ -f "$output_file" ]  # Should create empty file
 }
@@ -2182,8 +2170,6 @@ EOF
     
     # Test the function with special characters in source
     run collect_components_with_source "$test_sbom" "$special_source" "$output_file"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ -f "$output_file" ]
     
@@ -2225,17 +2211,37 @@ EOF
     echo "$status"
     [ "$status" -eq 0 ]
     [ -f "$output_file" ]
+
+    # With compact JSON output, each component should be on one line
+    local line_count
+    line_count=$(wc -l < "$output_file")
+    [ "$line_count" -eq 3 ]
     
-    # Verify output is valid JSON by parsing it
-    run jq '.' "$output_file"
-    [ "$status" -eq 0 ]
+    # Verify each line is valid JSON and has the source field
+    local components_with_source=0
+    local valid_json_lines=0
     
-    # Verify it's an array of components
-    local is_array=$(jq 'type' "$output_file")
-    [ "$is_array" = '"array"' ]
+    while IFS= read -r line; do
+        if [[ -n "$line" ]]; then
+            # Verify it's valid JSON (each line should be a JSON object)
+            local line_type
+            line_type=$(echo "$line" | jq -r 'type' 2>/dev/null || echo "invalid")
+            if [[ "$line_type" == "object" ]]; then
+                valid_json_lines=$((valid_json_lines + 1))
+                
+                # Check if it has source field
+                local has_source
+                has_source=$(echo "$line" | jq 'has("source")' 2>/dev/null || echo "false")
+                if [[ "$has_source" == "true" ]]; then
+                    components_with_source=$((components_with_source + 1))
+                fi
+            fi
+        fi
+    done < "$output_file"
     
-    # Verify each component has the source field
-    local components_with_source=$(jq 'map(select(has("source"))) | length' "$output_file")
+    # All lines should be valid JSON objects
+    [ "$valid_json_lines" -eq 3 ]
+    # All components should have the source field
     [ "$components_with_source" -eq 3 ]
 }
 

@@ -1721,8 +1721,6 @@ EOF
 
     # Test the function
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ "$output" = "my-custom-scanner" ]
 }
@@ -1757,8 +1755,44 @@ EOF
 
     # Test the function - should use fallback since all tools are ignored
     run extract_sbom_source_reference "$test_sbom" "my-fallback.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "my-fallback" ]
+}
+
+# Test #89: extract_sbom_source_reference uses fallback filename
+@test "extract_sbom_source_reference uses fallback filename" {
+    # Create a minimal SBOM with no identifying information
+    local test_sbom="$TEST_TEMP_DIR/minimal_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6"
+}
+EOF
+
+    # Test the function with fallback
+    run extract_sbom_source_reference "$test_sbom" "my-project.json"
     echo "$output"
     echo "$status"
     [ "$status" -eq 0 ]
-    [ "$output" = "my-fallback" ]
+    [ "$output" = "my-project" ]
+}
+
+# Test #90: extract_sbom_source_reference uses unknown when no fallback
+@test "extract_sbom_source_reference uses unknown when no fallback" {
+    # Create a minimal SBOM with no identifying information
+    local test_sbom="$TEST_TEMP_DIR/minimal_sbom.json"
+    cat > "$test_sbom" << 'EOF'
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6"
+}
+EOF
+
+    # Test the function without fallback
+    run extract_sbom_source_reference "$test_sbom" ""
+    echo "$output"
+    echo "$status"
+    [ "$status" -eq 0 ]
+    [ "$output" = "unknown" ]
 }

@@ -1932,14 +1932,27 @@ EOF
     
     # Test the function
     run collect_components_with_source "$test_sbom" "test-source-ref" "$output_file"
-    echo "$output"
-    echo "$status"
+    
     [ "$status" -eq 0 ]
     [ -f "$output_file" ]
     
-    # Verify the output contains components with source field
-    local component_count
-    component_count=$(jq '. | length' "$output_file" 2>/dev/null || echo "0")
+    # Debug: show what's actually in the file
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        echo "DEBUG: Output file contents:"
+        cat "$output_file"
+        echo "DEBUG: Line count using different methods:"
+        wc -l "$output_file"
+        grep -c . "$output_file" || echo "grep failed"
+    fi
+    
+    # Count non-empty lines more reliably
+    local component_count=0
+    while IFS= read -r line; do
+        if [[ -n "$line" ]]; then
+            component_count=$((component_count + 1))
+        fi
+    done < "$output_file"
+    
     [ "$component_count" -eq 2 ]
     
     # Check that both components have the source field

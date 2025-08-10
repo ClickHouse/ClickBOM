@@ -1893,6 +1893,7 @@ EOF
 
 # Test 95: collect_components_with_source adds source to components
 @test "collect_components_with_source adds source to components" {
+    export DEBUG="true"  # Enable debug mode for this test
     # Create a SBOM with components
     local test_sbom="$TEST_TEMP_DIR/components_sbom.json"
     cat > "$test_sbom" << 'EOF'

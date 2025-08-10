@@ -1789,8 +1789,6 @@ EOF
 
     # Test the function without fallback
     run extract_sbom_source_reference "$test_sbom" ""
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [[ "$output" == *"unknown"* ]]
 }
@@ -1847,8 +1845,6 @@ EOF
 
     # Test the function - should use fallback when jq fails
     run extract_sbom_source_reference "$test_sbom" "fallback-name.json"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ "$output" = "fallback-name" ]
 }
@@ -1879,8 +1875,6 @@ EOF
 
     # Test the function - should use fallback when values are empty/null
     run extract_sbom_source_reference "$test_sbom" "fallback.json"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ "$output" = "fallback" ]
 }
@@ -1889,8 +1883,6 @@ EOF
 @test "extract_sbom_source_reference handles missing file" {
     # Test with non-existent file
     run extract_sbom_source_reference "/nonexistent/file.json" "missing-fallback.json"
-    echo "$output"
-    echo "$status"
     [ "$status" -eq 0 ]
     [ "$output" = "missing-fallback" ]
 }
@@ -1899,7 +1891,7 @@ EOF
 # TESTS FOR collect_components_with_source
 # ============================================================================
 
-# Test 85: collect_components_with_source adds source to components
+# Test 95: collect_components_with_source adds source to components
 @test "collect_components_with_source adds source to components" {
     # Create a SBOM with components
     local test_sbom="$TEST_TEMP_DIR/components_sbom.json"
@@ -1951,18 +1943,31 @@ EOF
     [ "$component_count" -eq 2 ]
     
     # Check that both components have the source field
-    local lodash_source
-    lodash_source=$(jq -r '. | select(.name == "lodash") | .source' "$output_file" 2>/dev/null || echo "")
-    [ "$lodash_source" = "test-source-ref" ]
+    # Each line is a separate JSON object, so we need to check each line
+    local lodash_found=false
+    local express_found=false
     
-    local express_source
-    express_source=$(jq -r '. | select(.name == "express") | .source' "$output_file" 2>/dev/null || echo "")
-    [ "$express_source" = "test-source-ref" ]
+    while IFS= read -r line; do
+        if [[ -n "$line" ]]; then
+            local name
+            name=$(echo "$line" | jq -r '.name' 2>/dev/null || echo "")
+            local source
+            source=$(echo "$line" | jq -r '.source' 2>/dev/null || echo "")
+            
+            if [[ "$name" == "lodash" && "$source" == "test-source-ref" ]]; then
+                lodash_found=true
+                # Verify original fields are preserved
+                local version
+                version=$(echo "$line" | jq -r '.version' 2>/dev/null || echo "")
+                [ "$version" = "4.17.21" ]
+            elif [[ "$name" == "express" && "$source" == "test-source-ref" ]]; then
+                express_found=true
+            fi
+        fi
+    done < "$output_file"
     
-    # Verify original fields are preserved
-    local lodash_version
-    lodash_version=$(jq -r '. | select(.name == "lodash") | .version' "$output_file" 2>/dev/null || echo "")
-    [ "$lodash_version" = "4.17.21" ]
+    [ "$lodash_found" = true ]
+    [ "$express_found" = true ]
 }
 
 # Test 96: collect_components_with_source handles SBOM with no components

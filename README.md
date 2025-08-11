@@ -138,7 +138,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -181,7 +181,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -235,7 +235,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -300,7 +300,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -364,7 +364,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -406,7 +406,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -460,7 +460,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Merge Production SBOMs Only
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
@@ -515,7 +515,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM from Mend
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
@@ -566,7 +566,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM from Wiz
-        uses: ClickHouse/ClickBom@v1.0.8
+        uses: ClickHouse/ClickBom@v1.0.9
         with:
           aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}

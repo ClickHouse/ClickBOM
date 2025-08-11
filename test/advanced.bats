@@ -1589,7 +1589,7 @@ EOF
             {
                 "vendor": "ClickBOM",
                 "name": "cyclonedx-merge",
-                "version": "1.0.0"
+                "version": "1.0.9"
             }
         ],
         "component": {
@@ -1806,8 +1806,8 @@ EOF
         "timestamp": "2025-08-03T17:52:15Z",
         "tools": [
             {
-                "name": "custom-tool",
-                "version": "1.0.0"
+                "name": "ClickBOM",
+                "version": "1.0.9"
             }
         ],
         "component": {

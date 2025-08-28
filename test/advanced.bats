@@ -23,7 +23,8 @@ setup() {
     sed -i "s|source \"\$SCRIPT_DIR/lib/mend.sh\"|source \"$PROJECT_ROOT/lib/mend.sh\"|" "$TEST_SCRIPT"
     sed -i "s|source \"\$SCRIPT_DIR/lib/wiz.sh\"|source \"$PROJECT_ROOT/lib/wiz.sh\"|" "$TEST_SCRIPT"
     sed -i "s|source \"\$SCRIPT_DIR/lib/sbom-processing.sh\"|source \"$PROJECT_ROOT/lib/sbom-processing.sh\"|" "$TEST_SCRIPT"
-    
+    sed -i "s|source \"\$SCRIPT_DIR/lib/sbom-merging.sh\"|source \"$PROJECT_ROOT/lib/sbom-merging.sh\"|" "$TEST_SCRIPT"
+
     # Source the functions
     source "$TEST_SCRIPT"
     
@@ -1589,7 +1590,7 @@ EOF
             {
                 "vendor": "ClickBOM",
                 "name": "cyclonedx-merge",
-                "version": "1.0.9"
+                "version": "1.0.10"
             }
         ],
         "component": {
@@ -1807,7 +1808,7 @@ EOF
         "tools": [
             {
                 "name": "ClickBOM",
-                "version": "1.0.9"
+                "version": "1.0.10"
             }
         ],
         "component": {

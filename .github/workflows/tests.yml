@@ -203,7 +203,7 @@ jobs:
   test_e2e:
     name: 🎯 E2E Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/*')
 
     steps:
       - name: 🧾 Checkout
@@ -220,9 +220,6 @@ jobs:
 
       - name: 📦 Install dependencies
         run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
           wget -O /tmp/cyclonedx "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/cyclonedx-linux-x64"
           sudo mv /tmp/cyclonedx /usr/local/bin/cyclonedx
           sudo chmod +x /usr/local/bin/cyclonedx

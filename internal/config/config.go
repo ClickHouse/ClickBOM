@@ -3,8 +3,6 @@ package config
 import (
     "fmt"
     "os"
-    "regexp"
-    "strings"
 
 	"github.com/ClickHouse/ClickBOM/internal/validation"
 )

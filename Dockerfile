@@ -1,74 +1,74 @@
-FROM ubuntu:24.04
+# Multi-stage build for Go application
+FROM golang:1.21.14-alpine3.19 AS builder
 
-# Add metadata labels for better container management
+# Ensure base packages are up-to-date to pick up security fixes before installing build deps
+RUN apk update && apk upgrade --available --no-cache
+
 LABEL maintainer="ClickHouse Security Team" \
       description="ClickBOM - SBOM Management Tool" \
-      version="1.0.0" \
-      security.scan="enabled"
+      version="2.0.0"
 
-# Avoid interactive prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Create a non-root user early in the build process
-RUN groupadd -r clickbom && useradd -r -g clickbom -s /bin/false clickbom
-
-# Install required packages
-RUN apt-get update && apt-get install -y \
-    curl \
-    jq \
-    python3 \
-    python3-pip \
-    unzip \
-    wget \
+# Install build dependencies
+RUN apk add --no-cache \
+    git \
     ca-certificates \
-    libicu74 \
-    vim-common \
-    file \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get autoremove -y \
-    && apt-get autoclean
+    tzdata
+
+WORKDIR /build
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build static binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a \
+    -o clickbom \
+    ./cmd/clickbom
+
+# External tools stage
+FROM alpine:3.19 AS tools
 
 # Install AWS CLI
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install \
-    && rm -rf awscliv2.zip aws/
+RUN apk add --no-cache curl unzip && \
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install
 
-# Install CycloneDX CLI (prebuilt binary)
-RUN wget -O /usr/local/bin/cyclonedx "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/cyclonedx-linux-x64" \
-    && chmod +x /usr/local/bin/cyclonedx
+# Install CycloneDX CLI
+RUN wget -O /cyclonedx "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/cyclonedx-linux-x64" && \
+    chmod +x /cyclonedx
 
-# Create necessary directories with proper permissions
-RUN mkdir -p /app /app/temp && \
-    chown -R clickbom:clickbom /app
+# Runtime stage - Distroless
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL maintainer="ClickHouse Security Team" \
+      description="ClickBOM - SBOM Management Tool" \
+      version="2.0.0" \
+      security.scan="enabled"
+
+# Copy from tools stage
+COPY --from=tools /usr/local/aws-cli /usr/local/aws-cli
+COPY --from=tools /usr/local/bin/aws /usr/local/bin/aws
+COPY --from=tools /cyclonedx /usr/local/bin/cyclonedx
+
+# Copy the binary from builder
+COPY --from=builder /build/clickbom /app/clickbom
+
+# Copy license mappings
+COPY license-mappings.json /app/license-mappings.json
 
 # Set working directory
 WORKDIR /app
 
-# Copy application files with proper ownership
-COPY --chown=clickbom:clickbom entrypoint.sh /app/entrypoint.sh
-COPY --chown=clickbom:clickbom lib/ /app/lib/
-COPY --chown=clickbom:clickbom license-mappings.json /app/license-mappings.json
-
-# Make entrypoint executable
-RUN chmod +x /app/entrypoint.sh
-
-# Switch to non-root user
-USER clickbom
-
-# Set secure environment variables
+# distroless runs as nonroot user by default (UID 65532)
+# Set environment
 ENV PATH="/usr/local/bin:$PATH" \
-    TEMP_DIR="/app/temp" \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    TEMP_DIR="/tmp"
 
-# Health check to ensure the container is working properly
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ps aux | grep -v grep | grep -q entrypoint || exit 1
-
-# Use absolute path for entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
-
-# Add security scanning metadata
-LABEL security.trivy.enabled="true" \
-      security.dockerfile.hadolint="true"
+# Run the application
+ENTRYPOINT ["/app/clickbom"]

@@ -1,23 +1,305 @@
 name: 💣 ClickBOM Tests
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  test_clickbom_github:
-    name: 💣 ClickBOM Tests
+  # Unit tests
+  test_unit:
+    name: 🧪 Unit Tests
     runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: 📦 Download dependencies
+        run: go mod download
+
+      - name: 🧪 Run unit tests
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+
+  # Integration tests
+  test_integration:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      # Mock S3 using LocalStack
+      localstack:
+        image: localstack/localstack:latest
+        env:
+          SERVICES: s3
+          DEFAULT_REGION: us-east-1
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "awslocal s3 ls"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Mock ClickHouse
+      clickhouse:
+        image: clickhouse/clickhouse-server:latest
+        ports:
+          - 8123:8123
+        options: >-
+          --health-cmd "wget --spider -q localhost:8123/ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
 
-      - name: ⚙️ Setup BATS
-        run: ./setup-bats.sh
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
 
-      - name: 📋 Check Tests
-        run: ./run-tests.sh --setup
+      - name: 📦 Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf awscliv2.zip aws/
 
-      - name: 🧪 Run Simple Tests
-        run: ./run-tests.sh --simple
+      - name: 📦 Install CycloneDX CLI
+        run: |
+          wget -O /tmp/cyclonedx "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/cyclonedx-linux-x64"
+          sudo mv /tmp/cyclonedx /usr/local/bin/cyclonedx
+          sudo chmod +x /usr/local/bin/cyclonedx
 
-      - name: 🧪 Run Advanced Tests
-        run: ./run-tests.sh --advanced
+      - name: ⚙️ Setup LocalStack S3
+        run: |
+          aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+
+      - name: 🧪 Run integration tests
+        run: go test -v -tags=integration ./test/integration/...
+        env:
+          AWS_ENDPOINT_URL: http://localhost:4566
+          CLICKHOUSE_URL: http://localhost:8123
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+
+  # Lint and format checks
+  test_lint:
+    name: 🔍 Lint & Format
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: 🔍 Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: 📝 Check formatting
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "Code is not formatted. Run 'gofmt -s -w .'"
+            gofmt -s -l .
+            exit 1
+          fi
+
+      - name: 🔒 Run gosec security scanner
+        uses: securego/gosec@master
+        with:
+          args: '-no-fail -fmt sarif -out results.sarif ./...'
+
+      - name: 📤 Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # Build tests
+  test_build:
+    name: 🏗️ Build Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: 🏗️ Build for ${{ matrix.goos }}/${{ matrix.goarch }}
+        run: |
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+          go build -v -o clickbom-${{ matrix.goos }}-${{ matrix.goarch }} \
+          ./cmd/clickbom
+
+      - name: 📤 Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: clickbom-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: clickbom-${{ matrix.goos }}-${{ matrix.goarch }}*
+
+  # Docker build test
+  test_docker:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: clickbom:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=test
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      - name: 🧪 Test Docker image
+        run: |
+          docker run --rm clickbom:test --version || true
+          docker run --rm clickbom:test --help || true
+
+  # End-to-end tests with real GitHub API
+  test_e2e:
+    name: 🎯 E2E Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: 🏗️ Build
+        run: go build -v -o clickbom ./cmd/clickbom
+
+      - name: 📦 Install dependencies
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          wget -O /tmp/cyclonedx "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/cyclonedx-linux-x64"
+          sudo mv /tmp/cyclonedx /usr/local/bin/cyclonedx
+          sudo chmod +x /usr/local/bin/cyclonedx
+
+      - name: 🧪 Run E2E test with GitHub
+        run: ./clickbom
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.TEST_S3_BUCKET }}
+          S3_KEY: test-e2e-${{ github.sha }}.json
+          SBOM_SOURCE: github
+          SBOM_FORMAT: cyclonedx
+
+  # Benchmarks
+  benchmark:
+    name: ⚡ Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: ⚡ Run benchmarks
+        run: go test -bench=. -benchmem -run=^$ ./... | tee benchmark.txt
+
+      - name: 📊 Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'go'
+          output-file-path: benchmark.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+
+  # Dependency vulnerability scan
+  test_security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: 🔍 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📤 Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: 🔍 Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...

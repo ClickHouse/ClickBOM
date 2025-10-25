@@ -5,6 +5,8 @@ import (
     "os"
     "regexp"
     "strings"
+
+	"github.com/ClickHouse/ClickBOM/internal/validation"
 )
 
 type Config struct {

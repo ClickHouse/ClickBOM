@@ -6,7 +6,7 @@ jobs:
   test_unit:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -34,7 +34,7 @@ jobs:
   test_integration:
     name: 🔗 Integration Tests
     runs-on: ubuntu-latest
-    
+
     services:
       # Mock S3 using LocalStack
       localstack:
@@ -105,7 +105,7 @@ jobs:
   test_lint:
     name: 🔍 Lint & Format
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -151,7 +151,7 @@ jobs:
         exclude:
           - goos: windows
             goarch: arm64
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -178,7 +178,7 @@ jobs:
   test_docker:
     name: 🐳 Docker Build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -209,7 +209,7 @@ jobs:
     name: 🎯 E2E Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -249,7 +249,7 @@ jobs:
     name: ⚡ Benchmarks
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -275,7 +275,7 @@ jobs:
   test_security:
     name: 🔒 Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5

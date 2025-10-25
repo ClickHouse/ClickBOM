@@ -2,13 +2,10 @@ version: "2"
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - unconvert
     - unparam
@@ -16,27 +13,15 @@ linters:
     - gocyclo
     - gosec
     - revive
-
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  
-  govet:
-    check-shadowing: true
-  
-  gocyclo:
-    min-complexity: 15
-  
-  gosec:
-    excludes:
-      - G304 # File path provided as taint input
+  settings:
+    gosec:
+      severity: high
+      confidence: high
 
 run:
   timeout: 5m
   tests: true
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0

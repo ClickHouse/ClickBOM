@@ -1,5 +1,6 @@
+# hadolint global ignore=DL3047,DL4001
 # Multi-stage build for Go application
-FROM golang:1.21.14-alpine3.19 AS builder
+FROM golang:1.25.3-alpine3.22 AS builder
 
 # Ensure base packages are up-to-date to pick up security fixes before installing build deps
 RUN apk update && apk upgrade --available --no-cache

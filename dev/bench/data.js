@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761430219517,
+  "lastUpdate": 1761430554934,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -96,6 +96,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "123212 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@clickhouse.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3568d114747f24bae3ddded8d321cd7f7da8787e",
+          "message": "chore(feature/go): Init (#51)\n\n* chore(feature/go): Init\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* go\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* Dockerfile\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* .golangci\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* validation not defined\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* regexp and strings not used\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* io undefined\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: lint\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: docker build\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: e2e\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: fix benchmark\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: fix benchmark\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: fix security check\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n---------\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>",
+          "timestamp": "2025-10-25T17:15:07-05:00",
+          "tree_id": "f6bac4f4dcda9a893c34e8aacb62502ac3de0d9c",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/3568d114747f24bae3ddded8d321cd7f7da8787e"
+        },
+        "date": 1761430554587,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9308,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "127689 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9308,
+            "unit": "ns/op",
+            "extra": "127689 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "127689 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "127689 times\n4 procs"
           }
         ]
       }

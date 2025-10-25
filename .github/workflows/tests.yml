@@ -2,7 +2,7 @@ name: 💣 ClickBOM Tests
 on: [push]
 permissions:
   security-events: write
-  contents: read
+  contents: write
 jobs:
   # Unit tests
   test_unit:

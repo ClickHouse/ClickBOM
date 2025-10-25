@@ -1,6 +1,6 @@
 //go:build integration
 
-package integration
+package storage
 
 import (
 	"os"

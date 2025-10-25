@@ -1,13 +1,11 @@
 //go:build integration
 
-package integration
+package storage
 
 import (
 	"context"
 	"os"
 	"testing"
-
-	"github.com/ClickHouse/ClickBOM/internal/storage"
 )
 
 func TestS3Integration(t *testing.T) {

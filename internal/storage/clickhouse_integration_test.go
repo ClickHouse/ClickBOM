@@ -1,6 +1,6 @@
 //go:build integration
 
-package integration
+package storage
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/ClickHouse/ClickBOM/internal/config"
-	"github.com/ClickHouse/ClickBOM/internal/storage"
 )
 
 func TestClickHouseIntegration(t *testing.T) {

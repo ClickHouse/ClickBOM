@@ -72,13 +72,6 @@ jobs:
           go-version: '1.21'
           cache: true
 
-      - name: 📦 Install AWS CLI
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
-          rm -rf awscliv2.zip aws/
-
       - name: 📦 Install CycloneDX CLI
         run: |
           wget -O /tmp/cyclonedx "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/cyclonedx-linux-x64"

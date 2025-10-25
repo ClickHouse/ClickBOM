@@ -115,7 +115,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   clickbom:
     name: ClickBOM
@@ -158,7 +158,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   clickbom:
     name: ClickBOM
@@ -205,7 +205,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   clickbom:
     name: ClickBOM
@@ -260,7 +260,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   clickbom:
     strategy:
@@ -324,7 +324,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   clickbom:
     strategy:
@@ -376,7 +376,7 @@ jobs:
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
           clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
-  
+
   clickbom_merge:
     needs: clickbom
     name: ClickBOM Merge
@@ -430,7 +430,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   clickbom_merge:
     name: ClickBOM Merge with Filters
@@ -492,7 +492,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   clickbom:
     name: ClickBOM

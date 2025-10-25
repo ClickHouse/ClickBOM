@@ -11,7 +11,7 @@ jobs:
   docker_security_scan:
     name: 🔍 Container Security Scan
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: read
       security-events: write
@@ -53,7 +53,7 @@ jobs:
           echo "# 🐳 Container Security Report" > security-report.md
           echo "Generated on: $(date)" >> security-report.md
           echo "" >> security-report.md
-          
+
           # Trivy Results Summary
           echo "## 🛡️ Trivy Scan Results" >> security-report.md
           if [ -f "trivy-results.json" ]; then
@@ -61,7 +61,7 @@ jobs:
             HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-results.json 2>/dev/null || echo "0")
             MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-results.json 2>/dev/null || echo "0")
             LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length' trivy-results.json 2>/dev/null || echo "0")
-            
+
             echo "- 🔴 Critical: $CRITICAL" >> security-report.md
             echo "- 🟠 High: $HIGH" >> security-report.md
             echo "- 🟡 Medium: $MEDIUM" >> security-report.md
@@ -69,7 +69,7 @@ jobs:
           else
             echo "- No Trivy results found" >> security-report.md
           fi
-          
+
           echo "" >> security-report.md
           echo "## 📋 Recommendations" >> security-report.md
           echo "1. Review critical and high severity vulnerabilities" >> security-report.md
@@ -93,7 +93,7 @@ jobs:
           if [ -f "trivy-results.json" ]; then
             CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-results.json 2>/dev/null || echo "0")
             echo "Critical vulnerabilities found: $CRITICAL"
-            
+
             if [ "$CRITICAL" -gt 0 ]; then
               echo "::error::Found $CRITICAL critical vulnerabilities in the container image"
               echo "::error::Please review and fix critical vulnerabilities before deploying"
@@ -110,7 +110,7 @@ jobs:
 
     name: 🐋 Dockerfile Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -164,7 +164,7 @@ jobs:
     name: 📋 Generate Container SBOM
     runs-on: ubuntu-latest
     needs: docker_security_scan
-    
+
     steps:
       - name: 🧾 Checkout
         uses: actions/checkout@v5
@@ -184,7 +184,7 @@ jobs:
         run: |
           # Install Docker Scout CLI
           curl -sSfL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh | sh -s --
-          
+
           # Generate SBOM
           docker scout sbom clickbom:latest --format spdx --output container-sbom-scout.spdx.json || echo "Docker Scout SBOM generation failed"
 
@@ -202,7 +202,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [docker_security_scan, dockerfile_security_scan, container_sbom]
     if: always()
-    
+
     steps:
       - name: 📥 Download Security Artifacts
         uses: actions/download-artifact@v5
@@ -221,14 +221,14 @@ jobs:
           echo "# 🔒 ClickBOM Container Security Summary" >> $GITHUB_STEP_SUMMARY
           echo "**Scan Date:** $(date)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -f "security-results/trivy-results.json" ]; then
             echo "## 🛡️ Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
             CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' security-results/trivy-results.json 2>/dev/null || echo "0")
             HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' security-results/trivy-results.json 2>/dev/null || echo "0")
             MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' security-results/trivy-results.json 2>/dev/null || echo "0")
             LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length' security-results/trivy-results.json 2>/dev/null || echo "0")
-            
+
             echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
             echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
@@ -236,14 +236,14 @@ jobs:
             echo "| 🟡 Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
             echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            
+
             if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
               echo "⚠️ **Action Required:** Critical or High severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
             else
               echo "✅ **Good News:** No critical or high severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Artifacts Generated" >> $GITHUB_STEP_SUMMARY
           echo "- Container vulnerability scan results (SARIF format)" >> $GITHUB_STEP_SUMMARY

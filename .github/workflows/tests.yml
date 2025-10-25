@@ -1,0 +1,23 @@
+name: 💣 ClickBOM Tests
+on: [push]
+
+jobs:
+  test_clickbom_github:
+    name: 💣 ClickBOM Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v5
+
+      - name: ⚙️ Setup BATS
+        run: ./setup-bats.sh
+
+      - name: 📋 Check Tests
+        run: ./run-tests.sh --setup
+
+      - name: 🧪 Run Simple Tests
+        run: ./run-tests.sh --simple
+
+      - name: 🧪 Run Advanced Tests
+        run: ./run-tests.sh --advanced

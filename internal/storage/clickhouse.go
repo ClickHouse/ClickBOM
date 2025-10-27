@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/ClickBOM/internal/config"
+	"github.com/ClickHouse/ClickBOM/internal/sbom"
 	"github.com/ClickHouse/ClickBOM/pkg/logger"
 )
 
@@ -239,6 +240,26 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 		return nil
 	}
 
+	// Load license mapper
+	mapper, err := sbom.NewLicenseMapper("/app/license-mappings.json")
+	if err != nil {
+		logger.Warning("Failed to load license mappings: %v (continuing without mapping)", err)
+		// Continue without mapping
+	} else {
+		// Apply license mappings
+		logger.Info("Applying license mappings...")
+		for i := range components {
+			name := getStringField(components[i], "name", "unknown")
+			license := extractLicense(components[i])
+
+			// Map the license
+			mappedLicense := mapper.MapLicense(name, license)
+
+			// Store as string field for TSV export
+			components[i]["license"] = mappedLicense
+		}
+	}
+
 	logger.Info("Found %d components to insert", len(components))
 
 	// Build TSV data
@@ -246,7 +267,7 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 	for _, comp := range components {
 		name := getStringField(comp, "name", "unknown")
 		version := getStringField(comp, "version", "unknown")
-		license := extractLicense(comp)
+		license := getStringField(comp, "license", "unknown")
 		source := getStringField(comp, "source", "unknown")
 
 		fmt.Fprintf(&tsvData, "%s\t%s\t%s\t%s\n", name, version, license, source)
@@ -289,7 +310,7 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 	return nil
 }
 
-func getStringField(m map[string]interface{}, key, defaultVal string) string {
+func getStringField(m map[string]interface{}, key, defaultVal string) string { //nolint:unparam
 	if val, ok := m[key]; ok {
 		if str, ok := val.(string); ok {
 			return str

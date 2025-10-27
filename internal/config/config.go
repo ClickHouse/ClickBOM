@@ -54,6 +54,9 @@ type Config struct {
 	Include    string
 	Exclude    string
 	Debug      bool
+
+	// License mapping
+	LicenseMappingFile string
 }
 
 // LoadConfig loads configuration from environment variables.
@@ -97,12 +100,13 @@ func LoadConfig() (*Config, error) {
 		TruncateTable:      getEnvAsBool("TRUNCATE_TABLE", false),
 
 		// General
-		SBOMSource: getEnvOrDefault("SBOM_SOURCE", "github"),
-		SBOMFormat: getEnvOrDefault("SBOM_FORMAT", "cyclonedx"),
-		Merge:      getEnvAsBool("MERGE", false),
-		Include:    os.Getenv("INCLUDE"),
-		Exclude:    os.Getenv("EXCLUDE"),
-		Debug:      getEnvAsBool("DEBUG", false),
+		SBOMSource:         getEnvOrDefault("SBOM_SOURCE", "github"),
+		SBOMFormat:         getEnvOrDefault("SBOM_FORMAT", "cyclonedx"),
+		Merge:              getEnvAsBool("MERGE", false),
+		Include:            os.Getenv("INCLUDE"),
+		Exclude:            os.Getenv("EXCLUDE"),
+		Debug:              getEnvAsBool("DEBUG", false),
+		LicenseMappingFile: getEnvOrDefault("LICENSE_MAPPING_FILE", "/app/license-mappings.json"),
 	}
 
 	// Sanitize inputs

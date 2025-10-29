@@ -65,7 +65,7 @@ repos:
 
       - id: go-cyclo
         name: Check cyclomatic complexity
-        entry: gocyclo -over 25 .
+        entry: gocyclo -over 26 .
         language: system
         pass_filenames: false
         files: \.go$

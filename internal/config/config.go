@@ -33,6 +33,13 @@ type Config struct {
 	WizClientSecret string
 	WizReportID     string
 
+	// Trivy
+	TrivyImage        string
+	TrivyECRAccountID string
+	TrivyECRRegion    string
+	TrivyECRRoleARN   string
+	TrivyFormat       string
+
 	// AWS
 	AWSAccessKeyID     string
 	AWSSecretAccessKey string
@@ -91,6 +98,13 @@ func LoadConfig() (*Config, error) {
 		WizClientID:     os.Getenv("WIZ_CLIENT_ID"),
 		WizClientSecret: os.Getenv("WIZ_CLIENT_SECRET"),
 		WizReportID:     os.Getenv("WIZ_REPORT_ID"),
+
+		// Trivy
+		TrivyImage:        getEnvOrDefault("TRIVY_IMAGE", ""),
+		TrivyECRAccountID: getEnvOrDefault("TRIVY_ECR_ACCOUNT_ID", ""),
+		TrivyECRRegion:    getEnvOrDefault("TRIVY_ECR_REGION", "us-east-1"),
+		TrivyECRRoleARN:   getEnvOrDefault("TRIVY_ECR_ROLE_ARN", ""),
+		TrivyFormat:       getEnvOrDefault("TRIVY_FORMAT", "cyclonedx"),
 
 		// ClickHouse
 		ClickHouseURL:      os.Getenv("CLICKHOUSE_URL"),
@@ -171,6 +185,16 @@ func (c *Config) Validate() error {
 		}
 		if c.WizReportID == "" {
 			return fmt.Errorf("WIZ_REPORT_ID is required for Wiz source")
+		}
+	}
+
+	// Trivy validation
+	if c.SBOMSource == "trivy" {
+		if c.TrivyImage == "" {
+			return fmt.Errorf("TRIVY_IMAGE is required for Trivy source")
+		}
+		if c.TrivyFormat != "cyclonedx" && c.TrivyFormat != "spdxjson" {
+			return fmt.Errorf("TRIVY_FORMAT must be 'cyclonedx' or 'spdxjson'")
 		}
 	}
 

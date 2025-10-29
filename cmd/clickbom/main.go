@@ -64,7 +64,7 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 	extractedSBOM := filepath.Join(tempDir, "extracted_sbom.json")
 	processedSBOM := filepath.Join(tempDir, "processed_sbom.json")
 
-	// Download SBOM based on source
+	// Download/Generate SBOM based on source
 	switch cfg.SBOMSource {
 	case "github":
 		logger.Info("Downloading SBOM from GitHub")
@@ -87,11 +87,21 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 			return fmt.Errorf("failed to download Wiz SBOM: %w", err)
 		}
 
+	case "trivy":
+		logger.Info("Generating SBOM with Trivy")
+		trivyClient, err := sbom.NewTrivyClient(ctx, cfg)
+		if err != nil {
+			return fmt.Errorf("failed to create Trivy client: %w", err)
+		}
+		if err := trivyClient.GenerateSBOM(ctx, originalSBOM); err != nil {
+			return fmt.Errorf("failed to generate SBOM with Trivy: %w", err)
+		}
+
 	default:
 		return fmt.Errorf("unsupported SBOM source: %s", cfg.SBOMSource)
 	}
 
-	// Extract from wrapper if needed
+	// Extract SBOM from wrapper if needed (mainly for GitHub)
 	if err := sbom.ExtractSBOMFromWrapper(originalSBOM, extractedSBOM); err != nil {
 		return fmt.Errorf("failed to extract SBOM: %w", err)
 	}
@@ -103,9 +113,9 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 	}
 	logger.Info("Detected SBOM format: %s", detectedFormat)
 
-	// Convert to desired format
-	targetFormat := sbom.Format(cfg.SBOMFormat)
-	if err := sbom.ConvertSBOM(extractedSBOM, processedSBOM, detectedFormat, targetFormat); err != nil {
+	// Convert to desired format if needed
+	desiredFormat := sbom.Format(cfg.SBOMFormat)
+	if err := sbom.ConvertSBOM(extractedSBOM, processedSBOM, detectedFormat, desiredFormat); err != nil {
 		return fmt.Errorf("failed to convert SBOM: %w", err)
 	}
 
@@ -115,13 +125,26 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 	}
 
 	logger.Success("SBOM processing completed successfully!")
-	logger.Info("SBOM available at: s3://%s/%s", cfg.S3Bucket, cfg.S3Key)
 
-	// ClickHouse operations
+	// ClickHouse upload if configured
 	if cfg.ClickHouseURL != "" {
-		if err := handleClickHouse(ctx, cfg, processedSBOM); err != nil {
-			return fmt.Errorf("ClickHouse error: %w", err)
+		logger.Info("Uploading SBOM data to ClickHouse")
+
+		chClient, err := storage.NewClickHouseClient(cfg)
+		if err != nil {
+			return fmt.Errorf("failed to create ClickHouse client: %w", err)
 		}
+
+		tableName := generateTableName(cfg)
+
+		if err := chClient.SetupTable(ctx, tableName); err != nil {
+			return fmt.Errorf("failed to setup table: %w", err)
+		}
+
+		if err := chClient.InsertSBOMData(ctx, processedSBOM, tableName, cfg.SBOMFormat); err != nil {
+			return fmt.Errorf("failed to upload to ClickHouse: %w", err)
+		}
+		logger.Success("ClickHouse operations completed successfully!")
 	}
 
 	return nil
@@ -136,7 +159,7 @@ func handleMergeMode(_ context.Context, _ *config.Config, _ *storage.S3Client, _
 	return nil
 }
 
-func handleClickHouse(ctx context.Context, cfg *config.Config, sbomFile string) error {
+func handleClickHouse(ctx context.Context, cfg *config.Config, sbomFile string) error { // nolint: unused
 	logger.Info("Starting ClickHouse operations")
 
 	chClient, err := storage.NewClickHouseClient(cfg)

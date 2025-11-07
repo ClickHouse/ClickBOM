@@ -73,7 +73,7 @@ func ExtractSBOMFromWrapper(inputFile, outputFile string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
-
+	fmt.Printf("Data: %s\n", string(data))
 	var wrapper map[string]interface{}
 	if err := json.Unmarshal(data, &wrapper); err != nil {
 		return fmt.Errorf("failed to parse JSON: %w", err)

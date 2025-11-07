@@ -70,11 +70,8 @@ type Config struct {
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		// AWS (required)
-		AWSAccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		AWSRegion:          getEnvOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
-		S3Bucket:           os.Getenv("S3_BUCKET"),
-		S3Key:              getEnvOrDefault("S3_KEY", "sbom.json"),
+		S3Bucket: os.Getenv("S3_BUCKET"),
+		S3Key:    getEnvOrDefault("S3_KEY", "sbom.json"),
 
 		// GitHub
 		GitHubToken: os.Getenv("GITHUB_TOKEN"),
@@ -139,12 +136,6 @@ func LoadConfig() (*Config, error) {
 // Validate checks that all required configuration fields are set appropriately.
 func (c *Config) Validate() error {
 	// AWS is always required
-	if c.AWSAccessKeyID == "" {
-		return fmt.Errorf("AWS_ACCESS_KEY_ID is required")
-	}
-	if c.AWSSecretAccessKey == "" {
-		return fmt.Errorf("AWS_SECRET_ACCESS_KEY is required")
-	}
 	if c.S3Bucket == "" {
 		return fmt.Errorf("S3_BUCKET is required")
 	}

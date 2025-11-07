@@ -45,7 +45,7 @@ func run() error {
 	}()
 
 	// Initialize S3 client
-	s3Client, err := storage.NewS3Client(ctx, cfg.AWSAccessKeyID, cfg.AWSSecretAccessKey, cfg.AWSRegion)
+	s3Client, err := storage.NewS3Client(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}

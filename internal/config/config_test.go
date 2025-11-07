@@ -14,19 +14,15 @@ func TestLoadConfig(t *testing.T) {
 		{
 			name: "valid minimal config",
 			env: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "test-key",
-				"AWS_SECRET_ACCESS_KEY": "test-secret",
-				"S3_BUCKET":             "test-bucket",
-				"REPOSITORY":            "owner/repo",
+				"S3_BUCKET":  "test-bucket",
+				"REPOSITORY": "owner/repo",
 			},
 			wantErr: false,
 		},
 		{
 			name: "missing required field",
 			env: map[string]string{
-				"AWS_ACCESS_KEY_ID": "test-key",
-				// Missing AWS_SECRET_ACCESS_KEY
-				"S3_BUCKET":  "test-bucket",
+				// Missing S3_BUCKET
 				"REPOSITORY": "owner/repo",
 			},
 			wantErr: true,
@@ -34,10 +30,8 @@ func TestLoadConfig(t *testing.T) {
 		{
 			name: "invalid repository format",
 			env: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "test-key",
-				"AWS_SECRET_ACCESS_KEY": "test-secret",
-				"S3_BUCKET":             "test-bucket",
-				"REPOSITORY":            "invalid-repo", // No slash
+				"S3_BUCKET":  "test-bucket",
+				"REPOSITORY": "invalid-repo", // No slash
 			},
 			wantErr: true,
 		},
@@ -79,35 +73,29 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid github config",
 			config: &Config{
-				AWSAccessKeyID:     "key",
-				AWSSecretAccessKey: "secret",
-				S3Bucket:           "bucket",
-				Repository:         "owner/repo",
-				SBOMSource:         "github",
+				S3Bucket:   "bucket",
+				Repository: "owner/repo",
+				SBOMSource: "github",
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid mend config",
 			config: &Config{
-				AWSAccessKeyID:     "key",
-				AWSSecretAccessKey: "secret",
-				S3Bucket:           "bucket",
-				SBOMSource:         "mend",
-				MendEmail:          "test@example.com",
-				MendOrgUUID:        "123e4567-e89b-12d3-a456-426614174000",
-				MendUserKey:        "user-key",
-				MendProjectUUID:    "123e4567-e89b-12d3-a456-426614174001",
+				S3Bucket:        "bucket",
+				SBOMSource:      "mend",
+				MendEmail:       "test@example.com",
+				MendOrgUUID:     "123e4567-e89b-12d3-a456-426614174000",
+				MendUserKey:     "user-key",
+				MendProjectUUID: "123e4567-e89b-12d3-a456-426614174001",
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid mend config - missing email",
 			config: &Config{
-				AWSAccessKeyID:     "key",
-				AWSSecretAccessKey: "secret",
-				S3Bucket:           "bucket",
-				SBOMSource:         "mend",
+				S3Bucket:   "bucket",
+				SBOMSource: "mend",
 				// Missing MendEmail
 				MendOrgUUID:     "123e4567-e89b-12d3-a456-426614174000",
 				MendUserKey:     "user-key",

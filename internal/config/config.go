@@ -141,7 +141,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Repository required if not in merge mode and source is GitHub
-	if !c.Merge && c.SBOMSource != "mend" && c.SBOMSource != "wiz" {
+	if !c.Merge && c.SBOMSource != "mend" && c.SBOMSource != "wiz" && c.SBOMSource != "trivy" {
 		if c.Repository == "" {
 			return fmt.Errorf("REPOSITORY is required when not in merge mode")
 		}

@@ -1,5 +1,3 @@
-//go:build integration
-
 package storage
 
 import (
@@ -17,12 +15,7 @@ func TestS3Upload(t *testing.T) {
 	ctx := context.Background()
 
 	// Create S3 client
-	s3Client, err := storage.NewS3Client(
-		ctx,
-		"test",
-		"test",
-		"us-east-1",
-	)
+	s3Client, err := NewS3Client(ctx)
 	if err != nil {
 		t.Fatalf("Failed to create S3 client: %v", err)
 	}

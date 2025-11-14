@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -193,6 +194,11 @@ func generateTableName(cfg *config.Config) string {
 		return fmt.Sprintf("mend_%s", strings.ReplaceAll(uuid, "-", "_"))
 	case "wiz":
 		return fmt.Sprintf("wiz_%s", strings.ReplaceAll(cfg.WizReportID, "-", "_"))
+	case "trivy":
+		result := path.Base(cfg.TrivyImage)
+		replacer := strings.NewReplacer(":", "_", ".", "_", "-", "_")
+		result = replacer.Replace(result)
+		return fmt.Sprintf("trivy_%s", result)
 	default:
 		return "sbom_data"
 	}

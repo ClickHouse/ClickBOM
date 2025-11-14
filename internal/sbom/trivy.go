@@ -13,7 +13,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	cfg "github.com/ClickHouse/ClickBOM/internal/config"
@@ -26,6 +25,7 @@ type TrivyClient struct {
 	ecrAccountID string
 	ecrRegion    string
 	ecrRoleARN   string
+	externalID   string
 	format       string // "cyclonedx" or "spdxjson"
 	awsConfig    aws.Config
 }
@@ -33,14 +33,7 @@ type TrivyClient struct {
 // NewTrivyClient creates a new TrivyClient with the provided configuration.
 func NewTrivyClient(ctx context.Context, c *cfg.Config) (*TrivyClient, error) {
 	// Load default AWS config
-	awsConfig, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(c.AWSRegion),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			c.AWSAccessKeyID,
-			c.AWSSecretAccessKey,
-			"",
-		)),
-	)
+	awsConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
@@ -50,6 +43,7 @@ func NewTrivyClient(ctx context.Context, c *cfg.Config) (*TrivyClient, error) {
 		ecrAccountID: c.TrivyECRAccountID,
 		ecrRegion:    c.TrivyECRRegion,
 		ecrRoleARN:   c.TrivyECRRoleARN,
+		externalID:   c.TrivyECRExternalID,
 		format:       c.TrivyFormat,
 		awsConfig:    awsConfig,
 	}, nil
@@ -59,9 +53,6 @@ func NewTrivyClient(ctx context.Context, c *cfg.Config) (*TrivyClient, error) {
 func (t *TrivyClient) setupECRCredentials(ctx context.Context) error {
 	logger.Info("Setting up ECR credentials...")
 
-	var awsConfig aws.Config
-	var err error
-
 	// If cross-account role is specified, assume the role
 	if t.ecrRoleARN != "" {
 		logger.Info("Using cross-account role: %s", t.ecrRoleARN)
@@ -69,65 +60,51 @@ func (t *TrivyClient) setupECRCredentials(ctx context.Context) error {
 		// Create STS client with original credentials
 		stsClient := sts.NewFromConfig(t.awsConfig)
 
-		// Assume the role
-		assumeRoleOutput, err := stsClient.AssumeRole(ctx, &sts.AssumeRoleInput{
+		// Build AssumeRole input
+		assumeRoleInput := &sts.AssumeRoleInput{
 			RoleArn:         aws.String(t.ecrRoleARN),
 			RoleSessionName: aws.String(fmt.Sprintf("trivy-sbom-gen-%d", time.Now().Unix())),
-		})
+		}
+
+		// Add External ID if provided
+		if t.externalID != "" {
+			assumeRoleInput.ExternalId = aws.String(t.externalID)
+			logger.Info("Using external ID for role assumption")
+		}
+
+		// Assume the role
+		assumeRoleOutput, err := stsClient.AssumeRole(ctx, assumeRoleInput)
 		if err != nil {
 			return fmt.Errorf("failed to assume role %s: %w", t.ecrRoleARN, err)
 		}
 
 		logger.Success("Successfully assumed cross-account role")
 
-		// Create new config with assumed role credentials
-		awsConfig, err = config.LoadDefaultConfig(ctx,
-			config.WithRegion(t.ecrRegion),
-			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-				*assumeRoleOutput.Credentials.AccessKeyId,
-				*assumeRoleOutput.Credentials.SecretAccessKey,
-				*assumeRoleOutput.Credentials.SessionToken,
-			)),
-		)
+		// Set environment variables with assumed role credentials
+		err = os.Setenv("AWS_ACCESS_KEY_ID", *assumeRoleOutput.Credentials.AccessKeyId)
 		if err != nil {
-			return fmt.Errorf("failed to create config with assumed role credentials: %w", err)
+			return fmt.Errorf("failed to set AWS_ACCESS_KEY_ID: %w", err)
 		}
-	} else {
-		// Use original credentials but with ECR region
-		awsConfig, err = config.LoadDefaultConfig(ctx,
-			config.WithRegion(t.ecrRegion),
-			config.WithCredentialsProvider(t.awsConfig.Credentials),
-		)
+		err = os.Setenv("AWS_SECRET_ACCESS_KEY", *assumeRoleOutput.Credentials.SecretAccessKey)
 		if err != nil {
-			return fmt.Errorf("failed to create ECR config: %w", err)
+			return fmt.Errorf("failed to set AWS_SECRET_ACCESS_KEY: %w", err)
 		}
-	}
-
-	// Retrieve credentials and set environment variables for Trivy
-	creds, err := awsConfig.Credentials.Retrieve(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve credentials: %w", err)
-	}
-
-	// Trivy will use these AWS credentials directly for ECR authentication
-	// No Docker needed!
-	err = os.Setenv("AWS_ACCESS_KEY_ID", creds.AccessKeyID)
-	if err != nil {
-		return fmt.Errorf("failed to set AWS_ACCESS_KEY_ID: %w", err)
-	}
-	err = os.Setenv("AWS_SECRET_ACCESS_KEY", creds.SecretAccessKey)
-	if err != nil {
-		return fmt.Errorf("failed to set AWS_SECRET_ACCESS_KEY: %w", err)
-	}
-	if creds.SessionToken != "" {
-		err = os.Setenv("AWS_SESSION_TOKEN", creds.SessionToken)
+		err = os.Setenv("AWS_SESSION_TOKEN", *assumeRoleOutput.Credentials.SessionToken)
 		if err != nil {
 			return fmt.Errorf("failed to set AWS_SESSION_TOKEN: %w", err)
 		}
-	}
-	err = os.Setenv("AWS_REGION", t.ecrRegion)
-	if err != nil {
-		return fmt.Errorf("failed to set AWS_REGION: %w", err)
+		err = os.Setenv("AWS_REGION", t.ecrRegion)
+		if err != nil {
+			return fmt.Errorf("failed to set AWS_REGION: %w", err)
+		}
+
+		logger.Debug("ECR credentials set in environment variables")
+	} else if t.ecrRegion != "" {
+		err := os.Setenv("AWS_REGION", t.ecrRegion)
+		if err != nil {
+			return fmt.Errorf("failed to set AWS_REGION: %w", err)
+		}
+		logger.Info("Using current AWS credentials with region: %s", t.ecrRegion)
 	}
 
 	logger.Success("ECR credentials configured for Trivy")
@@ -222,6 +199,5 @@ func (t *TrivyClient) GenerateSBOM(ctx context.Context, outputFile string) error
 			logger.Info("Total packages found: %d", len(packages))
 		}
 	}
-
 	return nil
 }

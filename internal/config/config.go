@@ -34,11 +34,12 @@ type Config struct {
 	WizReportID     string
 
 	// Trivy
-	TrivyImage        string
-	TrivyECRAccountID string
-	TrivyECRRegion    string
-	TrivyECRRoleARN   string
-	TrivyFormat       string
+	TrivyImage         string
+	TrivyECRAccountID  string
+	TrivyECRRegion     string
+	TrivyECRRoleARN    string
+	TrivyECRExternalID string
+	TrivyFormat        string
 
 	// AWS
 	AWSAccessKeyID     string
@@ -97,11 +98,12 @@ func LoadConfig() (*Config, error) {
 		WizReportID:     os.Getenv("WIZ_REPORT_ID"),
 
 		// Trivy
-		TrivyImage:        getEnvOrDefault("TRIVY_IMAGE", ""),
-		TrivyECRAccountID: getEnvOrDefault("TRIVY_ECR_ACCOUNT_ID", ""),
-		TrivyECRRegion:    getEnvOrDefault("TRIVY_ECR_REGION", "us-east-1"),
-		TrivyECRRoleARN:   getEnvOrDefault("TRIVY_ECR_ROLE_ARN", ""),
-		TrivyFormat:       getEnvOrDefault("TRIVY_FORMAT", "cyclonedx"),
+		TrivyImage:         getEnvOrDefault("TRIVY_IMAGE", ""),
+		TrivyECRAccountID:  getEnvOrDefault("TRIVY_ECR_ACCOUNT_ID", ""),
+		TrivyECRRegion:     getEnvOrDefault("TRIVY_ECR_REGION", "us-east-1"),
+		TrivyECRRoleARN:    getEnvOrDefault("TRIVY_ECR_ROLE_ARN", ""),
+		TrivyECRExternalID: getEnvOrDefault("TRIVY_ECR_EXTERNAL_ID", ""),
+		TrivyFormat:        getEnvOrDefault("TRIVY_FORMAT", "cyclonedx"),
 
 		// ClickHouse
 		ClickHouseURL:      os.Getenv("CLICKHOUSE_URL"),

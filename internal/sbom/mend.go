@@ -170,7 +170,6 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 		"reportType":             "cycloneDX_1_5",
 		"format":                 "json",
 		"includeVulnerabilities": false,
-		"maxDepthLevel":          0,
 	}
 
 	// Add scope
@@ -187,6 +186,7 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 			uuids := strings.Split(m.projectUUIDs, ",")
 			payload["projectUuids"] = uuids
 		}
+		payload["maxDepthLevel"] = 0
 		url = fmt.Sprintf("%s/api/v3.0/applications/%s/dependencies/reports/SBOM", m.baseURL, m.productUUID)
 	case m.orgScopeUUID != "":
 		payload["scopeType"] = "organization"

@@ -33,6 +33,14 @@ type Config struct {
 	WizClientSecret string
 	WizReportID     string
 
+	// Trivy
+	TrivyImage         string
+	TrivyECRAccountID  string
+	TrivyECRRegion     string
+	TrivyECRRoleARN    string
+	TrivyECRExternalID string
+	TrivyFormat        string
+
 	// AWS
 	AWSAccessKeyID     string
 	AWSSecretAccessKey string
@@ -63,11 +71,8 @@ type Config struct {
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		// AWS (required)
-		AWSAccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		AWSRegion:          getEnvOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
-		S3Bucket:           os.Getenv("S3_BUCKET"),
-		S3Key:              getEnvOrDefault("S3_KEY", "sbom.json"),
+		S3Bucket: os.Getenv("S3_BUCKET"),
+		S3Key:    getEnvOrDefault("S3_KEY", "sbom.json"),
 
 		// GitHub
 		GitHubToken: os.Getenv("GITHUB_TOKEN"),
@@ -91,6 +96,14 @@ func LoadConfig() (*Config, error) {
 		WizClientID:     os.Getenv("WIZ_CLIENT_ID"),
 		WizClientSecret: os.Getenv("WIZ_CLIENT_SECRET"),
 		WizReportID:     os.Getenv("WIZ_REPORT_ID"),
+
+		// Trivy
+		TrivyImage:         getEnvOrDefault("TRIVY_IMAGE", ""),
+		TrivyECRAccountID:  getEnvOrDefault("TRIVY_ECR_ACCOUNT_ID", ""),
+		TrivyECRRegion:     getEnvOrDefault("TRIVY_ECR_REGION", "us-east-1"),
+		TrivyECRRoleARN:    getEnvOrDefault("TRIVY_ECR_ROLE_ARN", ""),
+		TrivyECRExternalID: getEnvOrDefault("TRIVY_ECR_EXTERNAL_ID", ""),
+		TrivyFormat:        getEnvOrDefault("TRIVY_FORMAT", "cyclonedx"),
 
 		// ClickHouse
 		ClickHouseURL:      os.Getenv("CLICKHOUSE_URL"),
@@ -125,18 +138,12 @@ func LoadConfig() (*Config, error) {
 // Validate checks that all required configuration fields are set appropriately.
 func (c *Config) Validate() error {
 	// AWS is always required
-	if c.AWSAccessKeyID == "" {
-		return fmt.Errorf("AWS_ACCESS_KEY_ID is required")
-	}
-	if c.AWSSecretAccessKey == "" {
-		return fmt.Errorf("AWS_SECRET_ACCESS_KEY is required")
-	}
 	if c.S3Bucket == "" {
 		return fmt.Errorf("S3_BUCKET is required")
 	}
 
 	// Repository required if not in merge mode and source is GitHub
-	if !c.Merge && c.SBOMSource != "mend" && c.SBOMSource != "wiz" {
+	if !c.Merge && c.SBOMSource != "mend" && c.SBOMSource != "wiz" && c.SBOMSource != "trivy" {
 		if c.Repository == "" {
 			return fmt.Errorf("REPOSITORY is required when not in merge mode")
 		}
@@ -171,6 +178,16 @@ func (c *Config) Validate() error {
 		}
 		if c.WizReportID == "" {
 			return fmt.Errorf("WIZ_REPORT_ID is required for Wiz source")
+		}
+	}
+
+	// Trivy validation
+	if c.SBOMSource == "trivy" {
+		if c.TrivyImage == "" {
+			return fmt.Errorf("TRIVY_IMAGE is required for Trivy source")
+		}
+		if c.TrivyFormat != "cyclonedx" && c.TrivyFormat != "spdxjson" {
+			return fmt.Errorf("TRIVY_FORMAT must be 'cyclonedx' or 'spdxjson'")
 		}
 	}
 

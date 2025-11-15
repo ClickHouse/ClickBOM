@@ -2,6 +2,7 @@
 package sbom
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -172,17 +173,22 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 	}
 
 	// Add scope
+	var url string
 	switch {
 	case m.projectUUID != "":
 		payload["scopeType"] = "project"
 		payload["scopeUuid"] = m.projectUUID
-		uuids := strings.Split(m.projectUUIDs, ",")
-		payload["projectUuids"] = uuids
+		// uuids := strings.Split(m.projectUUIDs, ",")
+		// payload["projectUuids"] = uuids
+		url = fmt.Sprintf("%s/api/v3.0/projects/%s/dependencies/reports/SBOM", m.baseURL, m.projectUUID)
 	case m.productUUID != "":
-		payload["scopeType"] = "product"
-		payload["scopeUuid"] = m.productUUID
-		uuids := strings.Split(m.projectUUIDs, ",")
-		payload["projectUuids"] = uuids
+		// if len(m.projectUUIDs) != 0 {
+		// 	uuids := strings.Split(m.projectUUIDs, ",")
+		// 	payload["projectUuids"] = uuids
+		// }
+		payload["projectUuids"] = []string{m.projectUUID}
+		payload["maxDepthLevel"] = 0
+		url = fmt.Sprintf("%s/api/v3.0/applications/%s/dependencies/reports/SBOM", m.baseURL, m.productUUID)
 	case m.orgScopeUUID != "":
 		payload["scopeType"] = "organization"
 		payload["scopeUuid"] = m.orgScopeUUID
@@ -192,9 +198,6 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
-
-	url := fmt.Sprintf("%s/api/v3.0/projects/%s/dependencies/reports/SBOM",
-		m.baseURL, m.projectUUID)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payloadBytes))
 	if err != nil {
@@ -360,23 +363,54 @@ func (m *MendClient) downloadReport(ctx context.Context, reportUUID, outputFile 
 		return fmt.Errorf("download failed (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	// Create output file
-	outFile, err := os.Create(outputFile)
+	// After getting the response from Mend API
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
+		return fmt.Errorf("failed to read response: %w", err)
 	}
-	defer func() {
-		if err := outFile.Close(); err != nil {
-			logger.Warning("Failed to close file: %v", err)
+
+	// Check if response is a ZIP file (starts with "PK")
+	if len(body) >= 2 && body[0] == 0x50 && body[1] == 0x4B {
+		// It's a ZIP file, extract it
+		zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		if err != nil {
+			return fmt.Errorf("failed to read ZIP: %w", err)
 		}
-	}()
 
-	// Copy response to file
-	written, err := io.Copy(outFile, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		// Find and read the JSON file inside
+		for _, file := range zipReader.File {
+			if strings.HasSuffix(file.Name, ".json") {
+				rc, err := file.Open()
+				if err != nil {
+					return fmt.Errorf("failed to open file in ZIP: %w", err)
+				}
+				body, err = io.ReadAll(rc)
+				if err != nil {
+					return fmt.Errorf("failed to read file in ZIP: %w", err)
+				}
+				err = rc.Close()
+				if err != nil {
+					return fmt.Errorf("failed to close file in ZIP: %w", err)
+				}
+				// Create output file
+				outFile, err := os.Create(outputFile)
+				if err != nil {
+					return fmt.Errorf("failed to create output file: %w", err)
+				}
+				defer func() {
+					if err := outFile.Close(); err != nil {
+						logger.Warning("Failed to close file: %v", err)
+					}
+				}()
+				// Copy response to file
+				written, err := io.Copy(outFile, bytes.NewReader(body))
+				if err != nil {
+					return fmt.Errorf("failed to write file: %w", err)
+				}
+				logger.Success("Mend SBOM downloaded successfully (%d bytes)", written)
+				break
+			}
+		}
 	}
-
-	logger.Success("Mend SBOM downloaded successfully (%d bytes)", written)
 	return nil
 }

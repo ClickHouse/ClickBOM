@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3047,DL4001
+# hadolint global ignore=DL3047,DL4001,DL4006
 # Multi-stage build for Go application
 FROM golang:1.25.3-alpine3.22 AS builder
 
@@ -44,6 +44,12 @@ RUN apk add --no-cache curl unzip && \
 RUN wget -O /cyclonedx "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/cyclonedx-linux-x64" && \
     chmod +x /cyclonedx
 
+# Install Trivy
+# Download the static binary directly since we're using distroless
+RUN TRIVY_VERSION=$(wget -qO- "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/') && \
+    wget -qO- "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" | tar -xzf - -C /usr/local/bin trivy && \
+    chmod +x /usr/local/bin/trivy
+
 # Runtime stage - Distroless
 FROM gcr.io/distroless/static-debian12:nonroot
 
@@ -56,6 +62,7 @@ LABEL maintainer="ClickHouse Security Team" \
 COPY --from=tools /usr/local/aws-cli /usr/local/aws-cli
 COPY --from=tools /usr/local/bin/aws /usr/local/bin/aws
 COPY --from=tools /cyclonedx /usr/local/bin/cyclonedx
+COPY --from=tools /usr/local/bin/trivy /usr/local/bin/trivy
 
 # Copy the binary from builder
 COPY --from=builder /build/clickbom /app/clickbom
@@ -69,7 +76,8 @@ WORKDIR /app
 # distroless runs as nonroot user by default (UID 65532)
 # Set environment
 ENV PATH="/usr/local/bin:$PATH" \
-    TEMP_DIR="/tmp"
+    TEMP_DIR="/tmp" \
+    TRIVY_CACHE_DIR="/tmp/.trivy"
 
 # Run the application
 ENTRYPOINT ["/app/clickbom"]

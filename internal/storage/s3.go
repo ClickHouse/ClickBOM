@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
+
+	// "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/ClickHouse/ClickBOM/pkg/logger"
@@ -21,15 +24,8 @@ type S3Client struct {
 }
 
 // NewS3Client creates a new S3Client with the provided AWS credentials and region.
-func NewS3Client(ctx context.Context, accessKeyID, secretAccessKey, region string) (*S3Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			accessKeyID,
-			secretAccessKey,
-			"",
-		)),
-	)
+func NewS3Client(ctx context.Context) (*S3Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
@@ -133,4 +129,37 @@ func (s *S3Client) ListObjects(ctx context.Context, bucket, prefix string) ([]st
 
 	logger.Info("Found %d objects in S3", len(keys))
 	return keys, nil
+}
+
+// DownloadAll downloads all files from S3 bucket to local directory.
+func (s *S3Client) DownloadAll(ctx context.Context, bucket, prefix, localDir string) ([]string, error) {
+	logger.Info("Downloading all files from s3://%s/%s", bucket, prefix)
+
+	// List all objects
+	keys, err := s.ListObjects(ctx, bucket, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	downloadedFiles := make([]string, 0)
+
+	for _, key := range keys {
+		// Skip directories (keys ending with /)
+		if strings.HasSuffix(key, "/") {
+			continue
+		}
+
+		filename := filepath.Base(key)
+		localPath := filepath.Join(localDir, filename)
+
+		if err := s.Download(ctx, bucket, key, localPath); err != nil {
+			logger.Warning("Failed to download %s: %v", key, err)
+			continue
+		}
+
+		downloadedFiles = append(downloadedFiles, localPath)
+	}
+
+	logger.Info("Downloaded %d files", len(downloadedFiles))
+	return downloadedFiles, nil
 }

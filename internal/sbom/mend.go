@@ -170,7 +170,7 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 		"reportType":             "cycloneDX_1_5",
 		"format":                 "json",
 		"includeVulnerabilities": false,
-		"maxDepthLevel":          10,
+		"maxDepthLevel":          5,
 	}
 
 	// Add scope

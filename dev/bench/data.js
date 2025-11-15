@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763182004759,
+  "lastUpdate": 1763182327375,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -1536,6 +1536,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "127818 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@clickhouse.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d9247c392fc47c00bb929fa8c2e824fc440f7e1a",
+          "message": "chore(feature/go): Trivy Integration (#55)\n\n* chore(feature/go): Trivy Integration\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(debug): extract from wrapper function\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(debug): extract json from zip\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(debug): remove debug print of sbom\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(aws): Some inputs are not longer required\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(aws): Some inputs are not longer required\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: add trivy to config validation\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: add trivy to config validation\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: add trivy to config validation\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: ecr auth\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: trivy clickhouse table name\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: ability to do application scope reports\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: i don't think org uuid is always required\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: if no projectUuids are provided\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: mend-project-uuids\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: stuff\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: lint\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n---------\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>",
+          "timestamp": "2025-11-14T23:51:21-05:00",
+          "tree_id": "34213c278ec752eedaf0980f45cfe74080d6ca5c",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/d9247c392fc47c00bb929fa8c2e824fc440f7e1a"
+        },
+        "date": 1763182326950,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9284,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "127168 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9284,
+            "unit": "ns/op",
+            "extra": "127168 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "127168 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "127168 times\n4 procs"
           }
         ]
       }

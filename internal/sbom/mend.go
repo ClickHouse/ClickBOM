@@ -173,17 +173,18 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 	}
 
 	// Add scope
+	var url string
 	switch {
 	case m.projectUUID != "":
 		payload["scopeType"] = "project"
 		payload["scopeUuid"] = m.projectUUID
 		uuids := strings.Split(m.projectUUIDs, ",")
 		payload["projectUuids"] = uuids
+		url = fmt.Sprintf("%s/api/v3.0/projects/%s/dependencies/reports/SBOM", m.baseURL, m.projectUUID)
 	case m.productUUID != "":
-		payload["scopeType"] = "product"
-		payload["scopeUuid"] = m.productUUID
 		uuids := strings.Split(m.projectUUIDs, ",")
 		payload["projectUuids"] = uuids
+		url = fmt.Sprintf("%s/api/v3.0/applications/%s/dependencies/reports/SBOM", m.baseURL, m.productUUID)
 	case m.orgScopeUUID != "":
 		payload["scopeType"] = "organization"
 		payload["scopeUuid"] = m.orgScopeUUID
@@ -193,9 +194,6 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
-
-	url := fmt.Sprintf("%s/api/v3.0/projects/%s/dependencies/reports/SBOM",
-		m.baseURL, m.projectUUID)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payloadBytes))
 	if err != nil {

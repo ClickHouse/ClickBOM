@@ -154,6 +154,9 @@ func (c *Config) Validate() error {
 		if c.MendEmail == "" {
 			return fmt.Errorf("MEND_EMAIL is required for Mend source")
 		}
+		if c.MendOrgUUID == "" {
+			return fmt.Errorf("MEND_ORG_UUID is required for Mend source")
+		}
 		if c.MendUserKey == "" {
 			return fmt.Errorf("MEND_USER_KEY is required for Mend source")
 		}

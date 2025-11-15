@@ -114,7 +114,7 @@ func DeduplicateComponents(components []map[string]interface{}) []map[string]int
 	for _, comp := range components {
 		name, _ := comp["name"].(string)
 		if name == "" {
-			name = "unknown"
+			name = "unknown" // nolint:goconst
 		}
 
 		version, _ := comp["version"].(string)

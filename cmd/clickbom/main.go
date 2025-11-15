@@ -145,17 +145,109 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 		if err := chClient.InsertSBOMData(ctx, processedSBOM, tableName, cfg.SBOMFormat); err != nil {
 			return fmt.Errorf("failed to upload to ClickHouse: %w", err)
 		}
+
 		logger.Success("ClickHouse operations completed successfully!")
 	}
 
 	return nil
 }
 
-func handleMergeMode(_ context.Context, _ *config.Config, _ *storage.S3Client, _ string) error {
+func handleMergeMode(ctx context.Context, cfg *config.Config, s3Client *storage.S3Client, tempDir string) error {
 	logger.Info("Running in MERGE mode - merging all CycloneDX SBOMs from S3")
 
-	// Implementation for merge mode...
-	// This would involve downloading all SBOMs from S3, merging them, and uploading
+	// Create download directory
+	downloadDir := filepath.Join(tempDir, "downloads")
+	if err := os.MkdirAll(downloadDir, 0755); err != nil {
+		return fmt.Errorf("failed to create download directory: %w", err)
+	}
+
+	// Download all files from S3
+	downloadedFiles, err := s3Client.DownloadAll(ctx, cfg.S3Bucket, "", downloadDir)
+	if err != nil {
+		return fmt.Errorf("failed to download files from S3: %w", err)
+	}
+
+	logger.Info("Downloaded %d files from S3", len(downloadedFiles))
+
+	if len(downloadedFiles) == 0 {
+		return fmt.Errorf("no files found in S3 bucket: %s", cfg.S3Bucket)
+	}
+
+	// Filter and validate CycloneDX SBOMs
+	cyclonedxFiles := make([]string, 0)
+
+	for _, file := range downloadedFiles {
+		filename := filepath.Base(file)
+
+		// Apply include/exclude filters
+		if !sbom.ShouldIncludeFile(filename, cfg.Include, cfg.Exclude) {
+			logger.Debug("Skipping %s due to include/exclude filters", filename)
+			continue
+		}
+
+		// Check if file is valid CycloneDX
+		format, err := sbom.DetectSBOMFormat(file)
+		if err != nil {
+			logger.Warning("Failed to detect format for %s: %v", filename, err)
+			continue
+		}
+
+		if format != sbom.FormatCycloneDX {
+			logger.Debug("Skipping %s: not CycloneDX format (detected: %s)", filename, format)
+			continue
+		}
+
+		cyclonedxFiles = append(cyclonedxFiles, file)
+		logger.Debug("Added %s to merge list", filename)
+	}
+
+	logger.Info("Found %d valid CycloneDX SBOMs to merge", len(cyclonedxFiles))
+
+	if len(cyclonedxFiles) == 0 {
+		return fmt.Errorf("no valid CycloneDX SBOMs found after filtering")
+	}
+
+	// Merge all SBOMs
+	mergedSBOM := filepath.Join(tempDir, "merged_sbom.json")
+	if err := sbom.MergeSBOMs(cyclonedxFiles, mergedSBOM); err != nil {
+		return fmt.Errorf("failed to merge SBOMs: %w", err)
+	}
+
+	// Convert to desired format if needed
+	finalSBOM := filepath.Join(tempDir, "final_sbom.json")
+	desiredFormat := sbom.Format(cfg.SBOMFormat)
+	if err := sbom.ConvertSBOM(mergedSBOM, finalSBOM, sbom.FormatCycloneDX, desiredFormat); err != nil {
+		return fmt.Errorf("failed to convert merged SBOM: %w", err)
+	}
+
+	// Upload merged SBOM back to S3
+	if err := s3Client.Upload(ctx, finalSBOM, cfg.S3Bucket, cfg.S3Key, cfg.SBOMFormat); err != nil {
+		return fmt.Errorf("failed to upload merged SBOM: %w", err)
+	}
+
+	logger.Success("SBOM merging and upload completed successfully!")
+
+	// ClickHouse upload if configured
+	if cfg.ClickHouseURL != "" {
+		logger.Info("Uploading merged SBOM data to ClickHouse")
+
+		chClient, err := storage.NewClickHouseClient(cfg)
+		if err != nil {
+			return fmt.Errorf("failed to create ClickHouse client: %w", err)
+		}
+
+		tableName := generateTableName(cfg)
+
+		if err := chClient.SetupTable(ctx, tableName); err != nil {
+			return fmt.Errorf("failed to setup table: %w", err)
+		}
+
+		if err := chClient.InsertSBOMData(ctx, finalSBOM, tableName, cfg.SBOMFormat); err != nil {
+			return fmt.Errorf("failed to upload to ClickHouse: %w", err)
+		}
+
+		logger.Success("ClickHouse operations completed successfully!")
+	}
 
 	return nil
 }

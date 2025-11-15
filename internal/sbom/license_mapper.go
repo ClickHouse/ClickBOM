@@ -34,7 +34,7 @@ func NewLicenseMapper(mappingFile string) (*LicenseMapper, error) {
 // MapLicense maps an unknown license to a known one, or returns the original
 func (m *LicenseMapper) MapLicense(componentName, license string) string {
 	// If license is already known, return it
-	if license != "" && license != "unknown" && license != "null" {
+	if license != "" && license != "unknown" && license != "null" { // nolint:goconst
 		return license
 	}
 

@@ -276,7 +276,7 @@ func handleClickHouse(ctx context.Context, cfg *config.Config, sbomFile string) 
 
 func generateTableName(cfg *config.Config) string {
 	if cfg.Merge {
-		return strings.ReplaceAll(cfg.S3Key, ".", "_")
+		return fmt.Sprintf("merged_%s", strings.ReplaceAll(cfg.S3Key, ".", "_"))
 	}
 	switch cfg.SBOMSource {
 	case "github":

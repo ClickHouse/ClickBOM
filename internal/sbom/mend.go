@@ -182,8 +182,10 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 		payload["projectUuids"] = uuids
 		url = fmt.Sprintf("%s/api/v3.0/projects/%s/dependencies/reports/SBOM", m.baseURL, m.projectUUID)
 	case m.productUUID != "":
-		uuids := strings.Split(m.projectUUIDs, ",")
-		payload["projectUuids"] = uuids
+		if len(m.projectUUIDs) != 0 {
+			uuids := strings.Split(m.projectUUIDs, ",")
+			payload["projectUuids"] = uuids
+		}
 		url = fmt.Sprintf("%s/api/v3.0/applications/%s/dependencies/reports/SBOM", m.baseURL, m.productUUID)
 	case m.orgScopeUUID != "":
 		payload["scopeType"] = "organization"

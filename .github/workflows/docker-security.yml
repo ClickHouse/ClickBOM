@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: 🧾 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🔨 Build Docker Image
         run: |
@@ -113,7 +113,7 @@ jobs:
     
     steps:
       - name: 🧾 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🔍 Run Hadolint (Dockerfile Linter)
         uses: hadolint/hadolint-action@v3.3.0
@@ -167,7 +167,7 @@ jobs:
     
     steps:
       - name: 🧾 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🔨 Build Docker Image
         run: |

@@ -36,6 +36,7 @@
   "actions/setup-node": "MIT",
   "actions/setup-python": "MIT",
   "actions/upload-artifact": "MIT",
+  "aiohappyeyeballs-2.6.1-py3-none-any.whl": "PSF-2.0",
   "anthropic": "MIT",
   "anthropics/claude-code-action": "MIT",
   "apache-arrow": "Apache-2.0",

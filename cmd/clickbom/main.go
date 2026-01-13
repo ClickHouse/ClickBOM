@@ -179,6 +179,12 @@ func handleMergeMode(ctx context.Context, cfg *config.Config, s3Client *storage.
 	for _, file := range downloadedFiles {
 		filename := filepath.Base(file)
 
+		// Skip previously merged SBOMs to prevent re-merging
+		if strings.HasPrefix(filename, "merged_") {
+			logger.Debug("Skipping previously merged SBOM: %s", filename)
+			continue
+		}
+
 		// Apply include/exclude filters
 		if !sbom.ShouldIncludeFile(filename, cfg.Include, cfg.Exclude) {
 			logger.Debug("Skipping %s due to include/exclude filters", filename)

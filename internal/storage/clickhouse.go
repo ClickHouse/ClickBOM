@@ -200,7 +200,10 @@ func (c *ClickHouseClient) checkAndMigrateTable(ctx context.Context, tableName s
 }
 
 // InsertSBOMData extracts components from the SBOM and inserts them into the ClickHouse table.
-func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableName, sbomFormat string) error {
+// defaultSource is used as the per-component source value when the component itself does not
+// carry a "source" field (which happens for non-merge runs — merge mode tags each component
+// in advance). Pass "" to fall back to the literal "unknown".
+func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableName, sbomFormat, defaultSource string) error {
 	logger.Info("Extracting components from %s SBOM for ClickHouse", sbomFormat)
 
 	// Read SBOM file
@@ -240,24 +243,13 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 		return nil
 	}
 
-	// Load license mapper
-	mapper, err := sbom.NewLicenseMapper("/app/license-mappings.json")
-	if err != nil {
-		logger.Warning("Failed to load license mappings: %v (continuing without mapping)", err)
-		// Continue without mapping
-	} else {
-		// Apply license mappings
-		logger.Info("Applying license mappings...")
-		for i := range components {
-			name := getStringField(components[i], "name", "unknown")
-			license := extractLicense(components[i])
+	mapper, mapperErr := sbom.NewLicenseMapper("/app/license-mappings.json")
+	if mapperErr != nil {
+		logger.Warning("Failed to load license mappings: %v (continuing without mapping)", mapperErr)
+	}
 
-			// Map the license
-			mappedLicense := mapper.MapLicense(name, license)
-
-			// Store as string field for TSV export
-			components[i]["license"] = mappedLicense
-		}
+	if defaultSource == "" {
+		defaultSource = "unknown" //nolint:goconst
 	}
 
 	logger.Info("Found %d components to insert", len(components))
@@ -266,9 +258,12 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 	var tsvData bytes.Buffer
 	for _, comp := range components {
 		name := getStringField(comp, "name", "unknown")
-		version := getStringField(comp, "version", "unknown")
-		license := getStringField(comp, "license", "unknown")
-		source := getStringField(comp, "source", "unknown")
+		version := extractVersion(comp)
+		license := extractLicense(comp)
+		if mapper != nil {
+			license = mapper.MapLicense(name, license)
+		}
+		source := getStringField(comp, "source", defaultSource)
 
 		fmt.Fprintf(&tsvData, "%s\t%s\t%s\t%s\n", name, version, license, source)
 	}
@@ -319,28 +314,75 @@ func getStringField(m map[string]interface{}, key, defaultVal string) string { /
 	return defaultVal
 }
 
+// extractVersion reads the version of a component / package, accepting both
+// CycloneDX's "version" and SPDX's "versionInfo". The same function works for
+// either format because they never both populate.
+func extractVersion(comp map[string]interface{}) string {
+	if v, ok := comp["version"].(string); ok && v != "" {
+		return v
+	}
+	if v, ok := comp["versionInfo"].(string); ok && v != "" {
+		return v
+	}
+	return "unknown"
+}
+
+// firstString returns the first non-empty value found at any of the supplied
+// keys in m. Used by the license extractor to walk a sequence of fallback fields.
+func firstString(m map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := m[k].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func extractLicenseFromCDXEntry(entry map[string]interface{}) string {
+	// CycloneDX canonical shape: licenses[].license.{id,name,expression}.
+	if license, ok := entry["license"].(map[string]interface{}); ok {
+		if v := firstString(license, "id", "name", "expression"); v != "" {
+			return v
+		}
+	}
+	// Tolerate emitters that flatten the same fields onto the licenses[] entry.
+	return firstString(entry, "id", "name", "expression")
+}
+
+func extractLicenseFromProperties(comp map[string]interface{}) string {
+	props, ok := comp["properties"].([]interface{})
+	if !ok {
+		return ""
+	}
+	for _, p := range props {
+		pm, ok := p.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		pname, _ := pm["name"].(string)
+		if pname != "spdx:license-concluded" && pname != "spdx:license-declared" {
+			continue
+		}
+		if v, ok := pm["value"].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func extractLicense(comp map[string]interface{}) string {
-	// Try CycloneDX licenses array
 	if licenses, ok := comp["licenses"].([]interface{}); ok && len(licenses) > 0 {
-		if lic, ok := licenses[0].(map[string]interface{}); ok {
-			if license, ok := lic["license"].(map[string]interface{}); ok {
-				if id, ok := license["id"].(string); ok && id != "" {
-					return id
-				}
-				if name, ok := license["name"].(string); ok && name != "" {
-					return name
-				}
+		if entry, ok := licenses[0].(map[string]interface{}); ok {
+			if v := extractLicenseFromCDXEntry(entry); v != "" {
+				return v
 			}
 		}
 	}
-
-	// Try SPDX fields
-	if concluded, ok := comp["licenseConcluded"].(string); ok && concluded != "" {
-		return concluded
+	if v := extractLicenseFromProperties(comp); v != "" {
+		return v
 	}
-	if declared, ok := comp["licenseDeclared"].(string); ok && declared != "" {
-		return declared
+	if v := firstString(comp, "licenseConcluded", "licenseDeclared"); v != "" {
+		return v
 	}
-
 	return "unknown"
 }

@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: 🧾 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🔨 Build Docker Image
         run: |
@@ -78,7 +78,7 @@ jobs:
           echo "4. Run security scans in CI/CD pipeline" >> security-report.md
 
       - name: 📎 Upload Security Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: security-scan-results
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: 🧾 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🔍 Run Hadolint (Dockerfile Linter)
         uses: hadolint/hadolint-action@v3.3.0
@@ -151,7 +151,7 @@ jobs:
           category: checkov
 
       - name: 📎 Upload Dockerfile Security Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: dockerfile-security-results
@@ -167,7 +167,7 @@ jobs:
 
     steps:
       - name: 🧾 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🔨 Build Docker Image
         run: |
@@ -189,7 +189,7 @@ jobs:
           docker scout sbom clickbom:latest --format spdx --output container-sbom-scout.spdx.json || echo "Docker Scout SBOM generation failed"
 
       - name: 📎 Upload Container SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: container-sbom
           path: |
@@ -205,13 +205,13 @@ jobs:
 
     steps:
       - name: 📥 Download Security Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: security-scan-results
           path: security-results/
 
       - name: 📥 Download Container SBOM
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: container-sbom
           path: sbom-results/

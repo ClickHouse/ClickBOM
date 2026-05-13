@@ -1,11 +1,13 @@
 //go:build integration
 
-package storage
+package storage_test
 
 import (
 	"context"
 	"os"
 	"testing"
+
+	"github.com/ClickHouse/ClickBOM/internal/storage"
 )
 
 func TestS3Integration(t *testing.T) {
@@ -16,13 +18,9 @@ func TestS3Integration(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create S3 client
-	s3Client, err := storage.NewS3Client(
-		ctx,
-		os.Getenv("AWS_ACCESS_KEY_ID"),
-		os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		os.Getenv("AWS_DEFAULT_REGION"),
-	)
+	// Create S3 client (credentials are picked up from the SDK default chain;
+	// the test harness exports AWS_ACCESS_KEY_ID / SECRET_ACCESS_KEY / REGION).
+	s3Client, err := storage.NewS3Client(ctx)
 	if err != nil {
 		t.Fatalf("Failed to create S3 client: %v", err)
 	}

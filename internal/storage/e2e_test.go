@@ -1,6 +1,6 @@
 //go:build integration
 
-package storage
+package storage_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/ClickHouse/ClickBOM/internal/config"
 	"github.com/ClickHouse/ClickBOM/internal/sbom"
+	"github.com/ClickHouse/ClickBOM/internal/storage"
 )
 
 func TestEndToEndWorkflow(t *testing.T) {
@@ -74,13 +75,8 @@ func TestEndToEndWorkflow(t *testing.T) {
 
 		t.Log("✓ Converted SBOM to CycloneDX")
 
-		// Step 5: Upload to S3
-		s3Client, err := storage.NewS3Client(
-			ctx,
-			os.Getenv("AWS_ACCESS_KEY_ID"),
-			os.Getenv("AWS_SECRET_ACCESS_KEY"),
-			os.Getenv("AWS_DEFAULT_REGION"),
-		)
+		// Step 5: Upload to S3 (credentials from SDK default chain)
+		s3Client, err := storage.NewS3Client(ctx)
 		if err != nil {
 			t.Fatalf("Failed to create S3 client: %v", err)
 		}
@@ -114,7 +110,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 			t.Fatalf("Failed to setup ClickHouse table: %v", err)
 		}
 
-		if err := chClient.InsertSBOMData(ctx, convertedSBOM, tableName, "cyclonedx"); err != nil {
+		if err := chClient.InsertSBOMData(ctx, convertedSBOM, tableName, "cyclonedx", "e2e-source"); err != nil {
 			t.Fatalf("Failed to insert into ClickHouse: %v", err)
 		}
 

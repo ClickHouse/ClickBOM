@@ -1,6 +1,6 @@
 //go:build integration
 
-package storage
+package storage_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ClickHouse/ClickBOM/internal/config"
+	"github.com/ClickHouse/ClickBOM/internal/storage"
 )
 
 func TestClickHouseIntegration(t *testing.T) {
@@ -84,7 +85,7 @@ func TestClickHouseIntegration(t *testing.T) {
 		defer os.Remove(testSBOM)
 
 		// Insert data
-		err := chClient.InsertSBOMData(ctx, testSBOM, tableName, "cyclonedx")
+		err := chClient.InsertSBOMData(ctx, testSBOM, tableName, "cyclonedx", "test-source")
 		if err != nil {
 			t.Fatalf("Failed to insert data: %v", err)
 		}

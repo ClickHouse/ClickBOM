@@ -78,6 +78,16 @@ inputs:
     required: false
     default: 'cyclonedx'
   # AWS-specific inputs
+  aws-access-key-id:
+    description: 'DEPRECATED — prefer OIDC via aws-actions/configure-aws-credentials. Static AWS access key; exported as AWS_ACCESS_KEY_ID for the SDK default credential chain.'
+    required: false
+  aws-secret-access-key:
+    description: 'DEPRECATED — prefer OIDC via aws-actions/configure-aws-credentials. Static AWS secret access key; exported as AWS_SECRET_ACCESS_KEY for the SDK default credential chain.'
+    required: false
+  aws-region:
+    description: 'DEPRECATED — prefer OIDC via aws-actions/configure-aws-credentials. AWS region; exported as AWS_DEFAULT_REGION.'
+    required: false
+    default: 'us-east-1'
   s3-bucket:
     description: 'S3 bucket name'
     required: true
@@ -165,6 +175,9 @@ runs:
     TRIVY_ECR_ROLE_ARN: ${{ inputs.trivy-ecr-role-arn }}
     TRIVY_FORMAT: ${{ inputs.trivy-format }}
     # AWS-specific
+    AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+    AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+    AWS_DEFAULT_REGION: ${{ inputs.aws-region }}
     S3_BUCKET: ${{ inputs.s3-bucket }}
     S3_KEY: ${{ inputs.s3-key }}
     # ClickHouse-specific

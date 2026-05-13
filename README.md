@@ -63,15 +63,16 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 
 ### AWS
 
-| Name                  | Description                         | Default   | Required | Sensitive |
-| --------------------- | ----------------------------------- | --------- | -------- | --------- |
-| aws-access-key-id     | AWS Access Key ID                   |           | true     | true      |
-| aws-secret-access-key | AWS Secret Access Key               |           | true     | true      |
-| aws-region            | AWS Region                          | us-east-1 | false    | false     |
-| s3-bucket             | S3 Bucket Name                      |           | false    | false     |
-| s3-key                | S3 Key Prefix                       | sbom.json | false    | false     |
+| Name                  | Description                                                                 | Default   | Required | Sensitive |
+| --------------------- | --------------------------------------------------------------------------- | --------- | -------- | --------- |
+| aws-access-key-id     | AWS Access Key ID. **Deprecated — prefer OIDC** (see examples below).       |           | false    | true      |
+| aws-secret-access-key | AWS Secret Access Key. **Deprecated — prefer OIDC** (see examples below).   |           | false    | true      |
+| aws-region            | AWS Region. **Deprecated — prefer OIDC** (set via configure-aws-credentials). | us-east-1 | false    | false     |
+| s3-bucket             | S3 Bucket Name                                                              |           | false    | false     |
+| s3-key                | S3 Key Prefix                                                               | sbom.json | false    | false     |
 
 - It is recommended that an S3 bucket be created for the purposes of ClickBOM.
+- The `aws-*` inputs are kept for backward compatibility with the bash version of this action. The recommended path is to use [`aws-actions/configure-aws-credentials@v4`](https://github.com/aws-actions/configure-aws-credentials) with GitHub OIDC; that action exports `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` as job-level env vars which the AWS SDK picks up automatically — no need to pass them as inputs.
 
 ### ClickHouse
 

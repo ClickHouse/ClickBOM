@@ -169,6 +169,56 @@ func SanitizeNumeric(value string, fieldName string, minimum, maximum int) (int,
 	return num, nil
 }
 
+// SanitizeUUIDList parses a comma-separated list of UUIDs, sanitizes each one,
+// and returns the rejoined list. Errors out on the first invalid UUID with
+// fieldName included in the error for diagnosis.
+func SanitizeUUIDList(list, fieldName string) (string, error) {
+	if list == "" {
+		return "", nil
+	}
+	parts := strings.Split(list, ",")
+	out := make([]string, 0, len(parts))
+	for _, raw := range parts {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		clean, err := SanitizeUUID(raw, fieldName)
+		if err != nil {
+			return "", err
+		}
+		out = append(out, clean)
+	}
+	return strings.Join(out, ","), nil
+}
+
+// SanitizeDatabaseName allows only alphanumerics and underscores. If the result
+// begins with a digit it gets an underscore prefix so the value is always a
+// legal SQL identifier.
+func SanitizeDatabaseName(name string) string {
+	sanitized := removeChars(name, `[^a-zA-Z0-9_]`)
+	if sanitized != "" && sanitized[0] >= '0' && sanitized[0] <= '9' {
+		sanitized = "_" + sanitized
+	}
+	return sanitized
+}
+
+// SanitizeBool rejects anything that isn't an empty string, "true", or "false"
+// for the named field. Empty returns the default. Matches the bash entrypoint's
+// strict validation of TRUNCATE_TABLE / MERGE / DEBUG.
+func SanitizeBool(value, fieldName string, defaultVal bool) (bool, error) {
+	switch value {
+	case "":
+		return defaultVal, nil
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid %s value: %q (must be 'true' or 'false')", fieldName, value)
+	}
+}
+
 // SanitizePatterns ensures the patterns string is in a valid format
 func SanitizePatterns(patterns string) string {
 	if patterns == "" {

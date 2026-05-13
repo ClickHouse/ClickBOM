@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/ClickHouse/ClickBOM/internal/config"
@@ -63,32 +64,33 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 
 	originalSBOM := filepath.Join(tempDir, "original_sbom.json")
 	extractedSBOM := filepath.Join(tempDir, "extracted_sbom.json")
+	fixedSBOM := filepath.Join(tempDir, "fixed_sbom.json")
 	processedSBOM := filepath.Join(tempDir, "processed_sbom.json")
 
 	// Download/Generate SBOM based on source
 	switch cfg.SBOMSource {
-	case "github":
+	case config.SourceGitHub:
 		logger.Info("Downloading SBOM from GitHub")
 		ghClient := sbom.NewGitHubClient(cfg.GitHubToken)
 		if err := ghClient.DownloadSBOM(ctx, cfg.Repository, originalSBOM); err != nil {
 			return fmt.Errorf("failed to download GitHub SBOM: %w", err)
 		}
 
-	case "mend":
+	case config.SourceMend:
 		logger.Info("Downloading SBOM from Mend")
 		mendClient := sbom.NewMendClient(cfg)
 		if err := mendClient.RequestSBOMExport(ctx, originalSBOM); err != nil {
 			return fmt.Errorf("failed to download Mend SBOM: %w", err)
 		}
 
-	case "wiz":
+	case config.SourceWiz:
 		logger.Info("Downloading SBOM from Wiz")
 		wizClient := sbom.NewWizClient(cfg)
 		if err := wizClient.DownloadReport(ctx, originalSBOM); err != nil {
 			return fmt.Errorf("failed to download Wiz SBOM: %w", err)
 		}
 
-	case "trivy":
+	case config.SourceTrivy:
 		logger.Info("Generating SBOM with Trivy")
 		trivyClient, err := sbom.NewTrivyClient(ctx, cfg)
 		if err != nil {
@@ -114,9 +116,19 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 	}
 	logger.Info("Detected SBOM format: %s", detectedFormat)
 
+	// SPDX inputs include referenceCategory values (e.g. "PACKAGE-MANAGER") that
+	// cyclonedx-cli rejects; normalize them before conversion.
+	preConversionSBOM := extractedSBOM
+	if detectedFormat == sbom.FormatSPDXJSON {
+		if err := sbom.FixSPDXCompatibility(extractedSBOM, fixedSBOM); err != nil {
+			return fmt.Errorf("failed to fix SPDX compatibility: %w", err)
+		}
+		preConversionSBOM = fixedSBOM
+	}
+
 	// Convert to desired format if needed
 	desiredFormat := sbom.Format(cfg.SBOMFormat)
-	if err := sbom.ConvertSBOM(extractedSBOM, processedSBOM, detectedFormat, desiredFormat); err != nil {
+	if err := sbom.ConvertSBOM(preConversionSBOM, processedSBOM, detectedFormat, desiredFormat); err != nil {
 		return fmt.Errorf("failed to convert SBOM: %w", err)
 	}
 
@@ -142,7 +154,7 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 			return fmt.Errorf("failed to setup table: %w", err)
 		}
 
-		if err := chClient.InsertSBOMData(ctx, processedSBOM, tableName, cfg.SBOMFormat); err != nil {
+		if err := chClient.InsertSBOMData(ctx, processedSBOM, tableName, cfg.SBOMFormat, defaultSourceForConfig(cfg)); err != nil {
 			return fmt.Errorf("failed to upload to ClickHouse: %w", err)
 		}
 
@@ -161,42 +173,49 @@ func handleMergeMode(ctx context.Context, cfg *config.Config, s3Client *storage.
 		return fmt.Errorf("failed to create download directory: %w", err)
 	}
 
-	// Download all files from S3
-	downloadedFiles, err := s3Client.DownloadAll(ctx, cfg.S3Bucket, "", downloadDir)
+	// List bucket contents, pre-filter, then download only the keepers. This
+	// matches bash's `aws s3 ls | grep '\.json$' | grep -v <target>` pipeline:
+	// we avoid pulling non-JSON objects, and we never re-merge the previous
+	// merged-output file back into itself.
+	allKeys, err := s3Client.ListObjects(ctx, cfg.S3Bucket, "")
 	if err != nil {
-		return fmt.Errorf("failed to download files from S3: %w", err)
+		return fmt.Errorf("failed to list files in S3: %w", err)
 	}
 
+	candidateKeys := selectMergeCandidates(allKeys, cfg)
+	if len(candidateKeys) == 0 {
+		return fmt.Errorf("no candidate .json files in S3 bucket: %s", cfg.S3Bucket)
+	}
+
+	// Download the survivors.
+	downloadedFiles := make([]string, 0, len(candidateKeys))
+	for _, key := range candidateKeys {
+		localPath := filepath.Join(downloadDir, filepath.Base(key))
+		if err := s3Client.Download(ctx, cfg.S3Bucket, key, localPath); err != nil {
+			logger.Warning("Failed to download %s: %v", key, err)
+			continue
+		}
+		downloadedFiles = append(downloadedFiles, localPath)
+	}
 	logger.Info("Downloaded %d files from S3", len(downloadedFiles))
 
 	if len(downloadedFiles) == 0 {
-		return fmt.Errorf("no files found in S3 bucket: %s", cfg.S3Bucket)
+		return fmt.Errorf("no files downloaded from S3 bucket: %s", cfg.S3Bucket)
 	}
 
-	// Filter and validate CycloneDX SBOMs
-	cyclonedxFiles := make([]string, 0)
-
+	// Format-validate each candidate: only CycloneDX inputs make it into the merge.
+	cyclonedxFiles := make([]string, 0, len(downloadedFiles))
 	for _, file := range downloadedFiles {
 		filename := filepath.Base(file)
-
-		// Apply include/exclude filters
-		if !sbom.ShouldIncludeFile(filename, cfg.Include, cfg.Exclude) {
-			logger.Debug("Skipping %s due to include/exclude filters", filename)
-			continue
-		}
-
-		// Check if file is valid CycloneDX
 		format, err := sbom.DetectSBOMFormat(file)
 		if err != nil {
 			logger.Warning("Failed to detect format for %s: %v", filename, err)
 			continue
 		}
-
 		if format != sbom.FormatCycloneDX {
 			logger.Debug("Skipping %s: not CycloneDX format (detected: %s)", filename, format)
 			continue
 		}
-
 		cyclonedxFiles = append(cyclonedxFiles, file)
 		logger.Debug("Added %s to merge list", filename)
 	}
@@ -242,7 +261,9 @@ func handleMergeMode(ctx context.Context, cfg *config.Config, s3Client *storage.
 			return fmt.Errorf("failed to setup table: %w", err)
 		}
 
-		if err := chClient.InsertSBOMData(ctx, finalSBOM, tableName, cfg.SBOMFormat); err != nil {
+		// Merge mode: each component is already tagged with its origin source by
+		// MergeSBOMs, so we leave defaultSource empty.
+		if err := chClient.InsertSBOMData(ctx, finalSBOM, tableName, cfg.SBOMFormat, ""); err != nil {
 			return fmt.Errorf("failed to upload to ClickHouse: %w", err)
 		}
 
@@ -252,49 +273,102 @@ func handleMergeMode(ctx context.Context, cfg *config.Config, s3Client *storage.
 	return nil
 }
 
-func handleClickHouse(ctx context.Context, cfg *config.Config, sbomFile string) error { // nolint: unused
-	logger.Info("Starting ClickHouse operations")
-
-	chClient, err := storage.NewClickHouseClient(cfg)
-	if err != nil {
-		return err
+// selectMergeCandidates pre-filters a flat list of S3 keys before any download.
+// Drops "directory" markers, non-.json files, the merge output target itself,
+// and entries excluded by the configured include/exclude patterns.
+func selectMergeCandidates(allKeys []string, cfg *config.Config) []string {
+	targetBasename := filepath.Base(cfg.S3Key)
+	out := make([]string, 0, len(allKeys))
+	for _, key := range allKeys {
+		if strings.HasSuffix(key, "/") {
+			continue
+		}
+		filename := filepath.Base(key)
+		if !strings.HasSuffix(strings.ToLower(filename), ".json") {
+			logger.Debug("Skipping %s: not a .json file", filename)
+			continue
+		}
+		if filename == targetBasename {
+			logger.Debug("Skipping %s: it is the merge output target", filename)
+			continue
+		}
+		if !sbom.ShouldIncludeFile(filename, cfg.Include, cfg.Exclude) {
+			logger.Debug("Skipping %s due to include/exclude filters", filename)
+			continue
+		}
+		out = append(out, key)
 	}
-
-	tableName := generateTableName(cfg)
-
-	if err := chClient.SetupTable(ctx, tableName); err != nil {
-		return fmt.Errorf("failed to setup table: %w", err)
-	}
-
-	if err := chClient.InsertSBOMData(ctx, sbomFile, tableName, cfg.SBOMFormat); err != nil {
-		return fmt.Errorf("failed to insert data: %w", err)
-	}
-
-	logger.Success("ClickHouse operations completed successfully!")
-	return nil
+	return out
 }
 
-func generateTableName(cfg *config.Config) string {
-	if cfg.Merge {
-		replacer := strings.NewReplacer(".", "_", "-", "_")
-		return fmt.Sprintf("merged_%s", replacer.Replace(cfg.S3Key))
-	}
+// defaultSourceForConfig returns the value to use for the ClickHouse `source`
+// column when an SBOM component does not carry its own per-component source
+// field (which only happens in merge mode). Matches the bash entrypoint's
+// `default_source_value` derivation.
+func defaultSourceForConfig(cfg *config.Config) string {
 	switch cfg.SBOMSource {
-	case "github":
-		return strings.ReplaceAll(strings.ToLower(cfg.Repository), "/", "_")
-	case "mend":
+	case config.SourceGitHub:
+		if cfg.Repository != "" {
+			return cfg.Repository
+		}
+	case config.SourceMend:
 		uuid := cfg.MendProjectUUID
 		if uuid == "" {
 			uuid = cfg.MendProductUUID
 		}
-		return fmt.Sprintf("mend_%s", strings.ReplaceAll(uuid, "-", "_"))
-	case "wiz":
-		return fmt.Sprintf("wiz_%s", strings.ReplaceAll(cfg.WizReportID, "-", "_"))
-	case "trivy":
-		result := path.Base(cfg.TrivyImage)
-		replacer := strings.NewReplacer(":", "_", ".", "_", "-", "_")
-		result = replacer.Replace(result)
-		return fmt.Sprintf("trivy_%s", result)
+		if uuid == "" {
+			uuid = cfg.MendOrgScopeUUID
+		}
+		if uuid != "" {
+			return config.SourceMend + ":" + uuid
+		}
+		return config.SourceMend + ":unknown"
+	case config.SourceWiz:
+		if cfg.WizReportID != "" {
+			return config.SourceWiz + ":" + cfg.WizReportID
+		}
+		return config.SourceWiz + ":unknown"
+	case config.SourceTrivy:
+		if cfg.TrivyImage != "" {
+			return config.SourceTrivy + ":" + cfg.TrivyImage
+		}
+		return config.SourceTrivy + ":unknown"
+	}
+	return cfg.SBOMSource
+}
+
+// tableNameSanitizeRE matches the bash pipeline `sed 's|[^a-zA-Z0-9]|_|g'`:
+// every non-alphanumeric run is collapsed to underscores. Compiled once at
+// package init.
+var tableNameSanitizeRE = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+// sanitizeForTableName applies the bash table-name normalization: replace any
+// run of non-alphanumerics with `_`, then lowercase. Used by both merge and
+// non-merge branches of generateTableName.
+func sanitizeForTableName(s string) string {
+	return strings.ToLower(tableNameSanitizeRE.ReplaceAllString(s, "_"))
+}
+
+func generateTableName(cfg *config.Config) string {
+	if cfg.Merge {
+		// Strip the trailing extension first so the suffix lands cleanly:
+		// `clickbom.json` -> `clickbom_merged`, not `clickbom_json_merged`.
+		base := strings.TrimSuffix(cfg.S3Key, filepath.Ext(cfg.S3Key))
+		return fmt.Sprintf("%s_merged", sanitizeForTableName(base))
+	}
+	switch cfg.SBOMSource {
+	case config.SourceGitHub:
+		return sanitizeForTableName(cfg.Repository)
+	case config.SourceMend:
+		uuid := cfg.MendProjectUUID
+		if uuid == "" {
+			uuid = cfg.MendProductUUID
+		}
+		return fmt.Sprintf("%s_%s", config.SourceMend, sanitizeForTableName(uuid))
+	case config.SourceWiz:
+		return fmt.Sprintf("%s_%s", config.SourceWiz, sanitizeForTableName(cfg.WizReportID))
+	case config.SourceTrivy:
+		return fmt.Sprintf("%s_%s", config.SourceTrivy, sanitizeForTableName(path.Base(cfg.TrivyImage)))
 	default:
 		return "sbom_data"
 	}

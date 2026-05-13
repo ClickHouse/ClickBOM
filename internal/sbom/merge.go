@@ -71,9 +71,55 @@ func ExtractSourceReference(sbomFile string) (string, error) {
 		return name, nil
 	}
 
-	// Strategy 5: Use filename without extension
+	// Strategy 5: Scan metadata.tools[].name and pick the first one that isn't
+	// a known generator (those tell us how the SBOM was produced, not what it
+	// describes).
+	if metadata, ok := sbom["metadata"].(map[string]interface{}); ok {
+		if name := firstNonGeneratorToolName(metadata["tools"]); name != "" {
+			logger.Debug("Found tool name hint: %s", name)
+			return name, nil
+		}
+	}
+
+	// Strategy 6: Use filename without extension
 	logger.Debug("Using fallback name: %s", filename)
 	return filename, nil
+}
+
+// knownGenerators is the set of tool names that identify how an SBOM was
+// produced rather than what it describes. Matches bash's grep -v expression
+// in [lib/entrypoint.sh] (extract_sbom_source_reference Strategy 5).
+var knownGenerators = map[string]struct{}{
+	"GitHub.com-Dependency": {},
+	"protobom":              {},
+	BOMFormatCycloneDX:      {},
+	"cyclonedx-merge":       {},
+}
+
+// firstNonGeneratorToolName accepts metadata.tools in either of its two shapes:
+//   - CycloneDX 1.4: []interface{} of {"name": "...", "vendor": "..."} objects.
+//   - CycloneDX 1.5+: map with "components" / "services" arrays. We only inspect
+//     the array form because bash only used jq's `.tools[]?.name`.
+func firstNonGeneratorToolName(tools interface{}) string {
+	arr, ok := tools.([]interface{})
+	if !ok {
+		return ""
+	}
+	for _, t := range arr {
+		tm, ok := t.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name, _ := tm["name"].(string)
+		if name == "" {
+			continue
+		}
+		if _, blocked := knownGenerators[name]; blocked {
+			continue
+		}
+		return name
+	}
+	return ""
 }
 
 // CollectComponentsWithSource extracts components from an SBOM and adds source tracking.
@@ -155,16 +201,16 @@ func MergeSBOMs(inputFiles []string, outputFile string) error {
 	serialNumber := fmt.Sprintf("urn:uuid:%s", uuid.New().String())
 
 	mergedSBOM := map[string]interface{}{
-		"bomFormat":    "CycloneDX",
+		"bomFormat":    BOMFormatCycloneDX,
 		"specVersion":  "1.6",
 		"serialNumber": serialNumber,
-		"version":      1,
+		"version":      1, //nolint:goconst
 		"metadata": map[string]interface{}{
 			"timestamp": timestamp,
 			"tools": []map[string]interface{}{
 				{
 					"vendor":  "ClickBOM",
-					"name":    "cyclonedx-merge",
+					"name":    "cyclonedx-merge", //nolint:goconst
 					"version": "2.0.0",
 				},
 			},

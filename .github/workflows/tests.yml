@@ -11,12 +11,12 @@ jobs:
 
     steps:
       - name: 🧾 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.10'
           cache: true
 
       - name: 📦 Download dependencies
@@ -39,21 +39,7 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # Mock S3 using LocalStack
-      localstack:
-        image: localstack/localstack:latest
-        env:
-          SERVICES: s3
-          DEFAULT_REGION: us-east-1
-        ports:
-          - 4566:4566
-        options: >-
-          --health-cmd "awslocal s3 ls"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      # Mock ClickHouse
+      # ClickHouse for the (currently commented-out) integration tests.
       clickhouse:
         image: clickhouse/clickhouse-server:latest
         ports:
@@ -71,7 +57,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.10'
           cache: true
 
       - name: 📦 Install CycloneDX CLI
@@ -80,21 +66,43 @@ jobs:
           sudo mv /tmp/cyclonedx /usr/local/bin/cyclonedx
           sudo chmod +x /usr/local/bin/cyclonedx
 
-      - name: ⚙️ Setup LocalStack S3
+      # Mock S3 using the official MinIO image (S3-compatible). Started as a
+      # plain `docker run` step rather than a service container because the
+      # image needs `server /data` passed as command, and GitHub Actions
+      # service containers can't override a container's command/entrypoint.
+      # LocalStack would have been the prior choice but its :latest now
+      # requires a paid auth token.
+      - name: 🪣 Start MinIO
         run: |
-          aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest server /data
+          # Wait up to 60s for MinIO to be live before continuing.
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://localhost:9000/minio/health/live; then
+              echo "MinIO ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: ⚙️ Create MinIO bucket
+        run: |
+          aws --endpoint-url=http://localhost:9000 s3 mb s3://test-bucket
         env:
-          AWS_ACCESS_KEY_ID: test
-          AWS_SECRET_ACCESS_KEY: test
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
           AWS_DEFAULT_REGION: us-east-1
 
       # - name: 🧪 Run integration tests
-      #   run: go test -v -tags=integration ./test/integration/...
+      #   run: go test -v -tags=integration ./...
       #   env:
-      #     AWS_ENDPOINT_URL: http://localhost:4566
+      #     AWS_ENDPOINT_URL: http://localhost:9000
       #     CLICKHOUSE_URL: http://localhost:8123
-      #     AWS_ACCESS_KEY_ID: test
-      #     AWS_SECRET_ACCESS_KEY: test
+      #     AWS_ACCESS_KEY_ID: minioadmin
+      #     AWS_SECRET_ACCESS_KEY: minioadmin
       #     AWS_DEFAULT_REGION: us-east-1
 
   # Lint and format checks
@@ -109,7 +117,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.10'
           cache: true
 
       - name: 🔍 Run golangci-lint
@@ -155,7 +163,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25.10'
           cache: true
 
       - name: 🏗️ Build for ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -213,7 +221,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25.10'
           cache: true
 
       - name: 🏗️ Build
@@ -250,7 +258,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25.10'
           cache: true
 
       - name: ⚡ Run benchmarks
@@ -276,7 +284,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.10'
           cache: true
 
       - name: 🔍 Run Trivy vulnerability scanner

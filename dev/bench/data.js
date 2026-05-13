@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778702522566,
+  "lastUpdate": 1778702947477,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -3696,6 +3696,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "127765 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@clickhouse.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10f76361960f877898b3d087f683e82ec5d66430",
+          "message": "fix(test): E2E (#74)\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-05-13T16:08:06-04:00",
+          "tree_id": "9156db0c7ded8e75b484fe4bd28c8950b6685f42",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/10f76361960f877898b3d087f683e82ec5d66430"
+        },
+        "date": 1778702946377,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9753,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "127280 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9753,
+            "unit": "ns/op",
+            "extra": "127280 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "127280 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "127280 times\n4 procs"
           }
         ]
       }

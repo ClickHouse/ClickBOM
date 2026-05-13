@@ -149,8 +149,7 @@ func (s *S3Client) DownloadAll(ctx context.Context, bucket, prefix, localDir str
 			continue
 		}
 
-		filename := filepath.Base(key)
-		localPath := filepath.Join(localDir, filename)
+		localPath := filepath.Join(localDir, localFilenameForKey(key))
 
 		if err := s.Download(ctx, bucket, key, localPath); err != nil {
 			logger.Warning("Failed to download %s: %v", key, err)
@@ -162,4 +161,13 @@ func (s *S3Client) DownloadAll(ctx context.Context, bucket, prefix, localDir str
 
 	logger.Info("Downloaded %d files", len(downloadedFiles))
 	return downloadedFiles, nil
+}
+
+// localFilenameForKey flattens an S3 key into a single filename safe for the
+// download directory, preserving enough of the key structure that two objects
+// sharing a basename (`teamA/sbom.json`, `teamB/sbom.json`) don't collide.
+// Leading underscores are trimmed so the result doesn't start with one when
+// the key has a leading slash.
+func localFilenameForKey(key string) string {
+	return strings.TrimLeft(strings.ReplaceAll(key, "/", "_"), "_")
 }

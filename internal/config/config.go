@@ -8,6 +8,14 @@ import (
 	"github.com/ClickHouse/ClickBOM/internal/validation"
 )
 
+// SBOM source identifiers used across the codebase.
+const (
+	SourceGitHub = "github"
+	SourceMend   = "mend"
+	SourceWiz    = "wiz"
+	SourceTrivy  = "trivy"
+)
+
 // Config holds the application configuration.
 type Config struct {
 	// GitHub
@@ -156,14 +164,14 @@ func (c *Config) Validate() error {
 	}
 
 	// Repository required if not in merge mode and source is GitHub
-	if !c.Merge && c.SBOMSource != "mend" && c.SBOMSource != "wiz" && c.SBOMSource != "trivy" {
+	if !c.Merge && c.SBOMSource != SourceMend && c.SBOMSource != SourceWiz && c.SBOMSource != SourceTrivy {
 		if c.Repository == "" {
 			return fmt.Errorf("REPOSITORY is required when not in merge mode")
 		}
 	}
 
 	// Mend validation
-	if c.SBOMSource == "mend" {
+	if c.SBOMSource == SourceMend {
 		if c.MendEmail == "" {
 			return fmt.Errorf("MEND_EMAIL is required for Mend source")
 		}
@@ -179,7 +187,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Wiz validation
-	if c.SBOMSource == "wiz" {
+	if c.SBOMSource == SourceWiz {
 		if c.WizAPIEndpoint == "" {
 			return fmt.Errorf("WIZ_API_ENDPOINT is required for Wiz source")
 		}
@@ -195,7 +203,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Trivy validation
-	if c.SBOMSource == "trivy" {
+	if c.SBOMSource == SourceTrivy {
 		if c.TrivyImage == "" {
 			return fmt.Errorf("TRIVY_IMAGE is required for Trivy source")
 		}
@@ -237,12 +245,60 @@ func getEnvAsInt(key string, defaultVal int) int {
 	return val
 }
 
-func getEnvAsBool(key string, defaultVal bool) bool {
-	valStr := os.Getenv(key)
-	if valStr == "" {
-		return defaultVal
+// sanitizeURLs validates and rewrites every URL field on the config. Extracted
+// from Sanitize so the parent stays under the project cyclo limit.
+func (c *Config) sanitizeURLs() error {
+	urls := []struct {
+		ptr  *string
+		kind string
+	}{
+		{&c.MendBaseURL, "mend"},
+		{&c.WizAuthEndpoint, "wiz"},
+		{&c.WizAPIEndpoint, "wiz"},
+		{&c.ClickHouseURL, "clickhouse"},
 	}
-	return valStr == "true"
+	for _, u := range urls {
+		if *u.ptr == "" {
+			continue
+		}
+		clean, err := validation.SanitizeURL(*u.ptr, u.kind)
+		if err != nil {
+			return err
+		}
+		*u.ptr = clean
+	}
+	return nil
+}
+
+// sanitizeUUIDs validates and rewrites every Mend UUID field on the config.
+func (c *Config) sanitizeUUIDs() error {
+	uuids := []struct {
+		ptr   *string
+		field string
+	}{
+		{&c.MendOrgUUID, "MEND_ORG_UUID"},
+		{&c.MendProjectUUID, "MEND_PROJECT_UUID"},
+		{&c.MendProductUUID, "MEND_PRODUCT_UUID"},
+		{&c.MendOrgScopeUUID, "MEND_ORG_SCOPE_UUID"},
+	}
+	for _, u := range uuids {
+		if *u.ptr == "" {
+			continue
+		}
+		clean, err := validation.SanitizeUUID(*u.ptr, u.field)
+		if err != nil {
+			return err
+		}
+		*u.ptr = clean
+	}
+	if c.MendProjectUUIDs != "" {
+		clean, err := validation.SanitizeUUIDList(c.MendProjectUUIDs, "MEND_PROJECT_UUIDS")
+		if err != nil {
+			return err
+		}
+		c.MendProjectUUIDs = clean
+	}
+	return nil
 }
 
 // Sanitize cleans and validates configuration fields.
@@ -280,69 +336,11 @@ func (c *Config) Sanitize() error {
 		}
 	}
 
-	// URLs
-	if c.MendBaseURL != "" {
-		c.MendBaseURL, err = validation.SanitizeURL(c.MendBaseURL, "mend")
-		if err != nil {
-			return err
-		}
+	if err := c.sanitizeURLs(); err != nil {
+		return err
 	}
-
-	if c.WizAuthEndpoint != "" {
-		c.WizAuthEndpoint, err = validation.SanitizeURL(c.WizAuthEndpoint, "wiz")
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.WizAPIEndpoint != "" {
-		c.WizAPIEndpoint, err = validation.SanitizeURL(c.WizAPIEndpoint, "wiz")
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.ClickHouseURL != "" {
-		c.ClickHouseURL, err = validation.SanitizeURL(c.ClickHouseURL, "clickhouse")
-		if err != nil {
-			return err
-		}
-	}
-
-	// UUIDs
-	if c.MendOrgUUID != "" {
-		c.MendOrgUUID, err = validation.SanitizeUUID(c.MendOrgUUID, "MEND_ORG_UUID")
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.MendProjectUUID != "" {
-		c.MendProjectUUID, err = validation.SanitizeUUID(c.MendProjectUUID, "MEND_PROJECT_UUID")
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.MendProductUUID != "" {
-		c.MendProductUUID, err = validation.SanitizeUUID(c.MendProductUUID, "MEND_PRODUCT_UUID")
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.MendOrgScopeUUID != "" {
-		c.MendOrgScopeUUID, err = validation.SanitizeUUID(c.MendOrgScopeUUID, "MEND_ORG_SCOPE_UUID")
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.MendProjectUUIDs != "" {
-		c.MendProjectUUIDs, err = validation.SanitizeUUIDList(c.MendProjectUUIDs, "MEND_PROJECT_UUIDS")
-		if err != nil {
-			return err
-		}
+	if err := c.sanitizeUUIDs(); err != nil {
+		return err
 	}
 
 	// Numeric ranges (bash entrypoint enforces 60-7200 and 10-300).
@@ -355,7 +353,7 @@ func (c *Config) Sanitize() error {
 
 	// SBOM source / format are closed sets.
 	switch c.SBOMSource {
-	case "github", "mend", "wiz", "trivy":
+	case SourceGitHub, SourceMend, SourceWiz, SourceTrivy:
 	default:
 		return fmt.Errorf("invalid SBOM_SOURCE: %q (must be github, mend, wiz, or trivy)", c.SBOMSource)
 	}

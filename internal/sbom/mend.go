@@ -164,9 +164,10 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 		return fmt.Errorf("authentication failed: %w", err)
 	}
 
-	// Build request payload
+	// Build request payload. JSON field names that happen to repeat across the
+	// file aren't worth extracting to constants — they're API contract strings.
 	payload := map[string]interface{}{
-		"name":                   "clickbom-export",
+		"name":                   "clickbom-export", //nolint:goconst
 		"reportType":             "cycloneDX_1_5",
 		"format":                 "json",
 		"includeVulnerabilities": false,
@@ -384,7 +385,7 @@ func (m *MendClient) downloadReport(ctx context.Context, reportUUID, outputFile 
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 	if err := validateJSON(outputFile); err != nil {
-		return fmt.Errorf("Mend response is not valid JSON: %w", err)
+		return fmt.Errorf("mend response is not valid JSON: %w", err)
 	}
 	logger.Success("Mend SBOM downloaded successfully (%d bytes)", len(body))
 	return nil

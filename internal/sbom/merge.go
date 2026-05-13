@@ -92,7 +92,7 @@ func ExtractSourceReference(sbomFile string) (string, error) {
 var knownGenerators = map[string]struct{}{
 	"GitHub.com-Dependency": {},
 	"protobom":              {},
-	"CycloneDX":             {},
+	BOMFormatCycloneDX:      {},
 	"cyclonedx-merge":       {},
 }
 
@@ -201,16 +201,16 @@ func MergeSBOMs(inputFiles []string, outputFile string) error {
 	serialNumber := fmt.Sprintf("urn:uuid:%s", uuid.New().String())
 
 	mergedSBOM := map[string]interface{}{
-		"bomFormat":    "CycloneDX",
+		"bomFormat":    BOMFormatCycloneDX,
 		"specVersion":  "1.6",
 		"serialNumber": serialNumber,
-		"version":      1,
+		"version":      1, //nolint:goconst
 		"metadata": map[string]interface{}{
 			"timestamp": timestamp,
 			"tools": []map[string]interface{}{
 				{
 					"vendor":  "ClickBOM",
-					"name":    "cyclonedx-merge",
+					"name":    "cyclonedx-merge", //nolint:goconst
 					"version": "2.0.0",
 				},
 			},

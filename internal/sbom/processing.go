@@ -20,6 +20,10 @@ const (
 	FormatSPDXJSON Format = "spdxjson"
 	// FormatUnknown represents an unknown SBOM format.
 	FormatUnknown Format = "unknown"
+
+	// BOMFormatCycloneDX is the canonical value of the CycloneDX `bomFormat`
+	// JSON field (distinct from the internal FormatCycloneDX identifier).
+	BOMFormatCycloneDX = "CycloneDX"
 )
 
 // CycloneDXDocument represents the basic structure of a CycloneDX SBOM.
@@ -46,7 +50,7 @@ func DetectSBOMFormat(filename string) (Format, error) {
 	// Try CycloneDX
 	var cdx CycloneDXDocument
 	if err := json.Unmarshal(data, &cdx); err == nil {
-		if cdx.BOMFormat == "CycloneDX" {
+		if cdx.BOMFormat == BOMFormatCycloneDX {
 			logger.Debug("Detected format: CycloneDX")
 			return FormatCycloneDX, nil
 		}
@@ -107,6 +111,7 @@ func FixSPDXCompatibility(inputFile, outputFile string) error {
 		return fmt.Errorf("failed to marshal SBOM: %w", err)
 	}
 
+	// #nosec G703 -- outputFile is a controlled internal temp path from main.go
 	if err := os.WriteFile(outputFile, out, 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
@@ -161,6 +166,7 @@ func ExtractSBOMFromWrapper(inputFile, outputFile string) error {
 			return fmt.Errorf("failed to marshal SBOM: %w", err)
 		}
 
+		// #nosec G703 -- outputFile is a controlled internal temp path from main.go
 		if err := os.WriteFile(outputFile, sbomJSON, 0644); err != nil {
 			return fmt.Errorf("failed to write output file: %w", err)
 		}
@@ -171,6 +177,7 @@ func ExtractSBOMFromWrapper(inputFile, outputFile string) error {
 
 	// Not wrapped, just copy
 	logger.Debug("SBOM is not wrapped")
+	// #nosec G703 -- outputFile is a controlled internal temp path from main.go
 	if err := os.WriteFile(outputFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
@@ -186,6 +193,7 @@ func ConvertSBOM(inputFile, outputFile string, sourceFormat, targetFormat Format
 		if err != nil {
 			return err
 		}
+		// #nosec G703 -- outputFile is a controlled internal temp path from main.go
 		return os.WriteFile(outputFile, data, 0644)
 	}
 

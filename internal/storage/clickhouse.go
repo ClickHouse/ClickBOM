@@ -249,7 +249,7 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 	}
 
 	if defaultSource == "" {
-		defaultSource = "unknown"
+		defaultSource = "unknown" //nolint:goconst
 	}
 
 	logger.Info("Found %d components to insert", len(components))

@@ -278,7 +278,7 @@ func extractJSONFromWizZip(body []byte, workDir string) ([]byte, error) {
 
 	switch len(stagedPaths) {
 	case 0:
-		return nil, fmt.Errorf("Wiz ZIP contains no .json entries")
+		return nil, fmt.Errorf("wiz ZIP contains no .json entries")
 	case 1:
 		return os.ReadFile(stagedPaths[0])
 	}

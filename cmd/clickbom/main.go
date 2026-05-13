@@ -69,28 +69,28 @@ func handleNormalMode(ctx context.Context, cfg *config.Config, s3Client *storage
 
 	// Download/Generate SBOM based on source
 	switch cfg.SBOMSource {
-	case "github":
+	case config.SourceGitHub:
 		logger.Info("Downloading SBOM from GitHub")
 		ghClient := sbom.NewGitHubClient(cfg.GitHubToken)
 		if err := ghClient.DownloadSBOM(ctx, cfg.Repository, originalSBOM); err != nil {
 			return fmt.Errorf("failed to download GitHub SBOM: %w", err)
 		}
 
-	case "mend":
+	case config.SourceMend:
 		logger.Info("Downloading SBOM from Mend")
 		mendClient := sbom.NewMendClient(cfg)
 		if err := mendClient.RequestSBOMExport(ctx, originalSBOM); err != nil {
 			return fmt.Errorf("failed to download Mend SBOM: %w", err)
 		}
 
-	case "wiz":
+	case config.SourceWiz:
 		logger.Info("Downloading SBOM from Wiz")
 		wizClient := sbom.NewWizClient(cfg)
 		if err := wizClient.DownloadReport(ctx, originalSBOM); err != nil {
 			return fmt.Errorf("failed to download Wiz SBOM: %w", err)
 		}
 
-	case "trivy":
+	case config.SourceTrivy:
 		logger.Info("Generating SBOM with Trivy")
 		trivyClient, err := sbom.NewTrivyClient(ctx, cfg)
 		if err != nil {
@@ -307,11 +307,11 @@ func selectMergeCandidates(allKeys []string, cfg *config.Config) []string {
 // `default_source_value` derivation.
 func defaultSourceForConfig(cfg *config.Config) string {
 	switch cfg.SBOMSource {
-	case "github":
+	case config.SourceGitHub:
 		if cfg.Repository != "" {
 			return cfg.Repository
 		}
-	case "mend":
+	case config.SourceMend:
 		uuid := cfg.MendProjectUUID
 		if uuid == "" {
 			uuid = cfg.MendProductUUID
@@ -320,19 +320,19 @@ func defaultSourceForConfig(cfg *config.Config) string {
 			uuid = cfg.MendOrgScopeUUID
 		}
 		if uuid != "" {
-			return "mend:" + uuid
+			return config.SourceMend + ":" + uuid
 		}
-		return "mend:unknown"
-	case "wiz":
+		return config.SourceMend + ":unknown"
+	case config.SourceWiz:
 		if cfg.WizReportID != "" {
-			return "wiz:" + cfg.WizReportID
+			return config.SourceWiz + ":" + cfg.WizReportID
 		}
-		return "wiz:unknown"
-	case "trivy":
+		return config.SourceWiz + ":unknown"
+	case config.SourceTrivy:
 		if cfg.TrivyImage != "" {
-			return "trivy:" + cfg.TrivyImage
+			return config.SourceTrivy + ":" + cfg.TrivyImage
 		}
-		return "trivy:unknown"
+		return config.SourceTrivy + ":unknown"
 	}
 	return cfg.SBOMSource
 }
@@ -357,18 +357,18 @@ func generateTableName(cfg *config.Config) string {
 		return fmt.Sprintf("%s_merged", sanitizeForTableName(base))
 	}
 	switch cfg.SBOMSource {
-	case "github":
+	case config.SourceGitHub:
 		return sanitizeForTableName(cfg.Repository)
-	case "mend":
+	case config.SourceMend:
 		uuid := cfg.MendProjectUUID
 		if uuid == "" {
 			uuid = cfg.MendProductUUID
 		}
-		return fmt.Sprintf("mend_%s", sanitizeForTableName(uuid))
-	case "wiz":
-		return fmt.Sprintf("wiz_%s", sanitizeForTableName(cfg.WizReportID))
-	case "trivy":
-		return fmt.Sprintf("trivy_%s", sanitizeForTableName(path.Base(cfg.TrivyImage)))
+		return fmt.Sprintf("%s_%s", config.SourceMend, sanitizeForTableName(uuid))
+	case config.SourceWiz:
+		return fmt.Sprintf("%s_%s", config.SourceWiz, sanitizeForTableName(cfg.WizReportID))
+	case config.SourceTrivy:
+		return fmt.Sprintf("%s_%s", config.SourceTrivy, sanitizeForTableName(path.Base(cfg.TrivyImage)))
 	default:
 		return "sbom_data"
 	}

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778689852984,
+  "lastUpdate": 1778689855072,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -2688,6 +2688,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "135463 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "24b9b031c64ce0facd8e09f7731a1f6e5f1371f9",
+          "message": "Bump alpine from 3.19 to 3.23\n\nBumps alpine from 3.19 to 3.23.\n\n---\nupdated-dependencies:\n- dependency-name: alpine\n  dependency-version: '3.23'\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-05-13T16:30:03Z",
+          "tree_id": "f7df85cda28ec4cc50358b331f40bcacbf9560e6",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/24b9b031c64ce0facd8e09f7731a1f6e5f1371f9"
+        },
+        "date": 1778689853111,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9513,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "123412 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9513,
+            "unit": "ns/op",
+            "extra": "123412 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "123412 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "123412 times\n4 procs"
           }
         ]
       }

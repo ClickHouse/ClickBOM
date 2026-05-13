@@ -16,19 +16,20 @@ var (
 	httpURLRegex  = regexp.MustCompile(`^https?://[a-zA-Z0-9][a-zA-Z0-9.-]*(:[0-9]+)?/?$`)
 )
 
-// SanitizeString removes potentially dangerous characters from a string
+// SanitizeString strips control characters and non-ASCII runes and caps the
+// result to maxLength. It is used on secret-bearing fields (tokens, API keys,
+// passwords) that are sent as HTTP headers or SDK credentials — never shelled
+// out — so we deliberately do NOT strip shell metacharacters like `$`, `@`,
+// `[]`, `{}`, etc., which appear in real credentials and were previously
+// silently mangled here. The control-char filter remains as a header/log
+// injection defense and the length cap prevents pathological inputs.
 func SanitizeString(input string, maxLength int) string {
-	// Remove null bytes and control characters
 	var result strings.Builder
 	for _, r := range input {
 		if r == 0 || r < 32 || r == 127 {
 			continue
 		}
 		if r > 127 {
-			continue
-		}
-		// Remove dangerous characters
-		if strings.ContainsRune("$(){}|;&<>`@[]", r) {
 			continue
 		}
 		result.WriteRune(r)

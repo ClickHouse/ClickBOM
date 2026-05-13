@@ -20,22 +20,24 @@ import (
 
 // ClickHouseClient handles interactions with ClickHouse database.
 type ClickHouseClient struct {
-	url        string
-	database   string
-	username   string
-	password   string
-	truncate   bool
-	httpClient *http.Client
+	url                string
+	database           string
+	username           string
+	password           string
+	truncate           bool
+	licenseMappingFile string
+	httpClient         *http.Client
 }
 
 // NewClickHouseClient creates a new ClickHouseClient with the provided configuration.
 func NewClickHouseClient(cfg *config.Config) (*ClickHouseClient, error) {
 	return &ClickHouseClient{
-		url:      cfg.ClickHouseURL,
-		database: cfg.ClickHouseDatabase,
-		username: cfg.ClickHouseUsername,
-		password: cfg.ClickHousePassword,
-		truncate: cfg.TruncateTable,
+		url:                cfg.ClickHouseURL,
+		database:           cfg.ClickHouseDatabase,
+		username:           cfg.ClickHouseUsername,
+		password:           cfg.ClickHousePassword,
+		truncate:           cfg.TruncateTable,
+		licenseMappingFile: cfg.LicenseMappingFile,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Minute,
 		},
@@ -243,9 +245,13 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 		return nil
 	}
 
-	mapper, mapperErr := sbom.NewLicenseMapper("/app/license-mappings.json")
+	mappingPath := c.licenseMappingFile
+	if mappingPath == "" {
+		mappingPath = "/app/license-mappings.json"
+	}
+	mapper, mapperErr := sbom.NewLicenseMapper(mappingPath)
 	if mapperErr != nil {
-		logger.Warning("Failed to load license mappings: %v (continuing without mapping)", mapperErr)
+		logger.Warning("Failed to load license mappings from %s: %v (continuing without mapping)", mappingPath, mapperErr)
 	}
 
 	if defaultSource == "" {
@@ -265,7 +271,8 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 		}
 		source := getStringField(comp, "source", defaultSource)
 
-		fmt.Fprintf(&tsvData, "%s\t%s\t%s\t%s\n", name, version, license, source)
+		fmt.Fprintf(&tsvData, "%s\t%s\t%s\t%s\n",
+			tsvEscape(name), tsvEscape(version), tsvEscape(license), tsvEscape(source))
 	}
 
 	// Insert data
@@ -303,6 +310,34 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 
 	logger.Success("Inserted %d components into ClickHouse table %s", len(components), tableName)
 	return nil
+}
+
+// tsvEscape applies ClickHouse's TabSeparated escaping rules so that values
+// containing tabs, newlines, or backslashes don't shift downstream columns or
+// inject extra rows. See https://clickhouse.com/docs/en/interfaces/formats#tabseparated.
+func tsvEscape(s string) string {
+	if !strings.ContainsAny(s, "\\\t\n\r\x00") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	for _, r := range s {
+		switch r {
+		case '\\':
+			b.WriteString(`\\`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case 0:
+			b.WriteString(`\0`)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func getStringField(m map[string]interface{}, key, defaultVal string) string { //nolint:unparam

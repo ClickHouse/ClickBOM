@@ -1,6 +1,33 @@
 package storage
 
-import "testing"
+import (
+	"testing"
+)
+
+func TestTSVEscape(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "plain ascii untouched", in: "MIT", want: "MIT"},
+		{name: "tab escaped", in: "a\tb", want: `a\tb`},
+		{name: "newline escaped", in: "line1\nline2", want: `line1\nline2`},
+		{name: "carriage return escaped", in: "a\rb", want: `a\rb`},
+		{name: "backslash doubled", in: `a\b`, want: `a\\b`},
+		{name: "null byte escaped", in: "a\x00b", want: `a\0b`},
+		{name: "no-escape fast path keeps unicode", in: "café", want: "café"},
+		{name: "mixed", in: "a\tb\\c\nd", want: `a\tb\\c\nd`},
+		{name: "empty", in: "", want: ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tsvEscape(tc.in); got != tc.want {
+				t.Errorf("tsvEscape(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
 
 func TestExtractVersion(t *testing.T) {
 	tests := []struct {

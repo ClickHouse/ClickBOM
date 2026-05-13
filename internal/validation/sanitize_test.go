@@ -131,10 +131,10 @@ func TestSanitizeString(t *testing.T) {
 		want      string
 	}{
 		{
-			name:      "removes dangerous characters",
+			name:      "preserves shell metacharacters (real secrets contain them)",
 			input:     "test$command`echo hello`",
 			maxLength: 1000,
-			want:      "testcommandecho hello",
+			want:      "test$command`echo hello`",
 		},
 		{
 			name:      "respects length limit",
@@ -147,6 +147,18 @@ func TestSanitizeString(t *testing.T) {
 			input:     "test\x00\x01\x02string",
 			maxLength: 1000,
 			want:      "teststring",
+		},
+		{
+			name:      "removes non-ASCII",
+			input:     "tëst",
+			maxLength: 1000,
+			want:      "tst",
+		},
+		{
+			name:      "preserves typical token characters",
+			input:     "ghp_abcDEF123-_.@$[]{}",
+			maxLength: 1000,
+			want:      "ghp_abcDEF123-_.@$[]{}",
 		},
 	}
 
@@ -399,22 +411,19 @@ func TestSanitizePatterns(t *testing.T) {
 	}
 }
 
-func TestSanitizeStringInjectionVectors(t *testing.T) {
+func TestSanitizeStringControlCharsAndLength(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  string
 		want   string
 		maxLen int
 	}{
-		{name: "backticks stripped", input: "value`whoami`", want: "valuewhoami", maxLen: 100},
-		{name: "dollar-paren stripped", input: "value$(whoami)", want: "valuewhoami", maxLen: 100},
-		{name: "pipe stripped", input: "a|b", want: "ab", maxLen: 100},
-		{name: "semicolon stripped", input: "a;b", want: "ab", maxLen: 100},
-		{name: "ampersand stripped", input: "a&b", want: "ab", maxLen: 100},
-		{name: "redirection stripped", input: "a>b<c", want: "abc", maxLen: 100},
 		{name: "null byte stripped", input: "a\x00b", want: "ab", maxLen: 100},
+		{name: "tab/newline/CR stripped", input: "a\tb\nc\rd", want: "abcd", maxLen: 100},
+		{name: "DEL stripped", input: "a\x7fb", want: "ab", maxLen: 100},
+		{name: "non-ASCII stripped", input: "café", want: "caf", maxLen: 100},
+		{name: "shell metas preserved (real-world secrets)", input: "$(){};|&<>`@[]", want: "$(){};|&<>`@[]", maxLen: 100},
 		{name: "empty string", input: "", want: "", maxLen: 100},
-		{name: "all dangerous chars -> empty", input: "$(){};|&<>`@[]", want: "", maxLen: 100},
 		{name: "respects max length", input: "abcdefghij", want: "abcd", maxLen: 4},
 	}
 	for _, tc := range tests {

@@ -39,28 +39,7 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # Mock S3 using MinIO (S3-compatible). LocalStack's :latest now requires
-      # a paid auth token; MinIO is free, stable, and supports the subset of
-      # the S3 API ClickBOM uses (PUT, GET, LIST, HEAD, DELETE on objects).
-      # bitnami/minio's default entrypoint launches `minio server /data` so we
-      # don't need to override `command:` (which Actions services don't
-      # support anyway).
-      minio:
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-          MINIO_DEFAULT_BUCKETS: test-bucket
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "curl --silent --fail http://localhost:9000/minio/health/live"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-          --health-start-period 20s
-
-      # Mock ClickHouse
+      # ClickHouse for the (currently commented-out) integration tests.
       clickhouse:
         image: clickhouse/clickhouse-server:latest
         ports:
@@ -87,11 +66,31 @@ jobs:
           sudo mv /tmp/cyclonedx /usr/local/bin/cyclonedx
           sudo chmod +x /usr/local/bin/cyclonedx
 
-      - name: ⚙️ Verify MinIO bucket
-        # MINIO_DEFAULT_BUCKETS creates test-bucket at startup; this step just
-        # confirms it's there and the SDK creds are wired correctly.
+      # Mock S3 using the official MinIO image (S3-compatible). Started as a
+      # plain `docker run` step rather than a service container because the
+      # image needs `server /data` passed as command, and GitHub Actions
+      # service containers can't override a container's command/entrypoint.
+      # LocalStack would have been the prior choice but its :latest now
+      # requires a paid auth token.
+      - name: 🪣 Start MinIO
         run: |
-          aws --endpoint-url=http://localhost:9000 s3 ls s3://test-bucket
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest server /data
+          # Wait up to 60s for MinIO to be live before continuing.
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://localhost:9000/minio/health/live; then
+              echo "MinIO ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: ⚙️ Create MinIO bucket
+        run: |
+          aws --endpoint-url=http://localhost:9000 s3 mb s3://test-bucket
         env:
           AWS_ACCESS_KEY_ID: minioadmin
           AWS_SECRET_ACCESS_KEY: minioadmin

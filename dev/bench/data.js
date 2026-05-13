@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778684686267,
+  "lastUpdate": 1778684943564,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -1920,6 +1920,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "126007 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "cdf36137a52c2a0fe23544f11f75b213a6ea8da1",
+          "message": "feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-05-13T11:08:05-04:00",
+          "tree_id": "990cbc433518c6d40a19df3d12b1e2516757203f",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/cdf36137a52c2a0fe23544f11f75b213a6ea8da1"
+        },
+        "date": 1778684942571,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 11642,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "103483 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 11642,
+            "unit": "ns/op",
+            "extra": "103483 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "103483 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "103483 times\n4 procs"
           }
         ]
       }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778684943564,
+  "lastUpdate": 1778685317003,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -1968,6 +1968,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "103483 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "60b4f11d3ebc7921b66332830b822c7f1e935fd7",
+          "message": "feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-05-13T11:14:25-04:00",
+          "tree_id": "c9c15495356b11ae9c73fdf2c19e4a161563a47c",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/60b4f11d3ebc7921b66332830b822c7f1e935fd7"
+        },
+        "date": 1778685316635,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9276,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "126291 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9276,
+            "unit": "ns/op",
+            "extra": "126291 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "126291 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "126291 times\n4 procs"
           }
         ]
       }

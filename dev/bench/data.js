@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778689855072,
+  "lastUpdate": 1778689857294,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -2736,6 +2736,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "123412 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73905bd8804ad1de85975dc383f04b47df88fe7b",
+          "message": "Bump golangci/golangci-lint-action from 8 to 9 in /.github/workflows\n\nBumps [golangci/golangci-lint-action](https://github.com/golangci/golangci-lint-action) from 8 to 9.\n- [Release notes](https://github.com/golangci/golangci-lint-action/releases)\n- [Commits](https://github.com/golangci/golangci-lint-action/compare/v8...v9)\n\n---\nupdated-dependencies:\n- dependency-name: golangci/golangci-lint-action\n  dependency-version: '9'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-05-13T16:29:57Z",
+          "tree_id": "b7b196e8c424bd3bafd30809d65cdf8c5169e6e3",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/73905bd8804ad1de85975dc383f04b47df88fe7b"
+        },
+        "date": 1778689855694,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9706,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "124063 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9706,
+            "unit": "ns/op",
+            "extra": "124063 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "124063 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "124063 times\n4 procs"
           }
         ]
       }

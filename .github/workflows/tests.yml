@@ -208,11 +208,37 @@ jobs:
           docker run --rm clickbom:test --version || true
           docker run --rm clickbom:test --help || true
 
+  # Preflight: only run the E2E job when the required secrets are actually
+  # configured on the repo. Without this, the E2E job fails on any fork/contrib
+  # push (or any repo that hasn't set TEST_S3_BUCKET / AWS_* secrets) with a
+  # confusing "S3_BUCKET is required" validation error from clickbom itself.
+  e2e_preflight:
+    name: 🔐 E2E Preflight
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/'))
+    outputs:
+      has_secrets: ${{ steps.check.outputs.has_secrets }}
+    steps:
+      - name: Check for required secrets
+        id: check
+        env:
+          TEST_S3_BUCKET: ${{ secrets.TEST_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          if [[ -n "$TEST_S3_BUCKET" && -n "$AWS_ACCESS_KEY_ID" && -n "$AWS_SECRET_ACCESS_KEY" ]]; then
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping E2E: TEST_S3_BUCKET / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are not configured on this repo."
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # End-to-end tests with real GitHub API
   test_e2e:
     name: 🎯 E2E Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/*')
+    needs: e2e_preflight
+    if: needs.e2e_preflight.outputs.has_secrets == 'true'
 
     steps:
       - name: 🧾 Checkout

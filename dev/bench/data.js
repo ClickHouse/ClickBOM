@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768266560901,
+  "lastUpdate": 1778683940509,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -1776,6 +1776,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "127209 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "7cfbdf8da87ee4b34d459827bf259e75f824de66",
+          "message": "Merge branch 'main' into feature/go-complete-migration",
+          "timestamp": "2026-05-13T10:50:39-04:00",
+          "tree_id": "6535cb906a7915582d9670200145470bf1c01cc2",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/7cfbdf8da87ee4b34d459827bf259e75f824de66"
+        },
+        "date": 1778683939269,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8898,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "132042 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8898,
+            "unit": "ns/op",
+            "extra": "132042 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "132042 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "132042 times\n4 procs"
           }
         ]
       }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778689373188,
+  "lastUpdate": 1778689773730,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -2496,6 +2496,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "128418 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@clickhouse.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b18f7bafb1b9a22d539f162009adb272d03e6fab",
+          "message": "feat(go): Migration (#64)\n\n* chore(feature/go): Init (#51)\n\n* chore(feature/go): Init\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* go\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* Dockerfile\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* .golangci\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* validation not defined\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* regexp and strings not used\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* io undefined\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: pre-commit\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: integration test\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: lint\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: docker build\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: e2e\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: fix benchmark\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: fix benchmark\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* test: fix security check\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n---------\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* chore(feature/go): License Mapper (#54)\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* chore(feature/go): Trivy Integration (#55)\n\n* chore(feature/go): Trivy Integration\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(debug): extract from wrapper function\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(debug): extract json from zip\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(debug): remove debug print of sbom\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(aws): Some inputs are not longer required\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix(aws): Some inputs are not longer required\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: add trivy to config validation\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: add trivy to config validation\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: add trivy to config validation\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: ecr auth\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: trivy clickhouse table name\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: ability to do application scope reports\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: i don't think org uuid is always required\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: if no projectUuids are provided\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: mend-project-uuids\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: maxDepthLevel\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: stuff\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat: add merge\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* fix: lint\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n---------\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\n\n* feat(parity): close bashgo gaps before merging feature/go-complete-migration (#63)\n\n* Bump actions/download-artifact from 5 to 6 in /.github/workflows (#53)\n\nBumps [actions/download-artifact](https://github.com/actions/download-artifact) from 5 to 6.\n- [Release notes](https://github.com/actions/download-artifact/releases)\n- [Commits](https://github.com/actions/download-artifact/compare/v5...v6)\n\n---\nupdated-dependencies:\n- dependency-name: actions/download-artifact\n  dependency-version: '6'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\n\n* Bump actions/upload-artifact from 4 to 5 in /.github/workflows (#52)\n\nBumps [actions/upload-artifact](https://github.com/actions/upload-artifact) from 4 to 5.\n- [Release notes](https://github.com/actions/upload-artifact/releases)\n- [Commits](https://github.com/actions/upload-artifact/compare/v4...v5)\n\n---\nupdated-dependencies:\n- dependency-name: actions/upload-artifact\n  dependency-version: '5'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\n\n* Bump actions/checkout from 5 to 6 in /.github/workflows (#56)\n\nBumps [actions/checkout](https://github.com/actions/checkout) from 5 to 6.\n- [Release notes](https://github.com/actions/checkout/releases)\n- [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/actions/checkout/compare/v5...v6)\n\n---\nupdated-dependencies:\n- dependency-name: actions/checkout\n  dependency-version: '6'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\n\n* feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* feat(parity): close bashgo gaps before merging feature/go-complete-migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n---------\n\nSigned-off-by: dependabot[bot] <support@github.com>\nSigned-off-by: Julio Jimenez <julio@julioj.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\n\n* Potential fix for pull request finding\n\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>\n\n* Potential fix for pull request finding\n\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>\n\n* feat(go): Migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* feat(go): Migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* feat(go): Migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n---------\n\nSigned-off-by: Julio Jimenez <julio@clickhouse.com>\nSigned-off-by: dependabot[bot] <support@github.com>\nSigned-off-by: Julio Jimenez <julio@julioj.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-05-13T12:28:53-04:00",
+          "tree_id": "523730bdd6e412093d7410bd824ff66053e8c12a",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/b18f7bafb1b9a22d539f162009adb272d03e6fab"
+        },
+        "date": 1778689773363,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 11338,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "104188 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 11338,
+            "unit": "ns/op",
+            "extra": "104188 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "104188 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "104188 times\n4 procs"
           }
         ]
       }

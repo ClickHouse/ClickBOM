@@ -62,13 +62,10 @@ func (g *GitHubClient) DownloadSBOM(ctx context.Context, repo, outputFile string
 			return fmt.Errorf("failed to download SBOM after %d attempts: %w", maxAttempts, err)
 		}
 
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				logger.Warning("Failed to close response body: %v", err)
-			}
-		}()
-
 		body, err := io.ReadAll(resp.Body)
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Warning("Failed to close response body: %v", closeErr)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to read response body: %w", err)
 		}

@@ -1,5 +1,5 @@
 name: 'ClickBOM'
-description: 'Download SBOMs from GitHub, Mend, and Wiz. Convert to CycloneDX and SPDX formats. Upload to S3 and ClickHouse.'
+description: 'Download SBOMs from GitHub, Mend, Wiz, and Trivy. Convert to CycloneDX and SPDX formats. Upload to S3 and ClickHouse.'
 author: 'ClickHouse, Inc.'
 inputs:
   # GitHub-specific inputs
@@ -59,15 +59,33 @@ inputs:
   wiz-report-id:
     description: 'Wiz report ID to download'
     required: false
+  # Trivy-specific inputs
+  trivy-image:
+    description: 'Container image to scan with Trivy for SBOM generation (format: registry/repo:tag or ECR URI)'
+    required: false
+  trivy-ecr-account-id:
+    description: 'AWS Account ID where ECR repository is located (for cross-account access)'
+    required: false
+  trivy-ecr-region:
+    description: 'AWS region where ECR repository is located'
+    required: false
+    default: 'us-east-1'
+  trivy-ecr-role-arn:
+    description: 'IAM role ARN to assume for ECR access (for cross-account)'
+    required: false
+  trivy-format:
+    description: 'Trivy SBOM output format: cyclonedx or spdxjson'
+    required: false
+    default: 'cyclonedx'
   # AWS-specific inputs
   aws-access-key-id:
-    description: 'AWS Access Key ID'
-    required: true
+    description: 'DEPRECATED — prefer OIDC via aws-actions/configure-aws-credentials. Static AWS access key; exported as AWS_ACCESS_KEY_ID for the SDK default credential chain.'
+    required: false
   aws-secret-access-key:
-    description: 'AWS Secret Access Key'
-    required: true
+    description: 'DEPRECATED — prefer OIDC via aws-actions/configure-aws-credentials. Static AWS secret access key; exported as AWS_SECRET_ACCESS_KEY for the SDK default credential chain.'
+    required: false
   aws-region:
-    description: 'AWS region'
+    description: 'DEPRECATED — prefer OIDC via aws-actions/configure-aws-credentials. AWS region; exported as AWS_DEFAULT_REGION.'
     required: false
     default: 'us-east-1'
   s3-bucket:
@@ -103,7 +121,7 @@ inputs:
     default: 'false'
   # General inputs
   sbom-source:
-    description: 'SBOM source: github or mend'
+    description: 'SBOM source: github, mend, wiz, or trivy'
     required: false
     default: 'github'
   sbom-format:
@@ -150,6 +168,12 @@ runs:
     WIZ_CLIENT_ID: ${{ inputs.wiz-client-id }}
     WIZ_CLIENT_SECRET: ${{ inputs.wiz-client-secret }}
     WIZ_REPORT_ID: ${{ inputs.wiz-report-id }}
+    # Trivy-specific
+    TRIVY_IMAGE: ${{ inputs.trivy-image }}
+    TRIVY_ECR_ACCOUNT_ID: ${{ inputs.trivy-ecr-account-id }}
+    TRIVY_ECR_REGION: ${{ inputs.trivy-ecr-region }}
+    TRIVY_ECR_ROLE_ARN: ${{ inputs.trivy-ecr-role-arn }}
+    TRIVY_FORMAT: ${{ inputs.trivy-format }}
     # AWS-specific
     AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
     AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}

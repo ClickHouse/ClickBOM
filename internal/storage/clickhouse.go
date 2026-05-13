@@ -1,0 +1,423 @@
+// Package storage provides functionalities to interact with storage backends like ClickHouse.
+package storage
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/ClickHouse/ClickBOM/internal/config"
+	"github.com/ClickHouse/ClickBOM/internal/sbom"
+	"github.com/ClickHouse/ClickBOM/pkg/logger"
+)
+
+// ClickHouseClient handles interactions with ClickHouse database.
+type ClickHouseClient struct {
+	url                string
+	database           string
+	username           string
+	password           string
+	truncate           bool
+	licenseMappingFile string
+	httpClient         *http.Client
+}
+
+// NewClickHouseClient creates a new ClickHouseClient with the provided configuration.
+func NewClickHouseClient(cfg *config.Config) (*ClickHouseClient, error) {
+	return &ClickHouseClient{
+		url:                cfg.ClickHouseURL,
+		database:           cfg.ClickHouseDatabase,
+		username:           cfg.ClickHouseUsername,
+		password:           cfg.ClickHousePassword,
+		truncate:           cfg.TruncateTable,
+		licenseMappingFile: cfg.LicenseMappingFile,
+		httpClient: &http.Client{
+			Timeout: 5 * time.Minute,
+		},
+	}, nil
+}
+
+func (c *ClickHouseClient) executeQuery(ctx context.Context, query string) error {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.url, strings.NewReader(query))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Warning("Failed to close response body: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("query failed (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func (c *ClickHouseClient) queryScalar(ctx context.Context, query string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.url, strings.NewReader(query))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Warning("Failed to close response body: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("query failed (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	result, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(result)), nil
+}
+
+// SetupTable prepares the ClickHouse table for data insertion.
+func (c *ClickHouseClient) SetupTable(ctx context.Context, tableName string) error {
+	logger.Info("Setting up ClickHouse table: %s", tableName)
+
+	// Test connection
+	logger.Debug("Testing ClickHouse connection...")
+	if err := c.executeQuery(ctx, "SELECT 1"); err != nil {
+		logger.Error("ClickHouse connection test failed")
+		return fmt.Errorf("connection test failed: %w", err)
+	}
+	logger.Success("ClickHouse connection successful")
+
+	// Check if table exists
+	checkQuery := fmt.Sprintf(
+		"SELECT COUNT(*) FROM system.tables WHERE database='%s' AND name='%s'",
+		c.database, tableName)
+
+	result, err := c.queryScalar(ctx, checkQuery)
+	if err != nil {
+		return fmt.Errorf("failed to check table existence: %w", err)
+	}
+
+	if result == "1" {
+		logger.Info("Table %s already exists", tableName)
+
+		// Check and migrate if needed
+		if err := c.checkAndMigrateTable(ctx, tableName); err != nil {
+			return fmt.Errorf("table migration failed: %w", err)
+		}
+
+		if c.truncate {
+			logger.Info("Truncating existing table: %s", tableName)
+			truncateQuery := fmt.Sprintf("TRUNCATE TABLE %s.%s", c.database, tableName)
+			if err := c.executeQuery(ctx, truncateQuery); err != nil {
+				return fmt.Errorf("failed to truncate table: %w", err)
+			}
+			logger.Success("Table %s truncated", tableName)
+		} else {
+			logger.Info("New data will be appended to existing table: %s", tableName)
+		}
+	} else {
+		logger.Info("Creating new table: %s", tableName)
+		createQuery := fmt.Sprintf(`
+            CREATE TABLE %s.%s (
+                name String,
+                version String,
+                license String,
+                source LowCardinality(String),
+                inserted_at DateTime DEFAULT now()
+            ) ENGINE = MergeTree()
+            ORDER BY (name, version, license)
+        `, c.database, tableName)
+
+		if err := c.executeQuery(ctx, createQuery); err != nil {
+			return fmt.Errorf("failed to create table: %w", err)
+		}
+		logger.Success("Table %s created successfully", tableName)
+	}
+
+	return nil
+}
+
+func (c *ClickHouseClient) checkAndMigrateTable(ctx context.Context, tableName string) error {
+	logger.Info("Checking if table %s needs migration for source column", tableName)
+
+	// Check if source column exists
+	checkQuery := fmt.Sprintf(
+		"SELECT COUNT(*) FROM system.columns WHERE database='%s' AND table='%s' AND name='source'",
+		c.database, tableName)
+
+	result, err := c.queryScalar(ctx, checkQuery)
+	if err != nil {
+		return fmt.Errorf("failed to check column existence: %w", err)
+	}
+
+	if result == "0" {
+		logger.Info("source column not found, migrating table: %s", tableName)
+
+		alterQuery := fmt.Sprintf(
+			"ALTER TABLE %s.%s ADD COLUMN source LowCardinality(String) DEFAULT 'unknown'",
+			c.database, tableName)
+
+		if err := c.executeQuery(ctx, alterQuery); err != nil {
+			return fmt.Errorf("failed to add source column: %w", err)
+		}
+
+		logger.Success("source column added to table %s", tableName)
+	} else {
+		logger.Info("source column already exists in table %s", tableName)
+	}
+
+	return nil
+}
+
+// InsertSBOMData extracts components from the SBOM and inserts them into the ClickHouse table.
+// defaultSource is used as the per-component source value when the component itself does not
+// carry a "source" field (which happens for non-merge runs — merge mode tags each component
+// in advance). Pass "" to fall back to the literal "unknown".
+func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableName, sbomFormat, defaultSource string) error {
+	logger.Info("Extracting components from %s SBOM for ClickHouse", sbomFormat)
+
+	// Read SBOM file
+	data, err := os.ReadFile(sbomFile)
+	if err != nil {
+		return fmt.Errorf("failed to read SBOM file: %w", err)
+	}
+
+	var components []map[string]interface{}
+
+	// Parse based on format
+	switch sbomFormat {
+	case "cyclonedx":
+		var cdx struct {
+			Components []map[string]interface{} `json:"components"`
+		}
+		if err := json.Unmarshal(data, &cdx); err != nil {
+			return fmt.Errorf("failed to parse CycloneDX: %w", err)
+		}
+		components = cdx.Components
+
+	case "spdxjson":
+		var spdx struct {
+			Packages []map[string]interface{} `json:"packages"`
+		}
+		if err := json.Unmarshal(data, &spdx); err != nil {
+			return fmt.Errorf("failed to parse SPDX: %w", err)
+		}
+		components = spdx.Packages
+
+	default:
+		return fmt.Errorf("unsupported SBOM format: %s", sbomFormat)
+	}
+
+	if len(components) == 0 {
+		logger.Warning("No components found in SBOM")
+		return nil
+	}
+
+	mappingPath := c.licenseMappingFile
+	if mappingPath == "" {
+		mappingPath = "/app/license-mappings.json"
+	}
+	mapper, mapperErr := sbom.NewLicenseMapper(mappingPath)
+	if mapperErr != nil {
+		logger.Warning("Failed to load license mappings from %s: %v (continuing without mapping)", mappingPath, mapperErr)
+	}
+
+	if defaultSource == "" {
+		defaultSource = "unknown" //nolint:goconst
+	}
+
+	logger.Info("Found %d components to insert", len(components))
+
+	// Build TSV data
+	var tsvData bytes.Buffer
+	for _, comp := range components {
+		name := getStringField(comp, "name", "unknown")
+		version := extractVersion(comp)
+		license := extractLicense(comp)
+		if mapper != nil {
+			license = mapper.MapLicense(name, license)
+		}
+		source := getStringField(comp, "source", defaultSource)
+
+		fmt.Fprintf(&tsvData, "%s\t%s\t%s\t%s\n",
+			tsvEscape(name), tsvEscape(version), tsvEscape(license), tsvEscape(source))
+	}
+
+	// Insert data
+	insertURL := fmt.Sprintf("%s/?query=%s",
+		c.url,
+		url.QueryEscape(fmt.Sprintf(
+			"INSERT INTO %s.%s (name, version, license, source) FORMAT TSV",
+			c.database, tableName)))
+
+	req, err := http.NewRequestWithContext(ctx, "POST", insertURL, &tsvData)
+	if err != nil {
+		return fmt.Errorf("failed to create insert request: %w", err)
+	}
+
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+
+	req.Header.Set("Content-Type", "text/tab-separated-values")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("insert request failed: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Warning("Failed to close response body: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("insert failed (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	logger.Success("Inserted %d components into ClickHouse table %s", len(components), tableName)
+	return nil
+}
+
+// tsvEscape applies ClickHouse's TabSeparated escaping rules so that values
+// containing tabs, newlines, or backslashes don't shift downstream columns or
+// inject extra rows. See https://clickhouse.com/docs/en/interfaces/formats#tabseparated.
+func tsvEscape(s string) string {
+	if !strings.ContainsAny(s, "\\\t\n\r\x00") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	for _, r := range s {
+		switch r {
+		case '\\':
+			b.WriteString(`\\`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case 0:
+			b.WriteString(`\0`)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func getStringField(m map[string]interface{}, key, defaultVal string) string { //nolint:unparam
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return defaultVal
+}
+
+// extractVersion reads the version of a component / package, accepting both
+// CycloneDX's "version" and SPDX's "versionInfo". The same function works for
+// either format because they never both populate.
+func extractVersion(comp map[string]interface{}) string {
+	if v, ok := comp["version"].(string); ok && v != "" {
+		return v
+	}
+	if v, ok := comp["versionInfo"].(string); ok && v != "" {
+		return v
+	}
+	return "unknown"
+}
+
+// firstString returns the first non-empty value found at any of the supplied
+// keys in m. Used by the license extractor to walk a sequence of fallback fields.
+func firstString(m map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := m[k].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func extractLicenseFromCDXEntry(entry map[string]interface{}) string {
+	// CycloneDX canonical shape: licenses[].license.{id,name,expression}.
+	if license, ok := entry["license"].(map[string]interface{}); ok {
+		if v := firstString(license, "id", "name", "expression"); v != "" {
+			return v
+		}
+	}
+	// Tolerate emitters that flatten the same fields onto the licenses[] entry.
+	return firstString(entry, "id", "name", "expression")
+}
+
+func extractLicenseFromProperties(comp map[string]interface{}) string {
+	props, ok := comp["properties"].([]interface{})
+	if !ok {
+		return ""
+	}
+	for _, p := range props {
+		pm, ok := p.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		pname, _ := pm["name"].(string)
+		if pname != "spdx:license-concluded" && pname != "spdx:license-declared" {
+			continue
+		}
+		if v, ok := pm["value"].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func extractLicense(comp map[string]interface{}) string {
+	if licenses, ok := comp["licenses"].([]interface{}); ok && len(licenses) > 0 {
+		if entry, ok := licenses[0].(map[string]interface{}); ok {
+			if v := extractLicenseFromCDXEntry(entry); v != "" {
+				return v
+			}
+		}
+	}
+	if v := extractLicenseFromProperties(comp); v != "" {
+		return v
+	}
+	if v := firstString(comp, "licenseConcluded", "licenseDeclared"); v != "" {
+		return v
+	}
+	return "unknown"
+}

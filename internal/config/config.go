@@ -1,0 +1,389 @@
+// Package config handles loading and validating configuration from environment variables.
+package config
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/ClickHouse/ClickBOM/internal/validation"
+)
+
+// SBOM source identifiers used across the codebase.
+const (
+	SourceGitHub = "github"
+	SourceMend   = "mend"
+	SourceWiz    = "wiz"
+	SourceTrivy  = "trivy"
+)
+
+// Config holds the application configuration.
+type Config struct {
+	// GitHub
+	GitHubToken string
+	Repository  string
+
+	// Mend
+	MendEmail        string
+	MendOrgUUID      string
+	MendUserKey      string
+	MendBaseURL      string
+	MendProjectUUID  string
+	MendProductUUID  string
+	MendOrgScopeUUID string
+	MendProjectUUIDs string
+	MendMaxWaitTime  int
+	MendPollInterval int
+
+	// Wiz
+	WizAuthEndpoint string
+	WizAPIEndpoint  string
+	WizClientID     string
+	WizClientSecret string
+	WizReportID     string
+
+	// Trivy
+	TrivyImage         string
+	TrivyECRAccountID  string
+	TrivyECRRegion     string
+	TrivyECRRoleARN    string
+	TrivyECRExternalID string
+	TrivyFormat        string
+
+	// AWS
+	AWSAccessKeyID     string
+	AWSSecretAccessKey string
+	AWSRegion          string
+	S3Bucket           string
+	S3Key              string
+
+	// ClickHouse
+	ClickHouseURL      string
+	ClickHouseDatabase string
+	ClickHouseUsername string
+	ClickHousePassword string
+	TruncateTable      bool
+
+	// General
+	SBOMSource string // "github", "mend", "wiz"
+	SBOMFormat string // "cyclonedx", "spdxjson"
+	Merge      bool
+	Include    string
+	Exclude    string
+	Debug      bool
+
+	// License mapping
+	LicenseMappingFile string
+}
+
+// LoadConfig loads configuration from environment variables.
+func LoadConfig() (*Config, error) {
+	truncate, err := validation.SanitizeBool(os.Getenv("TRUNCATE_TABLE"), "TRUNCATE_TABLE", false)
+	if err != nil {
+		return nil, err
+	}
+	merge, err := validation.SanitizeBool(os.Getenv("MERGE"), "MERGE", false)
+	if err != nil {
+		return nil, err
+	}
+	debug, err := validation.SanitizeBool(os.Getenv("DEBUG"), "DEBUG", false)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &Config{
+		// AWS (required)
+		S3Bucket: os.Getenv("S3_BUCKET"),
+		S3Key:    getEnvOrDefault("S3_KEY", "sbom.json"),
+
+		// GitHub
+		GitHubToken: os.Getenv("GITHUB_TOKEN"),
+		Repository:  os.Getenv("REPOSITORY"),
+
+		// Mend
+		MendEmail:        os.Getenv("MEND_EMAIL"),
+		MendOrgUUID:      os.Getenv("MEND_ORG_UUID"),
+		MendUserKey:      os.Getenv("MEND_USER_KEY"),
+		MendBaseURL:      getEnvOrDefault("MEND_BASE_URL", "https://api-saas.mend.io"),
+		MendProjectUUID:  os.Getenv("MEND_PROJECT_UUID"),
+		MendProductUUID:  os.Getenv("MEND_PRODUCT_UUID"),
+		MendOrgScopeUUID: os.Getenv("MEND_ORG_SCOPE_UUID"),
+		MendProjectUUIDs: os.Getenv("MEND_PROJECT_UUIDS"),
+		MendMaxWaitTime:  getEnvAsInt("MEND_MAX_WAIT_TIME", 1800),
+		MendPollInterval: getEnvAsInt("MEND_POLL_INTERVAL", 30),
+
+		// Wiz
+		WizAuthEndpoint: os.Getenv("WIZ_AUTH_ENDPOINT"),
+		WizAPIEndpoint:  os.Getenv("WIZ_API_ENDPOINT"),
+		WizClientID:     os.Getenv("WIZ_CLIENT_ID"),
+		WizClientSecret: os.Getenv("WIZ_CLIENT_SECRET"),
+		WizReportID:     os.Getenv("WIZ_REPORT_ID"),
+
+		// Trivy
+		TrivyImage:         getEnvOrDefault("TRIVY_IMAGE", ""),
+		TrivyECRAccountID:  getEnvOrDefault("TRIVY_ECR_ACCOUNT_ID", ""),
+		TrivyECRRegion:     getEnvOrDefault("TRIVY_ECR_REGION", "us-east-1"),
+		TrivyECRRoleARN:    getEnvOrDefault("TRIVY_ECR_ROLE_ARN", ""),
+		TrivyECRExternalID: getEnvOrDefault("TRIVY_ECR_EXTERNAL_ID", ""),
+		TrivyFormat:        getEnvOrDefault("TRIVY_FORMAT", "cyclonedx"),
+
+		// ClickHouse
+		ClickHouseURL:      os.Getenv("CLICKHOUSE_URL"),
+		ClickHouseDatabase: getEnvOrDefault("CLICKHOUSE_DATABASE", "default"),
+		ClickHouseUsername: getEnvOrDefault("CLICKHOUSE_USERNAME", "default"),
+		ClickHousePassword: os.Getenv("CLICKHOUSE_PASSWORD"),
+		TruncateTable:      truncate,
+
+		// General
+		SBOMSource:         getEnvOrDefault("SBOM_SOURCE", "github"),
+		SBOMFormat:         getEnvOrDefault("SBOM_FORMAT", "cyclonedx"),
+		Merge:              merge,
+		Include:            os.Getenv("INCLUDE"),
+		Exclude:            os.Getenv("EXCLUDE"),
+		Debug:              debug,
+		LicenseMappingFile: getEnvOrDefault("LICENSE_MAPPING_FILE", "/app/license-mappings.json"),
+	}
+
+	// Sanitize inputs
+	if err := cfg.Sanitize(); err != nil {
+		return nil, fmt.Errorf("sanitization failed: %w", err)
+	}
+
+	// Validate required fields
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// Validate checks that all required configuration fields are set appropriately.
+func (c *Config) Validate() error {
+	// AWS is always required
+	if c.S3Bucket == "" {
+		return fmt.Errorf("S3_BUCKET is required")
+	}
+
+	// Repository required if not in merge mode and source is GitHub
+	if !c.Merge && c.SBOMSource != SourceMend && c.SBOMSource != SourceWiz && c.SBOMSource != SourceTrivy {
+		if c.Repository == "" {
+			return fmt.Errorf("REPOSITORY is required when not in merge mode")
+		}
+	}
+
+	// Mend validation
+	if c.SBOMSource == SourceMend {
+		if c.MendEmail == "" {
+			return fmt.Errorf("MEND_EMAIL is required for Mend source")
+		}
+		if c.MendOrgUUID == "" {
+			return fmt.Errorf("MEND_ORG_UUID is required for Mend source")
+		}
+		if c.MendUserKey == "" {
+			return fmt.Errorf("MEND_USER_KEY is required for Mend source")
+		}
+		if c.MendProjectUUID == "" && c.MendProductUUID == "" {
+			return fmt.Errorf("at least one of MEND_PROJECT_UUID or MEND_PRODUCT_UUID is required")
+		}
+	}
+
+	// Wiz validation
+	if c.SBOMSource == SourceWiz {
+		if c.WizAPIEndpoint == "" {
+			return fmt.Errorf("WIZ_API_ENDPOINT is required for Wiz source")
+		}
+		if c.WizClientID == "" {
+			return fmt.Errorf("WIZ_CLIENT_ID is required for Wiz source")
+		}
+		if c.WizClientSecret == "" {
+			return fmt.Errorf("WIZ_CLIENT_SECRET is required for Wiz source")
+		}
+		if c.WizReportID == "" {
+			return fmt.Errorf("WIZ_REPORT_ID is required for Wiz source")
+		}
+	}
+
+	// Trivy validation
+	if c.SBOMSource == SourceTrivy {
+		if c.TrivyImage == "" {
+			return fmt.Errorf("TRIVY_IMAGE is required for Trivy source")
+		}
+		if c.TrivyFormat != "cyclonedx" && c.TrivyFormat != "spdxjson" {
+			return fmt.Errorf("TRIVY_FORMAT must be 'cyclonedx' or 'spdxjson'")
+		}
+	}
+
+	// ClickHouse validation
+	if c.ClickHouseURL != "" {
+		if c.ClickHouseDatabase == "" {
+			return fmt.Errorf("CLICKHOUSE_DATABASE is required when using ClickHouse")
+		}
+		if c.ClickHouseUsername == "" {
+			return fmt.Errorf("CLICKHOUSE_USERNAME is required when using ClickHouse")
+		}
+	}
+
+	return nil
+}
+
+func getEnvOrDefault(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
+func getEnvAsInt(key string, defaultVal int) int {
+	valStr := os.Getenv(key)
+	if valStr == "" {
+		return defaultVal
+	}
+	var val int
+	_, err := fmt.Sscanf(valStr, "%d", &val)
+	if err != nil {
+		return defaultVal
+	}
+	return val
+}
+
+// sanitizeURLs validates and rewrites every URL field on the config. Extracted
+// from Sanitize so the parent stays under the project cyclo limit.
+func (c *Config) sanitizeURLs() error {
+	urls := []struct {
+		ptr  *string
+		kind string
+	}{
+		{&c.MendBaseURL, "mend"},
+		{&c.WizAuthEndpoint, "wiz"},
+		{&c.WizAPIEndpoint, "wiz"},
+		{&c.ClickHouseURL, "clickhouse"},
+	}
+	for _, u := range urls {
+		if *u.ptr == "" {
+			continue
+		}
+		clean, err := validation.SanitizeURL(*u.ptr, u.kind)
+		if err != nil {
+			return err
+		}
+		*u.ptr = clean
+	}
+	return nil
+}
+
+// sanitizeUUIDs validates and rewrites every Mend UUID field on the config.
+func (c *Config) sanitizeUUIDs() error {
+	uuids := []struct {
+		ptr   *string
+		field string
+	}{
+		{&c.MendOrgUUID, "MEND_ORG_UUID"},
+		{&c.MendProjectUUID, "MEND_PROJECT_UUID"},
+		{&c.MendProductUUID, "MEND_PRODUCT_UUID"},
+		{&c.MendOrgScopeUUID, "MEND_ORG_SCOPE_UUID"},
+	}
+	for _, u := range uuids {
+		if *u.ptr == "" {
+			continue
+		}
+		clean, err := validation.SanitizeUUID(*u.ptr, u.field)
+		if err != nil {
+			return err
+		}
+		*u.ptr = clean
+	}
+	if c.MendProjectUUIDs != "" {
+		clean, err := validation.SanitizeUUIDList(c.MendProjectUUIDs, "MEND_PROJECT_UUIDS")
+		if err != nil {
+			return err
+		}
+		c.MendProjectUUIDs = clean
+	}
+	return nil
+}
+
+// Sanitize cleans and validates configuration fields.
+func (c *Config) Sanitize() error {
+	var err error
+
+	// Repository
+	if c.Repository != "" {
+		c.Repository, err = validation.SanitizeRepository(c.Repository)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Email
+	if c.MendEmail != "" {
+		c.MendEmail, err = validation.SanitizeEmail(c.MendEmail)
+		if err != nil {
+			return err
+		}
+	}
+
+	// S3
+	if c.S3Bucket != "" {
+		c.S3Bucket, err = validation.SanitizeS3Bucket(c.S3Bucket)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.S3Key != "" {
+		c.S3Key, err = validation.SanitizeS3Key(c.S3Key)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := c.sanitizeURLs(); err != nil {
+		return err
+	}
+	if err := c.sanitizeUUIDs(); err != nil {
+		return err
+	}
+
+	// Numeric ranges (bash entrypoint enforces 60-7200 and 10-300).
+	if _, err := validation.SanitizeNumeric(fmt.Sprintf("%d", c.MendMaxWaitTime), "MEND_MAX_WAIT_TIME", 60, 7200); err != nil {
+		return err
+	}
+	if _, err := validation.SanitizeNumeric(fmt.Sprintf("%d", c.MendPollInterval), "MEND_POLL_INTERVAL", 10, 300); err != nil {
+		return err
+	}
+
+	// SBOM source / format are closed sets.
+	switch c.SBOMSource {
+	case SourceGitHub, SourceMend, SourceWiz, SourceTrivy:
+	default:
+		return fmt.Errorf("invalid SBOM_SOURCE: %q (must be github, mend, wiz, or trivy)", c.SBOMSource)
+	}
+	switch c.SBOMFormat {
+	case "cyclonedx", "spdxjson":
+	default:
+		return fmt.Errorf("invalid SBOM_FORMAT: %q (must be cyclonedx or spdxjson)", c.SBOMFormat)
+	}
+
+	// ClickHouse database identifier must be SQL-legal.
+	if c.ClickHouseDatabase != "" {
+		c.ClickHouseDatabase = validation.SanitizeDatabaseName(c.ClickHouseDatabase)
+		if c.ClickHouseDatabase == "" {
+			return fmt.Errorf("CLICKHOUSE_DATABASE is empty after sanitization")
+		}
+	}
+
+	// Patterns
+	c.Include = validation.SanitizePatterns(c.Include)
+	c.Exclude = validation.SanitizePatterns(c.Exclude)
+
+	// Sanitize strings with length limits
+	c.GitHubToken = validation.SanitizeString(c.GitHubToken, 1000)
+	c.MendUserKey = validation.SanitizeString(c.MendUserKey, 500)
+	c.WizClientID = validation.SanitizeString(c.WizClientID, 200)
+	c.WizClientSecret = validation.SanitizeString(c.WizClientSecret, 500)
+	c.WizReportID = validation.SanitizeString(c.WizReportID, 200)
+	c.AWSAccessKeyID = validation.SanitizeString(c.AWSAccessKeyID, 100)
+	c.AWSSecretAccessKey = validation.SanitizeString(c.AWSSecretAccessKey, 500)
+	c.ClickHousePassword = validation.SanitizeString(c.ClickHousePassword, 500)
+
+	return nil
+}

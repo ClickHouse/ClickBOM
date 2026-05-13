@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778687433682,
+  "lastUpdate": 1778688622790,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -2352,6 +2352,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "130701 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "9e58c605a6f906527a13bfa27ae350441f2c04dd",
+          "message": "feat(go): Migration\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-05-13T12:09:38-04:00",
+          "tree_id": "38a2198d6992ea67f5b71321a125cc8dfa8fd4ae",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/9e58c605a6f906527a13bfa27ae350441f2c04dd"
+        },
+        "date": 1778688621756,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9504,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "126282 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9504,
+            "unit": "ns/op",
+            "extra": "126282 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "126282 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "126282 times\n4 procs"
           }
         ]
       }

@@ -39,7 +39,8 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # Mock S3 using LocalStack
+      # Mock S3 using LocalStack. `awslocal` is not installed in the base
+      # image, so probe LocalStack's built-in health endpoint instead.
       localstack:
         image: localstack/localstack:latest
         env:
@@ -48,10 +49,11 @@ jobs:
         ports:
           - 4566:4566
         options: >-
-          --health-cmd "awslocal s3 ls"
+          --health-cmd "curl --silent --fail http://localhost:4566/_localstack/health"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
+          --health-start-period 30s
 
       # Mock ClickHouse
       clickhouse:

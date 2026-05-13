@@ -369,48 +369,50 @@ func (m *MendClient) downloadReport(ctx context.Context, reportUUID, outputFile 
 		return fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// Check if response is a ZIP file (starts with "PK")
-	if len(body) >= 2 && body[0] == 0x50 && body[1] == 0x4B {
-		// It's a ZIP file, extract it
-		zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	// Mend can return either a ZIP archive (typical) or the raw JSON SBOM
+	// (older endpoints, or product/org-scoped requests). Sniff the magic
+	// bytes and handle both — never silently succeed without writing output.
+	if hasZipMagic(body) {
+		extracted, err := extractFirstJSONFromZip(body)
 		if err != nil {
-			return fmt.Errorf("failed to read ZIP: %w", err)
+			return err
 		}
-
-		// Find and read the JSON file inside
-		for _, file := range zipReader.File {
-			if strings.HasSuffix(file.Name, ".json") {
-				rc, err := file.Open()
-				if err != nil {
-					return fmt.Errorf("failed to open file in ZIP: %w", err)
-				}
-				body, err = io.ReadAll(rc)
-				if err != nil {
-					return fmt.Errorf("failed to read file in ZIP: %w", err)
-				}
-				err = rc.Close()
-				if err != nil {
-					return fmt.Errorf("failed to close file in ZIP: %w", err)
-				}
-				// Create output file
-				outFile, err := os.Create(outputFile)
-				if err != nil {
-					return fmt.Errorf("failed to create output file: %w", err)
-				}
-				defer func() {
-					if err := outFile.Close(); err != nil {
-						logger.Warning("Failed to close file: %v", err)
-					}
-				}()
-				// Copy response to file
-				written, err := io.Copy(outFile, bytes.NewReader(body))
-				if err != nil {
-					return fmt.Errorf("failed to write file: %w", err)
-				}
-				logger.Success("Mend SBOM downloaded successfully (%d bytes)", written)
-				break
-			}
-		}
+		body = extracted
 	}
+
+	if err := os.WriteFile(outputFile, body, 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+	if err := validateJSON(outputFile); err != nil {
+		return fmt.Errorf("Mend response is not valid JSON: %w", err)
+	}
+	logger.Success("Mend SBOM downloaded successfully (%d bytes)", len(body))
 	return nil
+}
+
+// hasZipMagic reports whether the buffer starts with the "PK" ZIP signature.
+func hasZipMagic(b []byte) bool {
+	return len(b) >= 2 && b[0] == 0x50 && b[1] == 0x4B
+}
+
+// extractFirstJSONFromZip returns the contents of the first *.json entry in the
+// supplied ZIP archive. Used by Mend (single-report ZIPs always contain one
+// SBOM JSON file).
+func extractFirstJSONFromZip(body []byte) ([]byte, error) {
+	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read ZIP: %w", err)
+	}
+	for _, file := range zipReader.File {
+		if !strings.HasSuffix(file.Name, ".json") {
+			continue
+		}
+		rc, err := file.Open()
+		if err != nil {
+			return nil, fmt.Errorf("failed to open %s in ZIP: %w", file.Name, err)
+		}
+		defer func() { _ = rc.Close() }()
+		return io.ReadAll(rc)
+	}
+	return nil, fmt.Errorf("ZIP contains no .json entries")
 }

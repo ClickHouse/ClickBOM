@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ClickHouse/ClickBOM/pkg/logger"
@@ -67,44 +68,41 @@ func (g *GitHubClient) DownloadSBOM(ctx context.Context, repo, outputFile string
 			}
 		}()
 
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-
-			// Check for retryable errors
-			var errResp struct {
-				Message string `json:"message"`
+			if msg, ok := retryableGitHubMessage(body); ok && attempt < maxAttempts {
+				delay := baseDelay * time.Duration(attempt)
+				logger.Warning("GitHub SBOM generation transient error on attempt %d: %s", attempt, msg)
+				logger.Info("Waiting %v before retry...", delay)
+				time.Sleep(delay)
+				continue
 			}
-			if json.Unmarshal(body, &errResp) == nil {
-				if isRetryableError(errResp.Message) && attempt < maxAttempts {
-					delay := baseDelay * time.Duration(attempt)
-					logger.Warning("GitHub SBOM generation timed out on attempt %d: %s", attempt, errResp.Message)
-					logger.Info("Waiting %v before retry...", delay)
-					time.Sleep(delay)
-					continue
-				}
-			}
-
 			return fmt.Errorf("GitHub API error (status %d): %s", resp.StatusCode, string(body))
 		}
 
-		// Create output file
-		outFile, err := os.Create(outputFile)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer func() {
-			if err := outFile.Close(); err != nil {
-				logger.Warning("Failed to close file: %v", err)
+		// GitHub sometimes returns 200 with a JSON body containing a transient
+		// `.message` (timeout, generation failure). Detect and retry — bash does
+		// the same check before writing the file.
+		if msg, ok := retryableGitHubMessage(body); ok {
+			if attempt < maxAttempts {
+				delay := baseDelay * time.Duration(attempt)
+				logger.Warning("GitHub 200 with transient error on attempt %d: %s", attempt, msg)
+				logger.Info("Waiting %v before retry...", delay)
+				time.Sleep(delay)
+				continue
 			}
-		}()
+			return fmt.Errorf("GitHub SBOM generation failed after %d attempts: %s", maxAttempts, msg)
+		}
 
-		// Copy response to file
-		written, err := io.Copy(outFile, resp.Body)
-		if err != nil {
+		if err := os.WriteFile(outputFile, body, 0644); err != nil {
 			return fmt.Errorf("failed to write SBOM to file: %w", err)
 		}
 
-		logger.Success("SBOM downloaded successfully (%d bytes) on attempt %d", written, attempt)
+		logger.Success("SBOM downloaded successfully (%d bytes) on attempt %d", len(body), attempt)
 
 		// Validate JSON
 		if err := validateJSON(outputFile); err != nil {
@@ -123,15 +121,30 @@ func (g *GitHubClient) DownloadSBOM(ctx context.Context, repo, outputFile string
 	return fmt.Errorf("failed to download SBOM after %d attempts", maxAttempts)
 }
 
+// retryableGitHubMessage inspects a response body for a JSON `.message` field
+// matching a known transient error pattern. Returns the message and whether
+// it should trigger a retry.
+func retryableGitHubMessage(body []byte) (string, bool) {
+	var probe struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &probe); err != nil {
+		return "", false
+	}
+	if probe.Message == "" {
+		return "", false
+	}
+	return probe.Message, isRetryableError(probe.Message)
+}
+
 func isRetryableError(message string) bool {
 	retryableMessages := []string{
 		"Request timed out",
 		"Failed to generate SBOM",
 		"timeout",
 	}
-
 	for _, msg := range retryableMessages {
-		if contains(message, msg) {
+		if strings.Contains(message, msg) {
 			return true
 		}
 	}
@@ -143,27 +156,9 @@ func validateJSON(filename string) error {
 	if err != nil {
 		return err
 	}
-
 	var js json.RawMessage
 	if err := json.Unmarshal(data, &js); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
-
 	return nil
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) &&
-		(s == substr || len(s) > len(substr) &&
-			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-				containsSubstring(s, substr)))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

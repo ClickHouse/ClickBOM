@@ -69,6 +69,19 @@ type Config struct {
 
 // LoadConfig loads configuration from environment variables.
 func LoadConfig() (*Config, error) {
+	truncate, err := validation.SanitizeBool(os.Getenv("TRUNCATE_TABLE"), "TRUNCATE_TABLE", false)
+	if err != nil {
+		return nil, err
+	}
+	merge, err := validation.SanitizeBool(os.Getenv("MERGE"), "MERGE", false)
+	if err != nil {
+		return nil, err
+	}
+	debug, err := validation.SanitizeBool(os.Getenv("DEBUG"), "DEBUG", false)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &Config{
 		// AWS (required)
 		S3Bucket: os.Getenv("S3_BUCKET"),
@@ -110,15 +123,15 @@ func LoadConfig() (*Config, error) {
 		ClickHouseDatabase: getEnvOrDefault("CLICKHOUSE_DATABASE", "default"),
 		ClickHouseUsername: getEnvOrDefault("CLICKHOUSE_USERNAME", "default"),
 		ClickHousePassword: os.Getenv("CLICKHOUSE_PASSWORD"),
-		TruncateTable:      getEnvAsBool("TRUNCATE_TABLE", false),
+		TruncateTable:      truncate,
 
 		// General
 		SBOMSource:         getEnvOrDefault("SBOM_SOURCE", "github"),
 		SBOMFormat:         getEnvOrDefault("SBOM_FORMAT", "cyclonedx"),
-		Merge:              getEnvAsBool("MERGE", false),
+		Merge:              merge,
 		Include:            os.Getenv("INCLUDE"),
 		Exclude:            os.Getenv("EXCLUDE"),
-		Debug:              getEnvAsBool("DEBUG", false),
+		Debug:              debug,
 		LicenseMappingFile: getEnvOrDefault("LICENSE_MAPPING_FILE", "/app/license-mappings.json"),
 	}
 
@@ -315,6 +328,48 @@ func (c *Config) Sanitize() error {
 		c.MendProductUUID, err = validation.SanitizeUUID(c.MendProductUUID, "MEND_PRODUCT_UUID")
 		if err != nil {
 			return err
+		}
+	}
+
+	if c.MendOrgScopeUUID != "" {
+		c.MendOrgScopeUUID, err = validation.SanitizeUUID(c.MendOrgScopeUUID, "MEND_ORG_SCOPE_UUID")
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.MendProjectUUIDs != "" {
+		c.MendProjectUUIDs, err = validation.SanitizeUUIDList(c.MendProjectUUIDs, "MEND_PROJECT_UUIDS")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Numeric ranges (bash entrypoint enforces 60-7200 and 10-300).
+	if _, err := validation.SanitizeNumeric(fmt.Sprintf("%d", c.MendMaxWaitTime), "MEND_MAX_WAIT_TIME", 60, 7200); err != nil {
+		return err
+	}
+	if _, err := validation.SanitizeNumeric(fmt.Sprintf("%d", c.MendPollInterval), "MEND_POLL_INTERVAL", 10, 300); err != nil {
+		return err
+	}
+
+	// SBOM source / format are closed sets.
+	switch c.SBOMSource {
+	case "github", "mend", "wiz", "trivy":
+	default:
+		return fmt.Errorf("invalid SBOM_SOURCE: %q (must be github, mend, wiz, or trivy)", c.SBOMSource)
+	}
+	switch c.SBOMFormat {
+	case "cyclonedx", "spdxjson":
+	default:
+		return fmt.Errorf("invalid SBOM_FORMAT: %q (must be cyclonedx or spdxjson)", c.SBOMFormat)
+	}
+
+	// ClickHouse database identifier must be SQL-legal.
+	if c.ClickHouseDatabase != "" {
+		c.ClickHouseDatabase = validation.SanitizeDatabaseName(c.ClickHouseDatabase)
+		if c.ClickHouseDatabase == "" {
+			return fmt.Errorf("CLICKHOUSE_DATABASE is empty after sanitization")
 		}
 	}
 

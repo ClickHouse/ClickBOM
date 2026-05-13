@@ -2,13 +2,18 @@
 package sbom
 
 import (
+	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ClickHouse/ClickBOM/internal/config"
@@ -43,24 +48,20 @@ func NewWizClient(cfg *config.Config) *WizClient {
 func (w *WizClient) authenticate(ctx context.Context) error {
 	logger.Info("Authenticating with Wiz API")
 
-	data := map[string]string{
-		"grant_type":    "client_credentials",
-		"client_id":     w.clientID,
-		"client_secret": w.clientSecret,
-		"audience":      "wiz-api",
-	}
+	// OAuth 2.0 RFC 6749 client_credentials grants are form-encoded, not JSON.
+	// Wiz's auth endpoint enforces this; sending JSON yields a generic 401.
+	form := url.Values{}
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_id", w.clientID)
+	form.Set("client_secret", w.clientSecret)
+	form.Set("audience", "wiz-api")
 
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal auth data: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", w.authEndpoint, bytes.NewReader(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", w.authEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := w.httpClient.Do(req)
@@ -191,29 +192,101 @@ func (w *WizClient) downloadFromURL(ctx context.Context, url, outputFile string)
 		return fmt.Errorf("download failed (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	// Create output file
-	outFile, err := os.Create(outputFile)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
-	defer func() {
-		if err := outFile.Close(); err != nil {
-			logger.Warning("Failed to close file: %v", err)
-		}
-	}()
 
-	// Copy response to file
-	written, err := io.Copy(outFile, resp.Body)
+	jsonBytes, err := normalizeWizPayload(body, filepath.Dir(outputFile))
 	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(outputFile, jsonBytes, 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
+	logger.Success("Wiz report downloaded successfully (%d bytes)", len(jsonBytes))
 
-	logger.Success("Wiz report downloaded successfully (%d bytes)", written)
-
-	// Validate JSON
 	if err := validateJSON(outputFile); err != nil {
 		return fmt.Errorf("downloaded file is not valid JSON: %w", err)
 	}
-
 	return nil
+}
+
+// normalizeWizPayload turns whatever Wiz's signed-URL endpoint returned (raw
+// JSON, gzip-compressed JSON, or a ZIP archive that may contain one or many
+// CycloneDX SBOM JSON files) into a single JSON byte buffer ready to be
+// written to disk. workDir is used as a scratch directory when ZIP entries
+// must be staged for a local merge.
+func normalizeWizPayload(body []byte, workDir string) ([]byte, error) {
+	switch {
+	case hasGzipMagic(body):
+		logger.Info("Wiz response is gzip-compressed, decompressing")
+		gz, err := gzip.NewReader(bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("failed to open gzip stream: %w", err)
+		}
+		defer func() { _ = gz.Close() }()
+		return io.ReadAll(gz)
+
+	case hasZipMagic(body):
+		logger.Info("Wiz response is a ZIP archive, extracting")
+		return extractJSONFromWizZip(body, workDir)
+
+	default:
+		return body, nil
+	}
+}
+
+// hasGzipMagic reports whether the buffer starts with the gzip magic bytes.
+func hasGzipMagic(b []byte) bool {
+	return len(b) >= 2 && b[0] == 0x1F && b[1] == 0x8B
+}
+
+// extractJSONFromWizZip walks a Wiz signed-URL ZIP. If it contains a single
+// JSON file the contents are returned directly; if it contains multiple, they
+// are staged to workDir and merged locally with MergeSBOMs so callers get a
+// single CycloneDX-shaped document either way.
+func extractJSONFromWizZip(body []byte, workDir string) ([]byte, error) {
+	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read ZIP: %w", err)
+	}
+
+	var stagedPaths []string
+	for _, file := range zipReader.File {
+		if file.FileInfo().IsDir() || !strings.HasSuffix(strings.ToLower(file.Name), ".json") {
+			continue
+		}
+		rc, err := file.Open()
+		if err != nil {
+			return nil, fmt.Errorf("failed to open %s in ZIP: %w", file.Name, err)
+		}
+		contents, readErr := io.ReadAll(rc)
+		_ = rc.Close()
+		if readErr != nil {
+			return nil, fmt.Errorf("failed to read %s in ZIP: %w", file.Name, readErr)
+		}
+		// Stage to disk so MergeSBOMs can read it back.
+		safeName := filepath.Base(file.Name)
+		staged := filepath.Join(workDir, "wiz_zip_"+safeName)
+		if err := os.WriteFile(staged, contents, 0644); err != nil {
+			return nil, fmt.Errorf("failed to stage %s: %w", file.Name, err)
+		}
+		stagedPaths = append(stagedPaths, staged)
+	}
+
+	switch len(stagedPaths) {
+	case 0:
+		return nil, fmt.Errorf("Wiz ZIP contains no .json entries")
+	case 1:
+		return os.ReadFile(stagedPaths[0])
+	}
+
+	logger.Info("Wiz ZIP contains %d JSON files, merging locally", len(stagedPaths))
+	mergedPath := filepath.Join(workDir, "wiz_zip_merged.json")
+	if err := MergeSBOMs(stagedPaths, mergedPath); err != nil {
+		return nil, fmt.Errorf("failed to merge ZIP entries: %w", err)
+	}
+	return os.ReadFile(mergedPath)
 }

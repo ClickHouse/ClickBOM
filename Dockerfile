@@ -32,7 +32,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     ./cmd/clickbom
 
 # External tools stage
-FROM alpine:3.23 AS tools
+FROM alpine:3.24 AS tools
 
 # Install AWS CLI
 RUN apk add --no-cache curl unzip && \

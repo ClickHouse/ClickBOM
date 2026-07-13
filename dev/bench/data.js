@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783941049296,
+  "lastUpdate": 1783941110521,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -4992,6 +4992,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "126583 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf8e0d0e4ce7f68bfaf9510f7021ff2df931e402",
+          "message": "Bump github.com/aws/aws-sdk-go-v2/service/sts from 1.42.1 to 1.44.0\n\nBumps [github.com/aws/aws-sdk-go-v2/service/sts](https://github.com/aws/aws-sdk-go-v2) from 1.42.1 to 1.44.0.\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/v1.42.1...service/s3/v1.44.0)\n\n---\nupdated-dependencies:\n- dependency-name: github.com/aws/aws-sdk-go-v2/service/sts\n  dependency-version: 1.44.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-07-13T11:11:08Z",
+          "tree_id": "b2bac0175180b7eda7e0f3d371e9f51c48607140",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/bf8e0d0e4ce7f68bfaf9510f7021ff2df931e402"
+        },
+        "date": 1783941109494,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 5552,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "214099 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 5552,
+            "unit": "ns/op",
+            "extra": "214099 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "214099 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "214099 times\n4 procs"
           }
         ]
       }

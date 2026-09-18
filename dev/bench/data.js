@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789747389040,
+  "lastUpdate": 1789747433720,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -6384,6 +6384,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "212104 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5c83697efb28741fde4c4547cdfdc9fd3fef21a1",
+          "message": "Bump github/codeql-action from 3 to 4 in /.github/workflows (#75)\n\nBumps [github/codeql-action](https://github.com/github/codeql-action) from 3 to 4.\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/v3...v4)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action\n  dependency-version: '4'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-18T12:03:08-04:00",
+          "tree_id": "0c38514cf32fac9a49e3c073d8d7e93c79e71b35",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/5c83697efb28741fde4c4547cdfdc9fd3fef21a1"
+        },
+        "date": 1789747432908,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9286,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "129438 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9286,
+            "unit": "ns/op",
+            "extra": "129438 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "129438 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "129438 times\n4 procs"
           }
         ]
       }

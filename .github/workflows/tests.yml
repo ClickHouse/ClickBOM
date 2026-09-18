@@ -173,7 +173,7 @@ jobs:
           ./cmd/clickbom
 
       - name: 📤 Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: clickbom-${{ matrix.goos }}-${{ matrix.goarch }}
           path: clickbom-${{ matrix.goos }}-${{ matrix.goarch }}*

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789747259467,
+  "lastUpdate": 1789747294547,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -6240,6 +6240,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "218079 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4ca32e40341c7fb67ac41fdf35ad1d78af6a6bcf",
+          "message": "Bump docker/setup-buildx-action from 3 to 4 in /.github/workflows (#78)\n\nBumps [docker/setup-buildx-action](https://github.com/docker/setup-buildx-action) from 3 to 4.\n- [Release notes](https://github.com/docker/setup-buildx-action/releases)\n- [Commits](https://github.com/docker/setup-buildx-action/compare/v3...v4)\n\n---\nupdated-dependencies:\n- dependency-name: docker/setup-buildx-action\n  dependency-version: '4'\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-18T12:00:49-04:00",
+          "tree_id": "6b31a2a0d32b2c3a17794b555ecfd8868d035785",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/4ca32e40341c7fb67ac41fdf35ad1d78af6a6bcf"
+        },
+        "date": 1789747293421,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 5642,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "211825 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 5642,
+            "unit": "ns/op",
+            "extra": "211825 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "211825 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "211825 times\n4 procs"
           }
         ]
       }

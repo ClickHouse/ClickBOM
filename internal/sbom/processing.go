@@ -244,3 +244,18 @@ func ConvertSBOM(inputFile, outputFile string, sourceFormat, targetFormat Format
 	logger.Success("SBOM converted successfully")
 	return nil
 }
+
+// validateJSON reports whether filename holds a syntactically valid JSON
+// document. Source clients use it as a last check before handing a download
+// to the rest of the pipeline.
+func validateJSON(filename string) error {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	var js json.RawMessage
+	if err := json.Unmarshal(data, &js); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+	return nil
+}

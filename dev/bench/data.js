@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789747433720,
+  "lastUpdate": 1789795340272,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -6432,6 +6432,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "129438 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "5a5164c630d464c9c2b4bfe69e094e9704ade4be",
+          "message": "fix(bugs): Multiple Fixes\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-09-19T01:21:33-04:00",
+          "tree_id": "71856f1de6cac387bc561ec7a13d1e57872c948b",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/5a5164c630d464c9c2b4bfe69e094e9704ade4be"
+        },
+        "date": 1789795339261,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9281,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "124471 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9281,
+            "unit": "ns/op",
+            "extra": "124471 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "124471 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "124471 times\n4 procs"
           }
         ]
       }

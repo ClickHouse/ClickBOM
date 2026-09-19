@@ -92,6 +92,41 @@ func TestConfigValidate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "invalid mend config - org scope only is not exportable",
+			config: &Config{
+				S3Bucket:         "bucket",
+				SBOMSource:       "mend",
+				MendEmail:        "test@example.com",
+				MendOrgUUID:      "123e4567-e89b-12d3-a456-426614174000",
+				MendUserKey:      "user-key",
+				MendOrgScopeUUID: "123e4567-e89b-12d3-a456-426614174002",
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid mend config - product scope only",
+			config: &Config{
+				S3Bucket:        "bucket",
+				SBOMSource:      "mend",
+				MendEmail:       "test@example.com",
+				MendOrgUUID:     "123e4567-e89b-12d3-a456-426614174000",
+				MendUserKey:     "user-key",
+				MendProductUUID: "123e4567-e89b-12d3-a456-426614174003",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid mend config - no scope at all",
+			config: &Config{
+				S3Bucket:    "bucket",
+				SBOMSource:  "mend",
+				MendEmail:   "test@example.com",
+				MendOrgUUID: "123e4567-e89b-12d3-a456-426614174000",
+				MendUserKey: "user-key",
+			},
+			wantErr: true,
+		},
+		{
 			name: "invalid mend config - missing email",
 			config: &Config{
 				S3Bucket:   "bucket",

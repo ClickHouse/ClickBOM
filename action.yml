@@ -30,7 +30,7 @@ inputs:
     description: 'Mend project UUID for project-scoped SBOM'
     required: false
   mend-org-scope-uuid:
-    description: 'Mend organization UUID for organization-scoped SBOM (different from auth org UUID)'
+    description: 'Deprecated / no-op: Mend API 3.0 has no organization-level dependency SBOM export. Kept for backward compatibility; use mend-project-uuid or mend-product-uuid.'
     required: false
   mend-project-uuids:
     description: 'Comma-separated list of specific project UUIDs to include'
@@ -72,6 +72,9 @@ inputs:
     default: 'us-east-1'
   trivy-ecr-role-arn:
     description: 'IAM role ARN to assume for ECR access (for cross-account)'
+    required: false
+  trivy-ecr-external-id:
+    description: 'External ID to present when assuming trivy-ecr-role-arn (only if the role trust policy requires sts:ExternalId)'
     required: false
   trivy-format:
     description: 'Trivy SBOM output format: cyclonedx or spdxjson'
@@ -173,6 +176,7 @@ runs:
     TRIVY_ECR_ACCOUNT_ID: ${{ inputs.trivy-ecr-account-id }}
     TRIVY_ECR_REGION: ${{ inputs.trivy-ecr-region }}
     TRIVY_ECR_ROLE_ARN: ${{ inputs.trivy-ecr-role-arn }}
+    TRIVY_ECR_EXTERNAL_ID: ${{ inputs.trivy-ecr-external-id }}
     TRIVY_FORMAT: ${{ inputs.trivy-format }}
     # AWS-specific
     AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}

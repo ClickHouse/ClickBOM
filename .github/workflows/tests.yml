@@ -16,7 +16,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.10'
+          go-version: '1.26.8'
           cache: true
 
       - name: 📦 Download dependencies
@@ -39,11 +39,17 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # ClickHouse for the (currently commented-out) integration tests.
+      # ClickHouse for the integration tests. Current images refuse the
+      # passwordless `default` user from outside the container, so provision a
+      # dedicated user (the image entrypoint creates it with network access
+      # from anywhere) and hand the same credentials to the tests below.
       clickhouse:
         image: clickhouse/clickhouse-server:latest
         ports:
           - 8123:8123
+        env:
+          CLICKHOUSE_USER: clickbom
+          CLICKHOUSE_PASSWORD: clickbom
         options: >-
           --health-cmd "wget --spider -q localhost:8123/ping"
           --health-interval 10s
@@ -57,7 +63,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.10'
+          go-version: '1.26.8'
           cache: true
 
       - name: 📦 Install CycloneDX CLI
@@ -72,13 +78,15 @@ jobs:
       # service containers can't override a container's command/entrypoint.
       # LocalStack would have been the prior choice but its :latest now
       # requires a paid auth token.
+      # Pulled from quay.io: docker.io/minio/minio is no longer publicly
+      # available ("pull access denied").
       - name: 🪣 Start MinIO
         run: |
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:latest server /data
+            quay.io/minio/minio:latest server /data
           # Wait up to 60s for MinIO to be live before continuing.
           for i in $(seq 1 60); do
             if curl --silent --fail http://localhost:9000/minio/health/live; then
@@ -96,14 +104,19 @@ jobs:
           AWS_SECRET_ACCESS_KEY: minioadmin
           AWS_DEFAULT_REGION: us-east-1
 
-      # - name: 🧪 Run integration tests
-      #   run: go test -v -tags=integration ./...
-      #   env:
-      #     AWS_ENDPOINT_URL: http://localhost:9000
-      #     CLICKHOUSE_URL: http://localhost:8123
-      #     AWS_ACCESS_KEY_ID: minioadmin
-      #     AWS_SECRET_ACCESS_KEY: minioadmin
-      #     AWS_DEFAULT_REGION: us-east-1
+      # The S3 client switches to path-style addressing whenever
+      # AWS_ENDPOINT_URL is set, which is what MinIO requires.
+      - name: 🧪 Run integration tests
+        run: go test -v -tags=integration ./...
+        env:
+          AWS_ENDPOINT_URL: http://localhost:9000
+          CLICKHOUSE_URL: http://localhost:8123
+          CLICKHOUSE_USERNAME: clickbom
+          CLICKHOUSE_PASSWORD: clickbom
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
 
   # Lint and format checks
   test_lint:
@@ -117,7 +130,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.10'
+          go-version: '1.26.8'
           cache: true
 
       - name: 🔍 Run golangci-lint
@@ -163,7 +176,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.10'
+          go-version: '1.26.8'
           cache: true
 
       - name: 🏗️ Build for ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -195,6 +208,7 @@ jobs:
         with:
           context: .
           push: false
+          load: true
           tags: clickbom:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -203,10 +217,59 @@ jobs:
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
             VCS_REF=${{ github.sha }}
 
-      - name: 🧪 Test Docker image
+      # The runtime image is distroless, so the only way to prove the bundled
+      # tools can execute (correct libc, ICU-free .NET startup, ...) is to run
+      # them. The previous `docker run ... || true` could never fail — and the
+      # image was not even loaded into the daemon — which is how an unrunnable
+      # cyclonedx binary shipped to production.
+      - name: 🧪 Smoke-test runtime tools inside the image
         run: |
-          docker run --rm clickbom:test --version || true
-          docker run --rm clickbom:test --help || true
+          set -euo pipefail
+          echo "--- cyclonedx"
+          docker run --rm --entrypoint /usr/local/bin/cyclonedx clickbom:test --version
+          echo "--- trivy"
+          docker run --rm --entrypoint /usr/local/bin/trivy clickbom:test --version
+
+      - name: 🧪 Smoke-test an SPDX -> CycloneDX conversion inside the image
+        run: |
+          set -euo pipefail
+          mkdir -p smoke && chmod 777 smoke
+          cat > smoke/in.spdx.json <<'EOF'
+          {
+            "spdxVersion": "SPDX-2.3",
+            "dataLicense": "CC0-1.0",
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "name": "smoke",
+            "documentNamespace": "https://example.com/smoke",
+            "creationInfo": {"created": "2026-01-01T00:00:00Z", "creators": ["Tool: clickbom-smoke"]},
+            "packages": [
+              {
+                "name": "example-lib",
+                "SPDXID": "SPDXRef-Package-example-lib",
+                "versionInfo": "1.2.3",
+                "downloadLocation": "NOASSERTION",
+                "filesAnalyzed": false,
+                "licenseConcluded": "MIT",
+                "licenseDeclared": "MIT",
+                "copyrightText": "NOASSERTION"
+              }
+            ]
+          }
+          EOF
+          docker run --rm -v "$PWD/smoke:/smoke" --entrypoint /usr/local/bin/cyclonedx clickbom:test \
+            convert --input-file /smoke/in.spdx.json --output-file /smoke/out.cdx.json \
+            --input-format spdxjson --output-format json --output-version v1_6
+          jq -e '.bomFormat == "CycloneDX" and .specVersion == "1.6" and (.components | length) == 1' smoke/out.cdx.json
+
+      - name: 🧪 Binary rejects an empty configuration (proves the entrypoint runs)
+        run: |
+          set -euo pipefail
+          # With no S3_BUCKET the binary must exit non-zero with a validation
+          # error; anything else (e.g. exec failure) is a broken image.
+          if docker run --rm clickbom:test > out.log 2>&1; then
+            echo "expected clickbom to fail without configuration"; cat out.log; exit 1
+          fi
+          grep -q "S3_BUCKET is required" out.log || { cat out.log; exit 1; }
 
   # Preflight: only run the E2E job when the required secrets are actually
   # configured on the repo. Without this, the E2E job fails on any fork/contrib
@@ -247,7 +310,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.10'
+          go-version: '1.26.8'
           cache: true
 
       - name: 🏗️ Build
@@ -284,7 +347,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.10'
+          go-version: '1.26.8'
           cache: true
 
       - name: ⚡ Run benchmarks
@@ -310,7 +373,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.10'
+          go-version: '1.26.8'
           cache: true
 
       - name: 🔍 Run Trivy vulnerability scanner

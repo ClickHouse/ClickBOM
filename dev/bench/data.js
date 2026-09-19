@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789846597124,
+  "lastUpdate": 1789859645877,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -6576,6 +6576,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "130192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "ef992040db6e296f17af7393adfff23c4a09bdcf",
+          "message": "fix(github): Async SBOM\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-09-19T19:13:23-04:00",
+          "tree_id": "165ffe8de05f67c7d81292b466e524340696f0ab",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/ef992040db6e296f17af7393adfff23c4a09bdcf"
+        },
+        "date": 1789859645378,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9344,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "129118 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9344,
+            "unit": "ns/op",
+            "extra": "129118 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "129118 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "129118 times\n4 procs"
           }
         ]
       }

@@ -32,7 +32,9 @@ type ClickHouseClient struct {
 // NewClickHouseClient creates a new ClickHouseClient with the provided configuration.
 func NewClickHouseClient(cfg *config.Config) (*ClickHouseClient, error) {
 	return &ClickHouseClient{
-		url:                cfg.ClickHouseURL,
+		// Trailing slashes are dropped so that URLs built as url + "/?query="
+		// never contain "//" (e.g. "https://host:8443/" -> "https://host:8443").
+		url:                strings.TrimRight(cfg.ClickHouseURL, "/"),
 		database:           cfg.ClickHouseDatabase,
 		username:           cfg.ClickHouseUsername,
 		password:           cfg.ClickHousePassword,
@@ -276,13 +278,7 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 	}
 
 	// Insert data
-	insertURL := fmt.Sprintf("%s/?query=%s",
-		c.url,
-		url.QueryEscape(fmt.Sprintf(
-			"INSERT INTO %s.%s (name, version, license, source) FORMAT TSV",
-			c.database, tableName)))
-
-	req, err := http.NewRequestWithContext(ctx, "POST", insertURL, &tsvData)
+	req, err := http.NewRequestWithContext(ctx, "POST", c.insertURL(tableName), &tsvData)
 	if err != nil {
 		return fmt.Errorf("failed to create insert request: %w", err)
 	}
@@ -310,6 +306,17 @@ func (c *ClickHouseClient) InsertSBOMData(ctx context.Context, sbomFile, tableNa
 
 	logger.Success("Inserted %d components into ClickHouse table %s", len(components), tableName)
 	return nil
+}
+
+// insertURL builds the HTTP endpoint for a TSV bulk insert into tableName.
+// The query is carried in the URL so the request body can be the raw TSV
+// stream; c.url is guaranteed to have no trailing slash.
+func (c *ClickHouseClient) insertURL(tableName string) string {
+	return fmt.Sprintf("%s/?query=%s",
+		c.url,
+		url.QueryEscape(fmt.Sprintf(
+			"INSERT INTO %s.%s (name, version, license, source) FORMAT TSV",
+			c.database, tableName)))
 }
 
 // tsvEscape applies ClickHouse's TabSeparated escaping rules so that values

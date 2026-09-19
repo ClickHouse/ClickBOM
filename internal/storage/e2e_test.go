@@ -26,16 +26,30 @@ func TestEndToEndWorkflow(t *testing.T) {
 	t.Run("Complete SBOM workflow", func(t *testing.T) {
 		// Step 1: Create a mock SBOM
 		originalSBOM := filepath.Join(tempDir, "original.json")
+		// A minimal but *valid* SPDX 2.3 document (documentNamespace,
+		// creationInfo, package SPDXID and downloadLocation are mandatory);
+		// cyclonedx-cli rejects documents that omit them.
 		sbomContent := `{
             "sbom": {
                 "spdxVersion": "SPDX-2.3",
+                "dataLicense": "CC0-1.0",
                 "SPDXID": "SPDXRef-DOCUMENT",
                 "name": "test-document",
+                "documentNamespace": "https://example.com/test-document",
+                "creationInfo": {
+                    "created": "2026-01-01T00:00:00Z",
+                    "creators": ["Tool: clickbom-e2e"]
+                },
                 "packages": [
                     {
                         "name": "test-package",
+                        "SPDXID": "SPDXRef-Package-test-package",
                         "versionInfo": "1.0.0",
-                        "licenseConcluded": "MIT"
+                        "downloadLocation": "NOASSERTION",
+                        "filesAnalyzed": false,
+                        "licenseConcluded": "MIT",
+                        "licenseDeclared": "MIT",
+                        "copyrightText": "NOASSERTION"
                     }
                 ]
             }
@@ -91,13 +105,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 		t.Log("✓ Uploaded SBOM to S3")
 
 		// Step 6: Insert into ClickHouse
-		cfg := &config.Config{
-			ClickHouseURL:      os.Getenv("CLICKHOUSE_URL"),
-			ClickHouseDatabase: "default",
-			ClickHouseUsername: "default",
-			ClickHousePassword: "",
-			TruncateTable:      true,
-		}
+		cfg := clickHouseTestConfig()
 
 		chClient, err := storage.NewClickHouseClient(cfg)
 		if err != nil {
@@ -134,4 +142,23 @@ func TestEndToEndWorkflow(t *testing.T) {
 
 		t.Log("✓ Downloaded and verified SBOM from S3")
 	})
+}
+
+// clickHouseTestConfig builds the ClickHouse client config for integration
+// tests from the environment. Recent clickhouse-server images no longer accept
+// the passwordless `default` user from outside the container, so CI provisions
+// a dedicated user via CLICKHOUSE_USER / CLICKHOUSE_PASSWORD on the service
+// container and exposes the same values here.
+func clickHouseTestConfig() *config.Config {
+	username := os.Getenv("CLICKHOUSE_USERNAME")
+	if username == "" {
+		username = "default"
+	}
+	return &config.Config{
+		ClickHouseURL:      os.Getenv("CLICKHOUSE_URL"),
+		ClickHouseDatabase: "default",
+		ClickHouseUsername: username,
+		ClickHousePassword: os.Getenv("CLICKHOUSE_PASSWORD"),
+		TruncateTable:      true,
+	}
 }

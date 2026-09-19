@@ -2,12 +2,15 @@
 
 # ClickBOM
 
-Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
+Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container images with Trivy. Normalizes between CycloneDX and SPDX, optionally merges SBOMs stored in S3, and uploads the result to S3 and ClickHouse.
+
+> **Versioning.** `v1.0.x` tags are the retired bash implementation. The Go implementation lives on `main` and will be tagged `v2.0.0`; until then reference the action as `ClickHouse/ClickBOM@main`. Never pin to a feature branch — branches are deleted after merge and the workflow fails with `Unable to resolve action`.
 
 - [Inputs](#inputs)
   - [GitHub](#github)
   - [Mend](#mend)
   - [Wiz](#wiz)
+  - [Trivy](#trivy)
   - [AWS](#aws)
   - [ClickHouse](#clickhouse)
   - [General](#general)
@@ -20,6 +23,8 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
   - [Merging SBOMs with Include/Exclude Filters](#merging-sboms-with-includeexclude-filters)
   - [Downloading an SBOM from Mend](#downloading-an-sbom-from-mend)
   - [Downloading an SBOM from Wiz](#downloading-an-sbom-from-wiz)
+  - [Generating an SBOM from a Container Image with Trivy](#generating-an-sbom-from-a-container-image-with-trivy)
+- [Runtime Image](#runtime-image)
 - [Creating a GitHub App](#creating-a-github-app)
 
 ## Inputs
@@ -43,13 +48,14 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 | mend-base-url       | Mend base URL                                                 | https://api-saas.mend.io | false    | false     |
 | mend-product-uuid   | Mend product UUID for product-scoped SBOM                     |                          | false    | true      |
 | mend-project-uuid   | Mend project UUID for project-scoped SBOM                     |                          | false    | true      |
-| mend-org-scope-uuid | Mend organization UUID for organization-scoped SBOM           |                          | false    | true      |
+| mend-org-scope-uuid | Deprecated / no-op (Mend API 3.0 has no org-level SBOM export) |                          | false    | true      |
 | mend-project-uuids  | Comma-separated list of specific project UUIDs to include     |                          | false    | true      |
 | mend-max-wait-time  | Maximum time to wait for Mend report generation (seconds)     | 1800                     | false    | false     |
 | mend-poll-interval  | Polling interval for Mend report status (seconds)             | 30                       | false    | false     |
 
-- The `mend-org-scope-uuid` is used for organization-scoped SBOMs, which is different from the `mend-org-uuid` used for authentication.
-- ClickBOM only supports downloading SBOMs from Mend in the CycloneDX v1.5 format. If you need to convert the SBOM to SPDX, you can use the `sbom-format` input. (Support for SPDX coming soon)
+- Scope precedence: if `mend-project-uuid` is set the export is project-scoped (`/api/v3.0/projects/{uuid}/dependencies/reports/SBOM`); otherwise `mend-product-uuid` gives a product-scoped export (`/api/v3.0/applications/{uuid}/dependencies/reports/SBOM`, optionally narrowed to `mend-project-uuids`). One of the two is required.
+- `mend-org-scope-uuid` is accepted for backward compatibility but cannot be used on its own: Mend API 3.0 offers dependency SBOM exports only at project and application (product) scope.
+- ClickBOM only supports downloading SBOMs from Mend in the CycloneDX v1.5 format. If you need to convert the SBOM to SPDX, you can use the `sbom-format` input.
 
 ### Wiz
 
@@ -61,6 +67,20 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 | wiz-client-secret | Wiz Client Secret |         | false    | true      |
 | wiz-report-id     | Wiz Report ID     |         | false    | true      |
 
+### Trivy
+
+| Name                 | Description                                                                 | Default   | Required | Sensitive |
+| -------------------- | --------------------------------------------------------------------------- | --------- | -------- | --------- |
+| trivy-image          | Container image to scan (`registry/repo:tag` or an ECR URI)                 |           | false    | false     |
+| trivy-ecr-account-id | AWS account ID that owns the ECR repository (enables ECR auth handling)     |           | false    | false     |
+| trivy-ecr-region     | AWS region of the ECR repository                                            | us-east-1 | false    | false     |
+| trivy-ecr-role-arn   | IAM role to assume for cross-account ECR access                             |           | false    | false     |
+| trivy-ecr-external-id | External ID to present when assuming `trivy-ecr-role-arn` (only if its trust policy requires one) |  | false    | true      |
+| trivy-format         | SBOM format Trivy emits: `cyclonedx` or `spdxjson`                          | cyclonedx | false    | false     |
+
+- Images are scanned at the registry (`--image-src remote`); nothing is pulled through Docker.
+- For ECR images set `trivy-ecr-account-id`; when the repository lives in another account also set `trivy-ecr-role-arn` and ClickBOM assumes it via STS before invoking Trivy.
+
 ### AWS
 
 | Name                  | Description                                                                 | Default   | Required | Sensitive |
@@ -68,11 +88,13 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 | aws-access-key-id     | AWS Access Key ID. **Deprecated — prefer OIDC** (see examples below).       |           | false    | true      |
 | aws-secret-access-key | AWS Secret Access Key. **Deprecated — prefer OIDC** (see examples below).   |           | false    | true      |
 | aws-region            | AWS Region. **Deprecated — prefer OIDC** (set via configure-aws-credentials). | us-east-1 | false    | false     |
-| s3-bucket             | S3 Bucket Name                                                              |           | false    | false     |
-| s3-key                | S3 Key Prefix                                                               | sbom.json | false    | false     |
+| s3-bucket             | S3 Bucket Name (always required, even when ClickHouse output is the goal)   |           | true     | false     |
+| s3-key                | S3 object key of the uploaded SBOM (in merge mode: the merged output object) | sbom.json | false    | false     |
 
 - It is recommended that an S3 bucket be created for the purposes of ClickBOM.
-- The `aws-*` inputs are kept for backward compatibility with the bash version of this action. The recommended path is to use [`aws-actions/configure-aws-credentials@v4`](https://github.com/aws-actions/configure-aws-credentials) with GitHub OIDC; that action exports `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` as job-level env vars which the AWS SDK picks up automatically — no need to pass them as inputs.
+- The `aws-*` inputs are kept for backward compatibility with the bash version of this action. The recommended path is to use [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) with GitHub OIDC; that action exports `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` / `AWS_REGION` as job-level env vars, and the Actions runner passes job env through to the ClickBOM container unchanged, so nothing needs to be passed as an input. (Do not pass `steps.<id>.outputs.aws-access-key-id`: those outputs are empty unless `output-credentials: true` is set.)
+- The bucket does not have to be in the job's `aws-region`. ClickBOM resolves each bucket's home region up front (via `HeadBucket`'s `x-amz-bucket-region` header) and talks to the right regional endpoint, so a mismatch no longer fails with `301 PermanentRedirect`.
+- Setting `AWS_ENDPOINT_URL` (e.g. to MinIO or LocalStack) switches the client to path-style addressing and disables region discovery.
 
 ### ClickHouse
 
@@ -90,7 +112,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz. Uploads to S3 and ClickHouse.
 
 | Name        | Description                                                           | Default   | Required | Sensitive |
 | ----------- | --------------------------------------------------------------------- | --------- | -------- | --------- |
-| sbom-source | Source of SBOM (github, mend, wiz)                                    | github    | false    | false     |
+| sbom-source | Source of SBOM (github, mend, wiz, trivy)                             | github    | false    | false     |
 | sbom-format | SBOM format (spdxjson or cyclonedx)                                   | cyclonedx | false    | false     |
 | merge       | Merge SBOMs stored in S3                                              | false     | false    | false     |
 | include     | Comma-separated list of filenames or patterns to include when merging | (empty)   | false    | false     |
@@ -128,25 +150,23 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository_owner }}/${{ github.repository }}
+          repository: ${{ github.repository }}
 ```
 
 ### Same Repository with ClickHouse
@@ -171,25 +191,23 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository_owner }}/${{ github.repository }}
+          repository: ${{ github.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
@@ -218,33 +236,31 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           sbom-format: spdxjson
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
-          repository: ${{ github.repository_owner }}/${{ github.repository }}
+          repository: ${{ github.repository }}
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
           clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
@@ -281,11 +297,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -294,18 +310,16 @@ jobs:
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: ${{ matrix.repository }}.json
           repository: ${{ github.repository_owner }}/${{ matrix.repository }}
@@ -345,11 +359,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
@@ -358,18 +372,16 @@ jobs:
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: ${{ matrix.repository }}.json
           repository: ${{ github.repository_owner }}/${{ matrix.repository }}
@@ -389,29 +401,27 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
@@ -443,29 +453,27 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Token
         id: generate-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.CLICKBOM_AUTH_APP_ID }}
           private-key: ${{ secrets.CLICKBOM_AUTH_PRIVATE_KEY }}
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Merge Production SBOMs Only
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: production-merged.json
           clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
@@ -505,21 +513,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM from Mend
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
           sbom-source: mend
@@ -556,21 +562,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure AWS Credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
           role-session-name: clickbom-session
           aws-region: us-east-1
 
       - name: Upload SBOM from Wiz
-        uses: ClickHouse/ClickBom@v1.0.10
+        uses: ClickHouse/ClickBOM@main
         with:
-          aws-access-key-id: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          aws-secret-access-key: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
           sbom-source: wiz
@@ -584,6 +588,55 @@ jobs:
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
           clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
 ```
+
+### Generating an SBOM from a Container Image with Trivy
+
+Scans an image in a (possibly cross-account) ECR repository with Trivy, uploads the CycloneDX SBOM to S3 and ClickHouse. The job's OIDC role must be allowed to assume `trivy-ecr-role-arn`.
+
+```yaml
+name: Upload SBOM
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  clickbom:
+    name: ClickBOM
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::012345678912:role/GitHubOIDCRole
+          role-session-name: clickbom-session
+          aws-region: us-east-1
+
+      - name: Upload SBOM from Container Image
+        uses: ClickHouse/ClickBOM@main
+        with:
+          s3-bucket: my-sbom-bucket
+          s3-key: clickhouse-keeper.json
+          sbom-source: trivy
+          trivy-image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/clickhouse-keeper:25.2.1.30176
+          trivy-ecr-account-id: "123456789012"
+          trivy-ecr-region: us-east-1
+          trivy-ecr-role-arn: arn:aws:iam::123456789012:role/ECRPullRole
+          trivy-format: cyclonedx
+          clickhouse-url: ${{ secrets.CLICKHOUSE_URL }}
+          clickhouse-database: ${{ secrets.CLICKHOUSE_DATABASE }}
+          clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
+          clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
+```
+
+## Runtime Image
+
+The action runs as a Docker container built from this repository's `Dockerfile`: a static Go binary plus two external tools, `cyclonedx` (format conversion) and `trivy` (image scanning), on `gcr.io/distroless/cc-debian12:nonroot`. The `cc` variant is required because `cyclonedx-cli` is a dynamically linked .NET application; on `distroless/static` it cannot execute at all. CI builds the image and runs a conversion inside it on every push.
 
 ## Creating a GitHub App
 

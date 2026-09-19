@@ -181,8 +181,11 @@ func (c *Config) Validate() error {
 		if c.MendUserKey == "" {
 			return fmt.Errorf("MEND_USER_KEY is required for Mend source")
 		}
+		// Mend API 3.0 only offers dependency SBOM exports at project and
+		// product ("application") scope, so MEND_ORG_SCOPE_UUID alone is not a
+		// usable configuration.
 		if c.MendProjectUUID == "" && c.MendProductUUID == "" {
-			return fmt.Errorf("at least one of MEND_PROJECT_UUID or MEND_PRODUCT_UUID is required")
+			return fmt.Errorf("at least one of MEND_PROJECT_UUID or MEND_PRODUCT_UUID is required for Mend source (organization-scoped dependency SBOM exports are not offered by Mend API 3.0)")
 		}
 	}
 

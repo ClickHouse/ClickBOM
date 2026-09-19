@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ClickHouse/ClickBOM/internal/config"
 	"github.com/ClickHouse/ClickBOM/internal/storage"
 )
 
@@ -18,16 +17,9 @@ func TestClickHouseIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create ClickHouse client
-	cfg := &config.Config{
-		ClickHouseURL:      os.Getenv("CLICKHOUSE_URL"),
-		ClickHouseDatabase: "default",
-		ClickHouseUsername: "default",
-		ClickHousePassword: "",
-		TruncateTable:      true,
-	}
-
-	chClient, err := storage.NewClickHouseClient(cfg)
+	// Create ClickHouse client (credentials come from the environment, see
+	// clickHouseTestConfig in e2e_test.go).
+	chClient, err := storage.NewClickHouseClient(clickHouseTestConfig())
 	if err != nil {
 		t.Fatalf("Failed to create ClickHouse client: %v", err)
 	}

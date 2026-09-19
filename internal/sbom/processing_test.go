@@ -182,3 +182,64 @@ func BenchmarkDetectSBOMFormat(b *testing.B) {
 		}
 	}
 }
+
+func TestCyclonedxConvertArgs(t *testing.T) {
+	flag := func(args []string, name string) string {
+		for i := 0; i < len(args)-1; i++ {
+			if args[i] == name {
+				return args[i+1]
+			}
+		}
+		return ""
+	}
+
+	tests := []struct {
+		name        string
+		src, dst    Format
+		wantIn      string
+		wantOut     string
+		wantVersion string
+	}{
+		{name: "SPDX to CycloneDX (GitHub source default path)", src: FormatSPDXJSON, dst: FormatCycloneDX, wantIn: "spdxjson", wantOut: "json", wantVersion: "v1_6"},
+		{name: "CycloneDX to SPDX", src: FormatCycloneDX, dst: FormatSPDXJSON, wantIn: "json", wantOut: "spdxjson", wantVersion: ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := cyclonedxConvertArgs("/tmp/in.json", "/tmp/out.json", tc.src, tc.dst)
+			if args[0] != "convert" {
+				t.Fatalf("first arg = %q, want convert", args[0])
+			}
+			if got := flag(args, "--input-format"); got != tc.wantIn {
+				t.Errorf("--input-format = %q, want %q", got, tc.wantIn)
+			}
+			if got := flag(args, "--output-format"); got != tc.wantOut {
+				t.Errorf("--output-format = %q, want %q", got, tc.wantOut)
+			}
+			if got := flag(args, "--output-version"); got != tc.wantVersion {
+				t.Errorf("--output-version = %q, want %q", got, tc.wantVersion)
+			}
+			if got := flag(args, "--input-file"); got != "/tmp/in.json" {
+				t.Errorf("--input-file = %q", got)
+			}
+			if got := flag(args, "--output-file"); got != "/tmp/out.json" {
+				t.Errorf("--output-file = %q", got)
+			}
+			// cyclonedx-cli has no format literally called "cyclonedx"; that
+			// exact mistake shipped once and broke every SPDX -> CycloneDX run.
+			for _, a := range args {
+				if a == string(FormatCycloneDX) {
+					t.Errorf("args must never contain the internal name %q: %v", FormatCycloneDX, args)
+				}
+			}
+		})
+	}
+}
+
+func TestCLIFormatName(t *testing.T) {
+	if got := cliFormatName(FormatCycloneDX); got != "json" {
+		t.Errorf("cliFormatName(cyclonedx) = %q, want json", got)
+	}
+	if got := cliFormatName(FormatSPDXJSON); got != "spdxjson" {
+		t.Errorf("cliFormatName(spdxjson) = %q, want spdxjson", got)
+	}
+}

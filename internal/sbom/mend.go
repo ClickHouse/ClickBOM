@@ -17,6 +17,10 @@ import (
 	"github.com/ClickHouse/ClickBOM/pkg/logger"
 )
 
+// mendJWTRefreshInterval is how long a Mend JWT is reused before a fresh login
+// is performed during long report polls. Mend tokens expire after 30 minutes.
+const mendJWTRefreshInterval = 25 * time.Minute
+
 // MendClient handles interactions with the Mend API 3.0.
 type MendClient struct {
 	email        string
@@ -164,35 +168,9 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 		return fmt.Errorf("authentication failed: %w", err)
 	}
 
-	// Build request payload. JSON field names that happen to repeat across the
-	// file aren't worth extracting to constants — they're API contract strings.
-	payload := map[string]interface{}{
-		"name":                   "clickbom-export", //nolint:goconst
-		"reportType":             "cycloneDX_1_5",
-		"format":                 "json",
-		"includeVulnerabilities": false,
-	}
-
-	// Add scope
-	var url string
-	switch {
-	case m.projectUUID != "":
-		payload["scopeType"] = "project"
-		payload["scopeUuid"] = m.projectUUID
-		// uuids := strings.Split(m.projectUUIDs, ",")
-		// payload["projectUuids"] = uuids
-		url = fmt.Sprintf("%s/api/v3.0/projects/%s/dependencies/reports/SBOM", m.baseURL, m.projectUUID)
-	case m.productUUID != "":
-		// if len(m.projectUUIDs) != 0 {
-		// 	uuids := strings.Split(m.projectUUIDs, ",")
-		// 	payload["projectUuids"] = uuids
-		// }
-		payload["projectUuids"] = []string{m.projectUUID}
-		payload["maxDepthLevel"] = 0
-		url = fmt.Sprintf("%s/api/v3.0/applications/%s/dependencies/reports/SBOM", m.baseURL, m.productUUID)
-	case m.orgScopeUUID != "":
-		payload["scopeType"] = "organization"
-		payload["scopeUuid"] = m.orgScopeUUID
+	url, payload, err := m.exportRequest()
+	if err != nil {
+		return err
 	}
 
 	payloadBytes, err := json.Marshal(payload)
@@ -244,11 +222,72 @@ func (m *MendClient) RequestSBOMExport(ctx context.Context, outputFile string) e
 	return m.downloadWhenReady(ctx, exportResp.Response.UUID, outputFile)
 }
 
+// exportRequest builds the Mend API 3.0 SBOM export URL and JSON payload for
+// the configured scope. Precedence mirrors the bash entrypoint: project, then
+// product (which Mend API 3.0 calls an "application"), then organization.
+//
+// Field names are Mend API contract strings, so they are intentionally left as
+// literals rather than extracted to constants.
+func (m *MendClient) exportRequest() (string, map[string]interface{}, error) {
+	payload := map[string]interface{}{
+		"name":                   "clickbom-export", //nolint:goconst
+		"reportType":             "cycloneDX_1_5",
+		"format":                 "json",
+		"includeVulnerabilities": false,
+	}
+
+	switch {
+	case m.projectUUID != "":
+		payload["scopeType"] = "project"
+		payload["scopeUuid"] = m.projectUUID
+		return fmt.Sprintf("%s/api/v3.0/projects/%s/dependencies/reports/SBOM", m.baseURL, m.projectUUID), payload, nil
+
+	case m.productUUID != "":
+		// Product-scoped export (Mend API 3.0 calls a product an "application"):
+		//   POST /api/v3.0/applications/{applicationUuid}/dependencies/reports/SBOM
+		// The documented body takes an optional projectUuids array to narrow the
+		// export; when MEND_PROJECT_UUIDS is unset we omit it and export the whole
+		// product. A previous version sent projectUuids: [""] (never a valid
+		// selection) and maxDepthLevel: 0 (Mend documents the range as 1..4 and
+		// rejects values outside it), so neither is sent any more.
+		if uuids := splitUUIDList(m.projectUUIDs); len(uuids) > 0 {
+			payload["projectUuids"] = uuids
+		}
+		return fmt.Sprintf("%s/api/v3.0/applications/%s/dependencies/reports/SBOM", m.baseURL, m.productUUID), payload, nil
+
+	case m.orgScopeUUID != "":
+		// Mend API 3.0 exposes dependency (SCA) SBOM exports only at project and
+		// application scope (see https://api-docs.mend.io/platform/3.0/reports);
+		// the organization-level SBOM endpoint exists solely for container-image
+		// SBOMs. Fail fast instead of guessing a URL.
+		return "", nil, fmt.Errorf("organization-scoped dependency SBOM exports are not offered by Mend API 3.0; set MEND_PROJECT_UUID or MEND_PRODUCT_UUID instead of MEND_ORG_SCOPE_UUID")
+	}
+
+	return "", nil, fmt.Errorf("no Mend scope configured: set MEND_PROJECT_UUID or MEND_PRODUCT_UUID")
+}
+
+// splitUUIDList turns the comma-separated MEND_PROJECT_UUIDS value into a slice,
+// dropping empty entries so callers never emit "" as a UUID.
+func splitUUIDList(list string) []string {
+	if strings.TrimSpace(list) == "" {
+		return nil
+	}
+	parts := strings.Split(list, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func (m *MendClient) downloadWhenReady(ctx context.Context, reportUUID, outputFile string) error {
 	logger.Info("Waiting for SBOM report to be ready (UUID: %s)", reportUUID)
 	logger.Info("Max wait time: %ds, Poll interval: %ds", m.maxWaitTime, m.pollInterval)
 
 	startTime := time.Now()
+	lastAuth := startTime // authenticate() ran immediately before this loop
 	ticker := time.NewTicker(time.Duration(m.pollInterval) * time.Second)
 	defer ticker.Stop()
 
@@ -266,11 +305,16 @@ func (m *MendClient) downloadWhenReady(ctx context.Context, reportUUID, outputFi
 			elapsed := int(time.Since(startTime).Seconds())
 			logger.Info("Checking report status... (elapsed: %ds)", elapsed)
 
-			// Refresh token if needed (every 25 minutes)
-			if elapsed > 0 && elapsed%1500 == 0 {
+			// Mend JWTs expire after 30 minutes; refresh a little early. A
+			// time-based check is used because the previous `elapsed%1500 == 0`
+			// test only fired if the integer elapsed seconds happened to land
+			// exactly on a multiple of 1500.
+			if time.Since(lastAuth) >= mendJWTRefreshInterval {
 				logger.Info("Refreshing JWT token")
 				if err := m.authenticate(ctx); err != nil {
 					logger.Warning("Failed to refresh token: %v", err)
+				} else {
+					lastAuth = time.Now()
 				}
 			}
 
@@ -321,6 +365,11 @@ func (m *MendClient) checkReportStatus(ctx context.Context, reportUUID string) (
 			logger.Warning("Failed to close response body: %v", err)
 		}
 	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("status check failed (status %d): %s", resp.StatusCode, string(body))
+	}
 
 	var statusResp struct {
 		Response struct {

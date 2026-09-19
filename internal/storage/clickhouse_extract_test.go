@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/ClickHouse/ClickBOM/internal/config"
 )
 
 func TestTSVEscape(t *testing.T) {
@@ -149,5 +152,45 @@ func TestExtractLicense(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestNewClickHouseClient_TrimsTrailingSlash(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "no slash untouched", in: "https://ch.example.com:8443", want: "https://ch.example.com:8443"},
+		{name: "single trailing slash removed", in: "https://ch.example.com:8443/", want: "https://ch.example.com:8443"},
+		{name: "multiple trailing slashes removed", in: "http://localhost:8123//", want: "http://localhost:8123"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := NewClickHouseClient(&config.Config{ClickHouseURL: tc.in, ClickHouseDatabase: "default"})
+			if err != nil {
+				t.Fatalf("NewClickHouseClient: %v", err)
+			}
+			if c.url != tc.want {
+				t.Errorf("url = %q, want %q", c.url, tc.want)
+			}
+		})
+	}
+}
+
+func TestInsertURL(t *testing.T) {
+	c, err := NewClickHouseClient(&config.Config{ClickHouseURL: "https://ch.example.com:8443/", ClickHouseDatabase: "sbom"})
+	if err != nil {
+		t.Fatalf("NewClickHouseClient: %v", err)
+	}
+	got := c.insertURL("my_table")
+	if !strings.HasPrefix(got, "https://ch.example.com:8443/?query=") {
+		t.Errorf("insertURL = %q, want prefix https://ch.example.com:8443/?query=", got)
+	}
+	if strings.Contains(got, "//?") {
+		t.Errorf("insertURL must not contain a double slash before the query: %q", got)
+	}
+	if !strings.Contains(got, "INSERT+INTO+sbom.my_table") {
+		t.Errorf("insertURL should carry the escaped INSERT statement, got %q", got)
 	}
 }

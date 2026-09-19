@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/ClickHouse/ClickBOM/pkg/logger"
 )
@@ -185,6 +186,39 @@ func ExtractSBOMFromWrapper(inputFile, outputFile string) error {
 	return nil
 }
 
+// cliFormatName maps an internal Format to the value cyclonedx-cli expects
+// for --input-format / --output-format. The CLI spells CycloneDX JSON as
+// "json" — passing "cyclonedx" fails with
+//
+//	Cannot parse argument 'cyclonedx' for option '--output-format'
+//
+// SPDX JSON is "spdxjson" in both vocabularies.
+func cliFormatName(f Format) string {
+	if f == FormatCycloneDX {
+		return "json"
+	}
+	return string(f)
+}
+
+// cyclonedxConvertArgs builds the argument vector for `cyclonedx convert`.
+// Kept separate from ConvertSBOM so the mapping is unit-testable without the
+// CLI installed.
+func cyclonedxConvertArgs(inputFile, outputFile string, sourceFormat, targetFormat Format) []string {
+	args := []string{
+		"convert",
+		"--input-file", inputFile,
+		"--output-file", outputFile,
+		"--input-format", cliFormatName(sourceFormat),
+		"--output-format", cliFormatName(targetFormat),
+	}
+	// Pin CycloneDX output to v1.6 (parity with bash and with MergeSBOMs which
+	// always emits specVersion 1.6); otherwise cyclonedx-cli defaults to 1.4.
+	if targetFormat == FormatCycloneDX {
+		args = append(args, "--output-version", "v1_6")
+	}
+	return args
+}
+
 // ConvertSBOM converts the SBOM from one format to another.
 func ConvertSBOM(inputFile, outputFile string, sourceFormat, targetFormat Format) error {
 	if sourceFormat == targetFormat {
@@ -199,25 +233,8 @@ func ConvertSBOM(inputFile, outputFile string, sourceFormat, targetFormat Format
 
 	logger.Info("Converting SBOM from %s to %s", sourceFormat, targetFormat)
 
-	// cyclonedx-cli's --input-format spells CycloneDX JSON as "json", not
-	// "cyclonedx". Map our internal Format names to the CLI's expected values.
-	cliInputFormat := string(sourceFormat)
-	if sourceFormat == FormatCycloneDX {
-		cliInputFormat = "json"
-	}
-
-	args := []string{
-		"convert",
-		"--input-file", inputFile,
-		"--output-file", outputFile,
-		"--input-format", cliInputFormat,
-		"--output-format", string(targetFormat),
-	}
-	// Pin CycloneDX output to v1.6 (parity with bash and with MergeSBOMs which
-	// always emits specVersion 1.6); otherwise cyclonedx-cli defaults to 1.4.
-	if targetFormat == FormatCycloneDX {
-		args = append(args, "--output-version", "v1_6")
-	}
+	args := cyclonedxConvertArgs(inputFile, outputFile, sourceFormat, targetFormat)
+	logger.Debug("Executing: cyclonedx %s", strings.Join(args, " "))
 
 	output, err := exec.Command("cyclonedx", args...).CombinedOutput()
 	if err != nil {

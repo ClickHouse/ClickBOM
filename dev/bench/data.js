@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789988699615,
+  "lastUpdate": 1789988706920,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -6768,6 +6768,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "219800 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2324e34401a0c2c67243be279e79610710c1969d",
+          "message": "Bump hadolint/hadolint-action from 3.3.0 to 3.5.0 in /.github/workflows\n\nBumps [hadolint/hadolint-action](https://github.com/hadolint/hadolint-action) from 3.3.0 to 3.5.0.\n- [Release notes](https://github.com/hadolint/hadolint-action/releases)\n- [Commits](https://github.com/hadolint/hadolint-action/compare/v3.3.0...v3.5.0)\n\n---\nupdated-dependencies:\n- dependency-name: hadolint/hadolint-action\n  dependency-version: 3.5.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-09-21T11:04:27Z",
+          "tree_id": "ac1a35383e8147e0624c8e3a264482c4ab484c5a",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/2324e34401a0c2c67243be279e79610710c1969d"
+        },
+        "date": 1789988706110,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 11416,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "106058 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 11416,
+            "unit": "ns/op",
+            "extra": "106058 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "106058 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "106058 times\n4 procs"
           }
         ]
       }

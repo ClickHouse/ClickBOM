@@ -77,7 +77,7 @@ RUN wget -qO trivy_checksums.txt "https://github.com/aquasecurity/trivy/releases
 # runtime image so the glibc ABI matches exactly.
 #   - libz.so.1 (zlib): loaded at startup by the .NET host; without it
 #     cyclonedx fails with "error while loading shared libraries: libz.so.1".
-FROM debian:12-slim AS libs
+FROM debian:13-slim AS libs
 
 # Runtime stage - Distroless.
 #

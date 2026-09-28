@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790632987419,
+  "lastUpdate": 1790633333806,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -7680,6 +7680,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "132144 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "70c9f5776e53b154b346c160a58f7a48930c5b5c",
+          "message": "Sync setup-go with Docker toolchain\n\nCo-authored-by: juliojimenez <648113+juliojimenez@users.noreply.github.com>",
+          "timestamp": "2026-09-28T22:05:50Z",
+          "tree_id": "054f2242411a6b1f4e7998401ea50174375c8e07",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/70c9f5776e53b154b346c160a58f7a48930c5b5c"
+        },
+        "date": 1790633333077,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8494,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "140364 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8494,
+            "unit": "ns/op",
+            "extra": "140364 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "140364 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "140364 times\n4 procs"
           }
         ]
       }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789988898104,
+  "lastUpdate": 1790593561740,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -7008,6 +7008,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "109580 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "14bde2068607de95e96ab0a468ca2530a7c28af5",
+          "message": "Bump debian from 12-slim to 13-slim\n\nBumps debian from 12-slim to 13-slim.\n\n---\nupdated-dependencies:\n- dependency-name: debian\n  dependency-version: 13-slim\n  dependency-type: direct:production\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-09-28T11:05:19Z",
+          "tree_id": "dee3c092ca738217504a36934da56a119cd2e7c4",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/14bde2068607de95e96ab0a468ca2530a7c28af5"
+        },
+        "date": 1790593561215,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 9384,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "128299 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 9384,
+            "unit": "ns/op",
+            "extra": "128299 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "128299 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "128299 times\n4 procs"
           }
         ]
       }

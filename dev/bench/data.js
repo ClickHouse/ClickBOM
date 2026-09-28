@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790633333806,
+  "lastUpdate": 1790633384826,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -7728,6 +7728,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "140364 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d866fe71ddfa628030135852dbcabd5d254bb4b7",
+          "message": "Bump golang from 1.26.8-alpine3.24 to 1.27.1-alpine3.24 (#120)\n\n* Bump golang from 1.26.8-alpine3.24 to 1.27.1-alpine3.24\n\nBumps golang from 1.26.8-alpine3.24 to 1.27.1-alpine3.24.\n\n---\nupdated-dependencies:\n- dependency-name: golang\n  dependency-version: 1.27.1-alpine3.24\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\n\n* Sync setup-go with Docker toolchain\n\nCo-authored-by: juliojimenez <648113+juliojimenez@users.noreply.github.com>\n\n---------\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Julio Jimenez <julio@clickhouse.com>\nCo-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>\nCo-authored-by: juliojimenez <648113+juliojimenez@users.noreply.github.com>",
+          "timestamp": "2026-09-28T22:09:00Z",
+          "tree_id": "054f2242411a6b1f4e7998401ea50174375c8e07",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/d866fe71ddfa628030135852dbcabd5d254bb4b7"
+        },
+        "date": 1790633384317,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8343,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "139971 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8343,
+            "unit": "ns/op",
+            "extra": "139971 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "139971 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "139971 times\n4 procs"
           }
         ]
       }

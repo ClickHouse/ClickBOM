@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790632937146,
+  "lastUpdate": 1790632987419,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -7632,6 +7632,54 @@ window.BENCHMARK_DATA = {
             "value": 14,
             "unit": "allocs/op",
             "extra": "166324 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@clickhouse.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6bcc7c123386b7c7dd6a5dd41804a93f609248b",
+          "message": "Merge branch 'main' into dependabot/docker/golang-1.27.1-alpine3.24",
+          "timestamp": "2026-09-28T18:02:28-04:00",
+          "tree_id": "748b031aff33c4c41881e6d665b7a92985bb3caf",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/f6bcc7c123386b7c7dd6a5dd41804a93f609248b"
+        },
+        "date": 1790632986173,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8906,
+            "unit": "ns/op\t    1152 B/op\t      14 allocs/op",
+            "extra": "132144 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8906,
+            "unit": "ns/op",
+            "extra": "132144 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 1152,
+            "unit": "B/op",
+            "extra": "132144 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "132144 times\n4 procs"
           }
         ]
       }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790653468391,
+  "lastUpdate": 1790660719477,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -7920,6 +7920,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "137829 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "efdb4c140e7240360f4931de5abf3b323a15dc8c",
+          "message": "feat(slack): Job Status Notification\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-09-29T01:42:36-04:00",
+          "tree_id": "617312ccc787ad31accc7c0083eac54006b617aa",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/efdb4c140e7240360f4931de5abf3b323a15dc8c"
+        },
+        "date": 1790660718873,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8448,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "140876 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8448,
+            "unit": "ns/op",
+            "extra": "140876 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "140876 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "140876 times\n4 procs"
           }
         ]
       }

@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ClickHouse/ClickBOM/internal/config"
+	"github.com/ClickHouse/ClickBOM/internal/notify"
 	"github.com/ClickHouse/ClickBOM/internal/sbom"
 	"github.com/ClickHouse/ClickBOM/internal/storage"
 	"github.com/ClickHouse/ClickBOM/pkg/logger"
@@ -23,18 +25,45 @@ func main() {
 }
 
 func run() error {
+	start := time.Now()
+	// Snapshot the sensitive environment before anything can rewrite it
+	// (Trivy's AssumeRole replaces the AWS_* variables mid-run), so the
+	// original credentials are redacted from the notification as well.
+	startupSecrets := config.SecretsFromEnv()
 	logger.Info("Starting ClickBOM GitHub Action for SBOM processing")
 
 	// Load and validate configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("configuration error: %w", err)
+		err = fmt.Errorf("configuration error: %w", err)
+		// The configuration is unusable, but the webhook alone may still be
+		// valid; a misconfigured job should still page whoever owns it.
+		notifyConfigFailure(context.Background(), err, time.Since(start))
+		return err
 	}
 
 	logger.SetDebug(cfg.Debug)
 
 	ctx := context.Background()
 
+	// Every outcome of the run, success or failure, is reported once. A failed
+	// notification is only logged: it must never change the exit status.
+	notifier := newSlackNotifier(cfg.SlackWebhookURL)
+	err = execute(ctx, cfg)
+	notifyOutcome(ctx, notifier, notify.Event{
+		Run:      notify.RunContextFromEnv(),
+		Summary:  buildSummary(cfg),
+		Err:      err,
+		Duration: time.Since(start),
+		Redact:   secretsForRedaction(cfg, startupSecrets),
+	})
+	return err
+}
+
+// execute performs the configured run. It is separate from run so that the
+// notification wraps everything after configuration, including temp-dir and
+// S3-client setup.
+func execute(ctx context.Context, cfg *config.Config) error {
 	// Create temp directory
 	tempDir, err := os.MkdirTemp("", "clickbom-*")
 	if err != nil {
@@ -371,5 +400,131 @@ func generateTableName(cfg *config.Config) string {
 		return fmt.Sprintf("%s_%s", config.SourceTrivy, sanitizeForTableName(path.Base(cfg.TrivyImage)))
 	default:
 		return "sbom_data"
+	}
+}
+
+// buildSummary describes the run for the Slack message using only inputs the
+// README marks non-sensitive. Mend UUIDs and Wiz report IDs are Sensitive, so
+// those sources name their scope but not their identifier, and their ClickHouse
+// table (which embeds the identifier) is left out.
+func buildSummary(cfg *config.Config) notify.Summary {
+	s := notify.Summary{
+		Source: cfg.SBOMSource,
+		Format: cfg.SBOMFormat,
+		Bucket: cfg.S3Bucket,
+		Key:    cfg.S3Key,
+	}
+	switch {
+	case cfg.Merge:
+		s.Source = "merge"
+		s.Target = mergeFilters(cfg)
+	case cfg.SBOMSource == config.SourceGitHub:
+		s.Target = cfg.Repository
+	case cfg.SBOMSource == config.SourceMend:
+		s.Target = "product scope"
+		if cfg.MendProjectUUID != "" {
+			s.Target = "project scope"
+		}
+	case cfg.SBOMSource == config.SourceWiz:
+		s.Target = "report"
+	case cfg.SBOMSource == config.SourceTrivy:
+		s.Target = cfg.TrivyImage
+	}
+	if cfg.ClickHouseURL != "" {
+		s.ClickHouse = cfg.ClickHouseDatabase
+		if tableNameIsPublic(cfg) {
+			s.ClickHouse += "." + generateTableName(cfg)
+		}
+	}
+	return s
+}
+
+// mergeFilters renders the include/exclude patterns of a merge run.
+func mergeFilters(cfg *config.Config) string {
+	var parts []string
+	if cfg.Include != "" {
+		parts = append(parts, "include "+cfg.Include)
+	}
+	if cfg.Exclude != "" {
+		parts = append(parts, "exclude "+cfg.Exclude)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// tableNameIsPublic reports whether generateTableName derives the table name
+// from non-sensitive inputs only (the S3 key, a repository slug or an image).
+func tableNameIsPublic(cfg *config.Config) bool {
+	return cfg.Merge || cfg.SBOMSource == config.SourceGitHub || cfg.SBOMSource == config.SourceTrivy
+}
+
+// secretsForRedaction is every value that must not appear in a Slack message:
+// the configuration's sensitive values (config.Secrets), the sensitive
+// environment as it was at start-up, and the derived spellings that ClickHouse
+// errors echo for Mend and Wiz runs: the table name and the table-name form of
+// every identifier (lower-cased, non-alphanumerics collapsed to `_`, hyphens
+// dropped), which an exact match on the hyphenated UUID would miss.
+func secretsForRedaction(cfg *config.Config, startupSecrets []string) []string {
+	out := append(cfg.Secrets(), startupSecrets...)
+	if tableNameIsPublic(cfg) {
+		return out
+	}
+	out = append(out, generateTableName(cfg))
+	ids := append(strings.Split(cfg.MendProjectUUIDs, ","),
+		cfg.MendOrgUUID, cfg.MendProjectUUID, cfg.MendProductUUID, cfg.MendOrgScopeUUID, cfg.WizReportID)
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" {
+			out = append(out, sanitizeForTableName(id), strings.ReplaceAll(id, "-", ""))
+		}
+	}
+	return out
+}
+
+// newSlackNotifier builds the notifier; a variable so tests can point it at a
+// local server (the validator only accepts hooks.slack.com URLs).
+var newSlackNotifier = notify.NewSlackNotifier
+
+// notificationTimeout bounds the whole best-effort notification; three
+// attempts with capped back-off could otherwise hold the job for ~105 s. A
+// variable so tests can shorten it.
+var notificationTimeout = 2 * time.Minute
+
+// notifyOutcome posts ev and logs, but never returns, a delivery failure.
+func notifyOutcome(ctx context.Context, notifier *notify.SlackNotifier, ev notify.Event) {
+	if notifier == nil {
+		return
+	}
+	// A notification must never change the outcome of the run, not even by
+	// panicking. The recovered value is not logged: it could quote a secret.
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Warning("Slack notification failed: internal error")
+		}
+	}()
+	ctx, cancel := context.WithTimeout(ctx, notificationTimeout)
+	defer cancel()
+	if err := notifier.Notify(ctx, ev); err != nil {
+		logger.Warning("Slack notification failed: %v", err)
+	}
+}
+
+// notifyConfigFailure posts a failure for a configuration LoadConfig rejected.
+// The webhook is validated on its own because there is no Config to read it
+// from; when SLACK_WEBHOOK_URL is unset or itself invalid nothing is sent (the
+// returned configuration error already explains the latter). No summary is
+// attached: nothing in an unvalidated configuration is known to be safe.
+func notifyConfigFailure(ctx context.Context, cause error, elapsed time.Duration) {
+	webhook, err := config.SlackWebhookURLFromEnv()
+	if err != nil {
+		return
+	}
+	notifyOutcome(ctx, newSlackNotifier(webhook), configFailureEvent(cause, elapsed))
+}
+
+func configFailureEvent(cause error, elapsed time.Duration) notify.Event {
+	return notify.Event{
+		Run:      notify.RunContextFromEnv(),
+		Err:      cause,
+		Duration: elapsed,
+		Redact:   config.SecretsFromEnv(),
 	}
 }

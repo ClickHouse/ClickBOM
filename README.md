@@ -2,7 +2,7 @@
 
 # ClickBOM
 
-Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container images with Trivy. Normalizes between CycloneDX and SPDX, optionally merges SBOMs stored in S3, and uploads the result to S3 and ClickHouse.
+Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container images with Trivy. Normalizes between CycloneDX and SPDX, optionally merges SBOMs stored in S3, uploads the result to S3 and ClickHouse, and can report the outcome of each run to Slack.
 
 > **Versioning.** `v1.0.x` tags are the retired bash implementation. The Go implementation is released as `v2.x` tags (`v2.0.0` and later); pin a tag, for example `ClickHouse/ClickBOM@v2.0.0`, and bump it to pick up fixes. Never pin to a feature branch — branches are deleted after merge and the workflow fails with `Unable to resolve action`.
 
@@ -14,6 +14,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container ima
   - [AWS](#aws)
   - [ClickHouse](#clickhouse)
   - [General](#general)
+  - [Slack](#slack)
 - [Usage](#usage)
   - [Same Repository](#same-repository)
   - [Same Repository with ClickHouse](#same-repository-with-clickhouse)
@@ -24,6 +25,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container ima
   - [Downloading an SBOM from Mend](#downloading-an-sbom-from-mend)
   - [Downloading an SBOM from Wiz](#downloading-an-sbom-from-wiz)
   - [Generating an SBOM from a Container Image with Trivy](#generating-an-sbom-from-a-container-image-with-trivy)
+  - [Posting Results to Slack](#posting-results-to-slack)
 - [Runtime Image](#runtime-image)
 - [Creating a GitHub App](#creating-a-github-app)
 
@@ -126,6 +128,21 @@ Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container ima
 - If `include` is specified, only files matching the include patterns will be processed.
 - If `exclude` is specified, files matching the exclude patterns will be skipped.
 - `exclude` is applied after `include`, so a file that matches **both** an include and exclude pattern will be *excluded*.
+
+### Slack
+
+| Name              | Description                                                                          | Default                   | Required | Sensitive |
+| ----------------- | ------------------------------------------------------------------------------------ | ------------------------- | -------- | --------- |
+| slack-webhook-url | Slack incoming webhook that receives one success or failure message per run          |                           | false    | true      |
+| job-check-run-id  | Id of the running job, used only to link the message to the job. Leave the default.  | `${{ job.check_run_id }}` | false    | false     |
+
+- When set, ClickBOM posts one message per run to whichever Slack workspace owns the webhook: whether the run succeeded or failed, the repository, workflow, job and step that ran it, what triggered it (event, branch, short commit, actor), the SBOM source, the S3 object written, the ClickHouse database and table when configured, the duration, and a link. On failure the first line of the error is included.
+- The link opens the job itself. `job.check_run_id` is evaluated as the default of `job-check-run-id` and handed to the container, so no workflow change is needed; it also tells matrix legs apart, which share a job key. On a GitHub Enterprise Server release without `job.check_run_id` the value is empty and the link opens the workflow run instead (the specific attempt when re-run).
+- **Job** is the job's key in the workflow file (`GITHUB_JOB`), not its `name:`. **Step** is the step's `id:` (`GITHUB_ACTION`); give the ClickBOM step an `id` for a readable label, otherwise GitHub generates one such as `__ClickHouse_ClickBOM`.
+- Only Slack *incoming webhook* URLs are accepted: `https://hooks.slack.com/services/...` (or `hooks.slack-gov.com` for GovSlack). Workflow Builder webhook triggers (`/triggers/...`, `/workflows/...`) are rejected at start-up because they only take flat key/value payloads. The URL is a credential: pass it from a secret. ClickBOM never logs it, and a rejected value is not echoed in the error.
+- Nothing marked Sensitive in this document reaches Slack. For Mend and Wiz the message names the scope (`project scope`, `product scope`, `report`) rather than the identifier and omits the ClickHouse table name, which embeds that identifier. The error text is redacted before posting: URL query strings and credentials are removed, every Sensitive input value (including the table-name spelling of Mend and Wiz identifiers), bearer and basic-auth headers, socket addresses, AWS access key ids and GitHub tokens are replaced with `***`, and only the first line is sent.
+- Notification failures are logged as warnings and never change the outcome of the job; delivery is bounded to about two minutes (three attempts). A run that fails configuration validation is reported too, as long as the webhook itself is valid. A retry after a timed-out delivery can produce a duplicate message.
+- The inputs first ship in `v2.1.0`; consumers pinned to `v2.0.0` or `v2.0.1` need a ref bump to use them.
 
 ## Usage
 
@@ -634,6 +651,30 @@ jobs:
           clickhouse-username: ${{ secrets.CLICKHOUSE_USERNAME }}
           clickhouse-password: ${{ secrets.CLICKHOUSE_PASSWORD }}
 ```
+
+### Posting Results to Slack
+
+Any of the examples above can report to Slack by adding `slack-webhook-url`. Create an [incoming webhook](https://api.slack.com/messaging/webhooks) for the channel that should receive the messages, store its URL as a repository or organization secret, and pass it in:
+
+```yaml
+      - name: Upload SBOM
+        id: clickbom
+        uses: ClickHouse/ClickBOM@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          s3-bucket: my-sbom-bucket
+          s3-key: clickbom.json
+          repository: ${{ github.repository }}
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
+Each run posts one message, for example:
+
+> :white_check_mark: **ClickBOM succeeded** in my-org/my-repo · Upload SBOM #42 *(links to the job)*
+>
+> **Workflow** Upload SBOM · **Job** clickbom · **Step** clickbom · **Trigger** push on main @ 0123456 by octocat · **Source** github · my-org/my-repo · **Output** s3://my-sbom-bucket/clickbom.json (cyclonedx) · **Duration** 1m23s
+
+A failed run is posted the same way, in red, with the first line of the error, so a matrix of many ClickBOM jobs can share one channel.
 
 ## Runtime Image
 

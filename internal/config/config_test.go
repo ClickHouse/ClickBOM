@@ -1,7 +1,12 @@
 package config
 
 import (
+	"encoding/base64"
 	"os"
+	"reflect"
+	"slices"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -318,4 +323,154 @@ func containsAny(s, chars string) bool {
 		}
 	}
 	return false
+}
+
+func TestLoadConfig_SlackWebhookURL(t *testing.T) {
+	const good = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+
+	t.Run("absent leaves the field empty", func(t *testing.T) {
+		setEnv(t, map[string]string{
+			"S3_BUCKET":  "test-bucket",
+			"REPOSITORY": "owner/repo",
+		})
+		cfg, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("LoadConfig: %v", err)
+		}
+		if cfg.SlackWebhookURL != "" {
+			t.Errorf("SlackWebhookURL = %q, want empty", cfg.SlackWebhookURL)
+		}
+	})
+
+	t.Run("valid webhook is kept", func(t *testing.T) {
+		setEnv(t, map[string]string{
+			"S3_BUCKET":         "test-bucket",
+			"REPOSITORY":        "owner/repo",
+			"SLACK_WEBHOOK_URL": " " + good + "\n",
+		})
+		cfg, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("LoadConfig: %v", err)
+		}
+		if cfg.SlackWebhookURL != good {
+			t.Errorf("SlackWebhookURL = %q, want %q", cfg.SlackWebhookURL, good)
+		}
+	})
+
+	t.Run("non-Slack host is rejected without echoing the value", func(t *testing.T) {
+		const marker = "SECRETMARKER123"
+		setEnv(t, map[string]string{
+			"S3_BUCKET":         "test-bucket",
+			"REPOSITORY":        "owner/repo",
+			"SLACK_WEBHOOK_URL": "https://evil.example/services/" + marker,
+		})
+		_, err := LoadConfig()
+		if err == nil {
+			t.Fatal("LoadConfig accepted a non-Slack webhook host")
+		}
+		if strings.Contains(err.Error(), marker) {
+			t.Errorf("error %q echoes the webhook URL", err.Error())
+		}
+	})
+}
+
+func TestSecretsFromEnv(t *testing.T) {
+	setEnv(t, map[string]string{"S3_BUCKET": "public-bucket"})
+	if got := SecretsFromEnv(); len(got) != 0 {
+		t.Fatalf("SecretsFromEnv() with no sensitive env = %q, want none", got)
+	}
+	setEnv(t, map[string]string{
+		"MEND_PROJECT_UUIDS": " a1 ,, b2 ",
+		"GITHUB_TOKEN":       "tok",
+		"AWS_SESSION_TOKEN":  "sess",
+		"S3_BUCKET":          "public-bucket",
+	})
+	got := SecretsFromEnv()
+	sort.Strings(got)
+	// The list variable contributes the whole value and each entry.
+	want := []string{"a1", "a1 ,, b2", "b2", "sess", "tok"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("SecretsFromEnv() = %q, want %q", got, want)
+	}
+
+	// Other variables are never split: a comma inside a password is part of it.
+	setEnv(t, map[string]string{"CLICKHOUSE_PASSWORD": "p,w"})
+	if got := SecretsFromEnv(); !reflect.DeepEqual(got, []string{"p,w"}) {
+		t.Errorf("SecretsFromEnv() with a comma in a password = %q, want [p,w]", got)
+	}
+}
+
+func TestConfigSecrets(t *testing.T) {
+	setEnv(t, map[string]string{
+		"CLICKHOUSE_URL":    "https://raw.example.com:8443/",
+		"AWS_ACCESS_KEY_ID": "AKIAEXAMPLE",
+	})
+	cfg := &Config{
+		GitHubToken: "tok", MendEmail: "m@example.com", MendOrgUUID: "org", MendUserKey: "ukey",
+		MendProjectUUID: "proj", MendProductUUID: "prod", MendOrgScopeUUID: "scope", MendProjectUUIDs: "u1, u2,",
+		WizAuthEndpoint: "https://auth.wiz.example", WizAPIEndpoint: "https://api.wiz.example",
+		WizClientID: "cid", WizClientSecret: "csec", WizReportID: "rep",
+		TrivyECRExternalID: "ext", ClickHouseURL: "https://raw.example.com:8443", ClickHousePassword: "pw",
+		SlackWebhookURL: "https://hooks.slack.com/services/T/B/X",
+		// Non-sensitive inputs must never be redacted, or the message becomes useless.
+		S3Bucket: "bucket", S3Key: "key.json", Repository: "o/r", ClickHouseDatabase: "db", ClickHouseUsername: "user", TrivyImage: "img:1",
+	}
+	got := cfg.Secrets()
+	set := map[string]bool{}
+	for _, v := range got {
+		if v == "" || v != strings.TrimSpace(v) {
+			t.Errorf("Secrets() contains an empty or untrimmed value %q", v)
+		}
+		set[v] = true
+	}
+	for _, want := range []string{
+		"tok", "m@example.com", "org", "ukey", "proj", "prod", "scope", "u1", "u2",
+		"https://auth.wiz.example", "https://api.wiz.example", "cid", "csec", "rep", "ext",
+		"https://raw.example.com:8443", "pw", "https://hooks.slack.com/services/T/B/X",
+		// raw environment values, including the untrimmed URL
+		"https://raw.example.com:8443/", "AKIAEXAMPLE",
+		// the basic-auth spelling of the ClickHouse credentials
+		base64.StdEncoding.EncodeToString([]byte("user:pw")),
+	} {
+		if !set[want] {
+			t.Errorf("Secrets() is missing %q", want)
+		}
+	}
+	for _, public := range []string{"bucket", "key.json", "o/r", "db", "user", "img:1"} {
+		if set[public] {
+			t.Errorf("Secrets() wrongly contains non-sensitive value %q", public)
+		}
+	}
+	if got := (&Config{}).Secrets(); len(got) != 2 {
+		t.Errorf("empty Config with two sensitive env vars: Secrets() = %q, want exactly the env values", got)
+	}
+}
+
+func TestSlackWebhookURLFromEnv(t *testing.T) {
+	setEnv(t, map[string]string{})
+	if _, err := SlackWebhookURLFromEnv(); err == nil {
+		t.Error("expected an error when SLACK_WEBHOOK_URL is unset")
+	}
+	setEnv(t, map[string]string{"SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/T/B/X "})
+	got, err := SlackWebhookURLFromEnv()
+	if err != nil || got != "https://hooks.slack.com/services/T/B/X" {
+		t.Errorf("SlackWebhookURLFromEnv() = %q, %v", got, err)
+	}
+	setEnv(t, map[string]string{"SLACK_WEBHOOK_URL": "https://evil.example/services/SECRETMARKER"})
+	if _, err := SlackWebhookURLFromEnv(); err == nil || strings.Contains(err.Error(), "SECRETMARKER") {
+		t.Errorf("invalid webhook: err = %v, want an error that withholds the value", err)
+	}
+}
+
+func TestSensitiveEnvVars_ReturnsACopy(t *testing.T) {
+	got := SensitiveEnvVars()
+	for _, want := range []string{"SLACK_WEBHOOK_URL", "CLICKHOUSE_URL", "MEND_PROJECT_UUIDS", "AWS_SESSION_TOKEN"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("SensitiveEnvVars() lacks %q", want)
+		}
+	}
+	got[0] = "MUTATED"
+	if slices.Contains(SensitiveEnvVars(), "MUTATED") {
+		t.Error("SensitiveEnvVars() must return a copy, not the package slice")
+	}
 }

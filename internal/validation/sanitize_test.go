@@ -463,3 +463,74 @@ func TestSanitizeBool(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeSlackWebhookURL(t *testing.T) {
+	const good = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+	tests := []struct {
+		name    string
+		url     string
+		want    string
+		wantErr bool
+	}{
+		{name: "incoming webhook", url: good, want: good},
+		{name: "govslack host", url: "https://hooks.slack-gov.com/services/T/B/X", want: "https://hooks.slack-gov.com/services/T/B/X"},
+		{name: "host is lower-cased", url: "https://HOOKS.SLACK.COM/services/T/B/X", want: "https://hooks.slack.com/services/T/B/X"},
+		{name: "surrounding whitespace trimmed", url: "  " + good + "\n", want: good},
+		{name: "rejects workflow builder trigger", url: "https://hooks.slack.com/triggers/T/123/abc", wantErr: true},
+		{name: "rejects legacy workflow webhook", url: "https://hooks.slack.com/workflows/T/A/1/abc", wantErr: true},
+		{name: "rejects embedded control characters", url: "https://hooks.slack.com/services/T\x00/B/X", wantErr: true},
+		{name: "rejects CRLF injection", url: "https://hooks.slack.com/services/T/B/X\r\nInjected: 1", wantErr: true},
+		{name: "rejects http", url: "http://hooks.slack.com/services/T/B/X", wantErr: true},
+		{name: "rejects other host", url: "https://example.com/services/T/B/X", wantErr: true},
+		{name: "rejects lookalike subdomain", url: "https://hooks.slack.com.evil.example/services/T/B/X", wantErr: true},
+		{name: "rejects trailing-dot host", url: "https://hooks.slack.com./services/T/B/X", wantErr: true},
+		{name: "rejects host in path", url: "https://evil.example/hooks.slack.com/services/T/B/X", wantErr: true},
+		{name: "rejects userinfo", url: "https://user:pass@hooks.slack.com/services/T/B/X", wantErr: true},
+		{name: "rejects explicit port", url: "https://hooks.slack.com:443/services/T/B/X", wantErr: true},
+		{name: "rejects query string", url: good + "?x=1", wantErr: true},
+		{name: "rejects empty query", url: good + "?", wantErr: true},
+		{name: "rejects fragment", url: good + "#frag", wantErr: true},
+		{name: "rejects path traversal", url: "https://hooks.slack.com/services/../../T/B/X", wantErr: true},
+		{name: "rejects double slash", url: "https://hooks.slack.com/services//T/B/X", wantErr: true},
+		{name: "rejects bare services path", url: "https://hooks.slack.com/services/", wantErr: true},
+		{name: "rejects empty path", url: "https://hooks.slack.com", wantErr: true},
+		{name: "rejects root path", url: "https://hooks.slack.com/", wantErr: true},
+		{name: "rejects opaque form", url: "https:hooks.slack.com/services/T/B/X", wantErr: true},
+		{name: "rejects empty", url: "", wantErr: true},
+		{name: "rejects whitespace only", url: " \n ", wantErr: true},
+		{name: "rejects garbage", url: "not a url", wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := SanitizeSlackWebhookURL(tc.url)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if !tc.wantErr && got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// The webhook URL is a credential: a rejected value must never be echoed back
+// in the error, which lands in the job log.
+func TestSanitizeSlackWebhookURL_ErrorWithholdsValue(t *testing.T) {
+	const marker = "SECRETMARKER123"
+	for _, bad := range []string{
+		"http://hooks.slack.com/services/" + marker,
+		"https://evil.example/" + marker,
+		"https://" + marker + "@hooks.slack.com/services/x",
+		"https://hooks.slack.com/services/" + marker + "?q=1",
+		"https://hooks.slack.com/triggers/" + marker,
+		marker,
+	} {
+		_, err := SanitizeSlackWebhookURL(bad)
+		if err == nil {
+			t.Fatalf("SanitizeSlackWebhookURL(%q) accepted", bad)
+		}
+		if strings.Contains(err.Error(), marker) {
+			t.Errorf("error %q echoes the rejected value", err.Error())
+		}
+	}
+}

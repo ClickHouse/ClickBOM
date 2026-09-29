@@ -134,15 +134,17 @@ Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container ima
 | Name              | Description                                                                          | Default                   | Required | Sensitive |
 | ----------------- | ------------------------------------------------------------------------------------ | ------------------------- | -------- | --------- |
 | slack-webhook-url | Slack incoming webhook that receives one success or failure message per run          |                           | false    | true      |
+| slack-notify-on   | Which outcomes to post: `always` (every run) or `failure` (failed runs only)          | `always`                  | false    | false     |
 | job-check-run-id  | Id of the running job, used only to link the message to the job. Leave the default.  | `${{ job.check_run_id }}` | false    | false     |
 
 - When set, ClickBOM posts one message per run to whichever Slack workspace owns the webhook: whether the run succeeded or failed, the repository, workflow, job and step that ran it, what triggered it (event, branch, short commit, actor), the SBOM source, the S3 object written, the ClickHouse database and table when configured, the duration, and a link. On failure the first line of the error is included.
+- `slack-notify-on: failure` posts failed runs only, for channels where one message per successful run is too noisy. A run that fails configuration validation is still posted, as long as the webhook itself is valid. The value is case-insensitive; anything other than `always` or `failure` is rejected at start-up.
 - The link opens the job itself. `job.check_run_id` is evaluated as the default of `job-check-run-id` and handed to the container, so no workflow change is needed; it also tells matrix legs apart, which share a job key. On a GitHub Enterprise Server release without `job.check_run_id` the value is empty and the link opens the workflow run instead (the specific attempt when re-run).
 - **Job** is the job's key in the workflow file (`GITHUB_JOB`), not its `name:`. **Step** is the step's `id:` (`GITHUB_ACTION`); give the ClickBOM step an `id` for a readable label, otherwise GitHub generates one such as `__ClickHouse_ClickBOM`.
 - Only Slack *incoming webhook* URLs are accepted: `https://hooks.slack.com/services/...` (or `hooks.slack-gov.com` for GovSlack). Workflow Builder webhook triggers (`/triggers/...`, `/workflows/...`) are rejected at start-up because they only take flat key/value payloads. The URL is a credential: pass it from a secret. ClickBOM never logs it, and a rejected value is not echoed in the error.
 - Nothing marked Sensitive in this document reaches Slack. For Mend and Wiz the message names the scope (`project scope`, `product scope`, `report`) rather than the identifier and omits the ClickHouse table name, which embeds that identifier. The error text is redacted before posting: URL query strings and credentials are removed, every Sensitive input value (including the table-name spelling of Mend and Wiz identifiers), bearer and basic-auth headers, socket addresses, AWS access key ids and GitHub tokens are replaced with `***`, and only the first line is sent.
 - Notification failures are logged as warnings and never change the outcome of the job; delivery is bounded to about two minutes (three attempts). A run that fails configuration validation is reported too, as long as the webhook itself is valid. A retry after a timed-out delivery can produce a duplicate message.
-- The inputs first ship in `v2.1.0`; consumers pinned to `v2.0.0` or `v2.0.1` need a ref bump to use them.
+- `slack-webhook-url` and `job-check-run-id` first ship in `v2.1.0` and `slack-notify-on` in `v2.2.0`; consumers pinned to an older tag need a ref bump to use them.
 
 ## Usage
 
@@ -674,7 +676,12 @@ Each run posts one message, for example:
 >
 > **Workflow** Upload SBOM · **Job** clickbom · **Step** clickbom · **Trigger** push on main @ 0123456 by octocat · **Source** github · my-org/my-repo · **Output** s3://my-sbom-bucket/clickbom.json (cyclonedx) · **Duration** 1m23s
 
-A failed run is posted the same way, in red, with the first line of the error, so a matrix of many ClickBOM jobs can share one channel.
+A failed run is posted the same way, in red, with the first line of the error, so a matrix of many ClickBOM jobs can share one channel. If one message per successful run is too noisy, add `slack-notify-on: failure` next to the webhook and only failed runs are posted:
+
+```yaml
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          slack-notify-on: failure
+```
 
 ## Runtime Image
 

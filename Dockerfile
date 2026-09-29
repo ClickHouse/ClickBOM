@@ -7,7 +7,7 @@ RUN apk update && apk upgrade --available --no-cache
 
 LABEL maintainer="ClickHouse Security Team" \
       description="ClickBOM - SBOM Management Tool" \
-      version="2.1.0"
+      version="2.2.0"
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -97,7 +97,7 @@ FROM gcr.io/distroless/cc-debian13:nonroot
 
 LABEL maintainer="ClickHouse Security Team" \
       description="ClickBOM - SBOM Management Tool" \
-      version="2.1.0" \
+      version="2.2.0" \
       security.scan="enabled"
 
 # Copy from tools stage

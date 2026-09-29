@@ -374,6 +374,76 @@ func TestLoadConfig_SlackWebhookURL(t *testing.T) {
 	})
 }
 
+func TestLoadConfig_SlackNotifyOn(t *testing.T) {
+	load := func(t *testing.T, value string) (*Config, error) {
+		t.Helper()
+		env := map[string]string{"S3_BUCKET": "test-bucket", "REPOSITORY": "owner/repo"}
+		if value != "" {
+			env["SLACK_NOTIFY_ON"] = value
+		}
+		setEnv(t, env)
+		return LoadConfig()
+	}
+
+	t.Run("defaults to always", func(t *testing.T) {
+		cfg, err := load(t, "")
+		if err != nil {
+			t.Fatalf("LoadConfig: %v", err)
+		}
+		if cfg.SlackNotifyOn != SlackNotifyAlways {
+			t.Errorf("SlackNotifyOn = %q, want %q", cfg.SlackNotifyOn, SlackNotifyAlways)
+		}
+	})
+
+	t.Run("accepts both values, trimmed and case-insensitively, without a webhook", func(t *testing.T) {
+		for value, want := range map[string]string{
+			"always":      SlackNotifyAlways,
+			"failure":     SlackNotifyOnFailure,
+			" Failure\n":  SlackNotifyOnFailure,
+			"ALWAYS":      SlackNotifyAlways,
+			"\tfailure\t": SlackNotifyOnFailure,
+		} {
+			cfg, err := load(t, value)
+			if err != nil {
+				t.Errorf("LoadConfig(SLACK_NOTIFY_ON=%q): %v", value, err)
+				continue
+			}
+			if cfg.SlackNotifyOn != want {
+				t.Errorf("SLACK_NOTIFY_ON=%q: SlackNotifyOn = %q, want %q", value, cfg.SlackNotifyOn, want)
+			}
+		}
+	})
+
+	t.Run("rejects other values naming the variable and the value", func(t *testing.T) {
+		for _, value := range []string{"success", "never", "true", "fail", "always,failure"} {
+			_, err := load(t, value)
+			if err == nil {
+				t.Errorf("LoadConfig accepted SLACK_NOTIFY_ON=%q", value)
+				continue
+			}
+			if !strings.Contains(err.Error(), "SLACK_NOTIFY_ON") || !strings.Contains(err.Error(), value) {
+				t.Errorf("SLACK_NOTIFY_ON=%q: error %q should name the variable and the value", value, err)
+			}
+		}
+	})
+
+	t.Run("Sanitize treats an empty field as always", func(t *testing.T) {
+		// Sanitize also range-checks the Mend timings and the SBOM closed
+		// sets, so the fixture carries their LoadConfig defaults.
+		cfg := &Config{
+			S3Bucket: "test-bucket", Repository: "owner/repo",
+			SBOMSource: SourceGitHub, SBOMFormat: "cyclonedx",
+			MendMaxWaitTime: 1800, MendPollInterval: 30,
+		}
+		if err := cfg.Sanitize(); err != nil {
+			t.Fatalf("Sanitize: %v", err)
+		}
+		if cfg.SlackNotifyOn != SlackNotifyAlways {
+			t.Errorf("SlackNotifyOn = %q, want %q", cfg.SlackNotifyOn, SlackNotifyAlways)
+		}
+	})
+}
+
 func TestSecretsFromEnv(t *testing.T) {
 	setEnv(t, map[string]string{"S3_BUCKET": "public-bucket"})
 	if got := SecretsFromEnv(); len(got) != 0 {
@@ -414,6 +484,7 @@ func TestConfigSecrets(t *testing.T) {
 		SlackWebhookURL: "https://hooks.slack.com/services/T/B/X",
 		// Non-sensitive inputs must never be redacted, or the message becomes useless.
 		S3Bucket: "bucket", S3Key: "key.json", Repository: "o/r", ClickHouseDatabase: "db", ClickHouseUsername: "user", TrivyImage: "img:1",
+		SlackNotifyOn: SlackNotifyOnFailure, // would blank the word "failure" in every posted error
 	}
 	got := cfg.Secrets()
 	set := map[string]bool{}
@@ -436,7 +507,7 @@ func TestConfigSecrets(t *testing.T) {
 			t.Errorf("Secrets() is missing %q", want)
 		}
 	}
-	for _, public := range []string{"bucket", "key.json", "o/r", "db", "user", "img:1"} {
+	for _, public := range []string{"bucket", "key.json", "o/r", "db", "user", "img:1", "failure"} {
 		if set[public] {
 			t.Errorf("Secrets() wrongly contains non-sensitive value %q", public)
 		}

@@ -151,6 +151,10 @@ inputs:
   slack-webhook-url:
     description: 'Slack incoming webhook URL (https://hooks.slack.com/services/...). When set, ClickBOM posts a success or failure message with the workflow, job, step, trigger, SBOM source, S3 target and a link to the job. Pass it from a secret; it is never logged.'
     required: false
+  slack-notify-on:
+    description: 'Which outcomes to post to Slack: "always" (every run) or "failure" (failed runs only, including configuration failures). Use failure when one message per successful run is too noisy. Ignored when slack-webhook-url is unset.'
+    required: false
+    default: 'always'
   job-check-run-id:
     description: 'Id of the running job, used only to link the Slack message to the job. Leave the default: job.check_run_id is evaluated here because a Docker action can only see the inputs context. Empty on GitHub Enterprise Server releases without job.check_run_id, in which case the message links to the run.'
     required: false
@@ -208,6 +212,7 @@ runs:
     DEBUG: ${{ inputs.debug }}
     # Notifications
     SLACK_WEBHOOK_URL: ${{ inputs.slack-webhook-url }}
+    SLACK_NOTIFY_ON: ${{ inputs.slack-notify-on }}
     CLICKBOM_JOB_CHECK_RUN_ID: ${{ inputs.job-check-run-id }}
 branding:
   icon: 'list'

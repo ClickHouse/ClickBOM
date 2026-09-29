@@ -95,7 +95,7 @@ Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container ima
 - It is recommended that an S3 bucket be created for the purposes of ClickBOM.
 - The `aws-*` inputs are kept for backward compatibility with the bash version of this action. The recommended path is to use [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) with GitHub OIDC; that action exports `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` / `AWS_REGION` as job-level env vars, and the Actions runner passes job env through to the ClickBOM container unchanged, so nothing needs to be passed as an input. (Do not pass `steps.<id>.outputs.aws-access-key-id`: those outputs are empty unless `output-credentials: true` is set.)
 - The bucket does not have to be in the job's `aws-region`. ClickBOM resolves each bucket's home region up front (via `HeadBucket`'s `x-amz-bucket-region` header) and talks to the right regional endpoint, so a mismatch no longer fails with `301 PermanentRedirect`.
-- Setting `AWS_ENDPOINT_URL` (e.g. to MinIO or LocalStack) switches the client to path-style addressing and disables region discovery.
+- Setting `AWS_ENDPOINT_URL` (e.g. to RustFS, MinIO or another S3-compatible store) switches the client to path-style addressing and disables region discovery.
 
 ### ClickHouse
 
@@ -637,7 +637,7 @@ jobs:
 
 ## Runtime Image
 
-The action runs as a Docker container built from this repository's `Dockerfile`: a static Go binary plus two external tools, `cyclonedx` (format conversion) and `trivy` (image scanning), on `gcr.io/distroless/cc-debian12:nonroot`. The `cc` variant is required because `cyclonedx-cli` is a dynamically linked .NET application; on `distroless/static` it cannot execute at all. CI builds the image and runs a conversion inside it on every push.
+The action runs as a Docker container built from this repository's `Dockerfile`: a static Go binary plus two external tools, `cyclonedx` (format conversion) and `trivy` (image scanning), on `gcr.io/distroless/cc-debian13:nonroot`. The `cc` variant is required because `cyclonedx-cli` is a dynamically linked .NET application; on `distroless/static` it cannot execute at all. CI builds the image and runs a conversion inside it on every push.
 
 ## Creating a GitHub App
 

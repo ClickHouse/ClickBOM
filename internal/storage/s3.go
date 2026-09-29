@@ -57,7 +57,7 @@ type S3Client struct {
 	// (AWS_REGION / AWS_DEFAULT_REGION / shared config).
 	defaultClient *s3.Client
 	// customEndpoint is true when AWS_ENDPOINT_URL (or AWS_ENDPOINT_URL_S3)
-	// points at a non-AWS S3-compatible endpoint such as MinIO or LocalStack.
+	// points at a non-AWS S3-compatible endpoint such as RustFS or MinIO.
 	// Region discovery is skipped in that case: there is only one endpoint.
 	customEndpoint bool
 

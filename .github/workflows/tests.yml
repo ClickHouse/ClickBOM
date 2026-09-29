@@ -72,31 +72,42 @@ jobs:
           sudo mv /tmp/cyclonedx /usr/local/bin/cyclonedx
           sudo chmod +x /usr/local/bin/cyclonedx
 
-      # Mock S3 using the official MinIO image (S3-compatible). Started as a
-      # plain `docker run` step rather than a service container because the
-      # image needs `server /data` passed as command, and GitHub Actions
-      # service containers can't override a container's command/entrypoint.
-      # LocalStack would have been the prior choice but its :latest now
-      # requires a paid auth token.
-      # Pulled from quay.io: docker.io/minio/minio is no longer publicly
-      # available ("pull access denied").
-      - name: 🪣 Start MinIO
+      # Mock S3 with RustFS (Apache-2.0, MinIO-compatible API): same port 9000,
+      # same /minio/health/live probe, static root credentials via env and no
+      # command argument, so the test env below is unchanged. Started as a
+      # plain `docker run` step rather than a service container so the explicit
+      # readiness loop can gate the bucket step and dump the log on failure.
+      # Why not MinIO: github.com/minio/minio is archived and source-only since
+      # RELEASE.2025-10-15; docker.io/minio/minio was deleted in September 2026
+      # and quay.io/minio/minio stopped serving anonymous pulls between
+      # 2026-09-21 and 2026-09-24 ("unauthorized"), which broke this job on
+      # 2026-09-28. Why not LocalStack: its community edition is archived and
+      # the remaining image needs an account plus auth token.
+      # The tag is pinned on purpose: Dependabot does not track images in
+      # `run:` steps and a CI fixture should not move underneath us. Bump it
+      # deliberately.
+      - name: 🪣 Start RustFS (S3-compatible)
         run: |
-          docker run -d --name minio \
+          docker run -d --name rustfs \
             -p 9000:9000 \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:latest server /data
-          # Wait up to 60s for MinIO to be live before continuing.
+            -e RUSTFS_ACCESS_KEY=minioadmin \
+            -e RUSTFS_SECRET_KEY=minioadmin \
+            rustfs/rustfs:1.0.0
+          # Wait up to 60s for RustFS to be live before continuing.
           for i in $(seq 1 60); do
-            if curl --silent --fail http://localhost:9000/minio/health/live; then
-              echo "MinIO ready after ${i}s"
+            if curl --silent --fail --output /dev/null http://localhost:9000/minio/health/live; then
+              echo "RustFS ready after ${i}s"
               break
             fi
             sleep 1
           done
+          # Fail here, with the server log, instead of in the bucket step.
+          # RustFS logs to /logs inside the container, not to stdout; `docker cp`
+          # (unlike `docker exec`) still works when the container has exited.
+          curl --silent --fail --output /dev/null http://localhost:9000/minio/health/live \
+            || { docker logs rustfs; docker cp rustfs:/logs/rustfs.log /tmp/rustfs.log && cat /tmp/rustfs.log; exit 1; }
 
-      - name: ⚙️ Create MinIO bucket
+      - name: ⚙️ Create S3 bucket
         run: |
           aws --endpoint-url=http://localhost:9000 s3 mb s3://test-bucket
         env:
@@ -105,7 +116,7 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
 
       # The S3 client switches to path-style addressing whenever
-      # AWS_ENDPOINT_URL is set, which is what MinIO requires.
+      # AWS_ENDPOINT_URL is set, which is what RustFS (like MinIO) requires.
       - name: 🧪 Run integration tests
         run: go test -v -tags=integration ./...
         env:

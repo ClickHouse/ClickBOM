@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790653231387,
+  "lastUpdate": 1790653468391,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -7872,6 +7872,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "139294 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@clickhouse.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a585dd9116b4294fd17c6c8f2526a8ca9d13c57d",
+          "message": "fix(docker): Lib stage debian 13 update (#131)\n\n* fix(docker): Lib stage debian 13 update\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n* fix(docker): Lib stage debian 13 update\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>\n\n---------\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-09-28T23:43:43-04:00",
+          "tree_id": "2f381c54786300a2b605cf273d9d205e7e32f309",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/a585dd9116b4294fd17c6c8f2526a8ca9d13c57d"
+        },
+        "date": 1790653467828,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8623,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "137829 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8623,
+            "unit": "ns/op",
+            "extra": "137829 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "137829 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "137829 times\n4 procs"
           }
         ]
       }

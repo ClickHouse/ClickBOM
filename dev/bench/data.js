@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790633384826,
+  "lastUpdate": 1790650005708,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -7776,6 +7776,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "139971 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "distinct": true,
+          "id": "09feed738ae79fbdd9c030124a6600057655debb",
+          "message": "fix(docker): Lib stage debian 13 update\n\nSigned-off-by: Julio Jimenez <julio@julioj.com>",
+          "timestamp": "2026-09-28T22:45:56-04:00",
+          "tree_id": "abfd87826adb093dc72e59e710353fc32ba78a5f",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/09feed738ae79fbdd9c030124a6600057655debb"
+        },
+        "date": 1790650004494,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8027,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "149628 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8027,
+            "unit": "ns/op",
+            "extra": "149628 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "149628 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "149628 times\n4 procs"
           }
         ]
       }

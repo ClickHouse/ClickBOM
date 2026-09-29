@@ -72,25 +72,32 @@ RUN wget -qO trivy_checksums.txt "https://github.com/aquasecurity/trivy/releases
     chmod +x /usr/local/bin/trivy && \
     rm -f trivy_checksums.txt "trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
 
-# Shared libraries the .NET runtime embedded in cyclonedx-cli needs beyond
-# what distroless `cc` ships. Sourced from the same Debian release as the
-# runtime image so the glibc ABI matches exactly.
-#   - libz.so.1 (zlib): loaded at startup by the .NET host; without it
-#     cyclonedx fails with "error while loading shared libraries: libz.so.1".
+# Shared libraries the .NET runtime embedded in cyclonedx-cli needs at startup.
+# Sourced from the same Debian release as the runtime image so the glibc ABI
+# matches exactly (see the lockstep note on the runtime stage below).
+#   - libz.so.1 (zlib): loaded at startup by the .NET host. `cc-debian12` did
+#     not ship it and cyclonedx failed with "error while loading shared
+#     libraries: libz.so.1". `cc-debian13` ships zlib1g itself, so on Debian 13
+#     this copy is redundant: it only overwrites the base image's libz.so.1
+#     with the `debian:13-slim` build of the same package.
 FROM debian:13-slim AS libs
 
 # Runtime stage - Distroless.
 #
-# `cc-debian12`, NOT `static-debian12`: cyclonedx-cli needs glibc + libgcc +
+# `cc-debian13`, NOT `static-debian13`: cyclonedx-cli needs glibc + libgcc +
 # libstdc++ at runtime. On `static` (which ships none of them) every
 # `cyclonedx convert` failed with
 #   fork/exec /usr/local/bin/cyclonedx: no such file or directory
 # because the kernel could not find the ELF interpreter /lib64/ld-linux-x86-64.so.2.
-FROM gcr.io/distroless/cc-debian12:nonroot
+#
+# Keep the Debian release in lockstep with the `libs` stage above. Dependabot
+# bumps the `debian:N-slim` tag there but cannot bump this image, whose release
+# is part of the image name rather than the tag, so move both by hand.
+FROM gcr.io/distroless/cc-debian13:nonroot
 
 LABEL maintainer="ClickHouse Security Team" \
       description="ClickBOM - SBOM Management Tool" \
-      version="2.0.0" \
+      version="2.0.2" \
       security.scan="enabled"
 
 # Copy from tools stage

@@ -637,7 +637,7 @@ jobs:
 
 ## Runtime Image
 
-The action runs as a Docker container built from this repository's `Dockerfile`: a static Go binary plus two external tools, `cyclonedx` (format conversion) and `trivy` (image scanning), on `gcr.io/distroless/cc-debian12:nonroot`. The `cc` variant is required because `cyclonedx-cli` is a dynamically linked .NET application; on `distroless/static` it cannot execute at all. CI builds the image and runs a conversion inside it on every push.
+The action runs as a Docker container built from this repository's `Dockerfile`: a static Go binary plus two external tools, `cyclonedx` (format conversion) and `trivy` (image scanning), on `gcr.io/distroless/cc-debian13:nonroot`. The `cc` variant is required because `cyclonedx-cli` is a dynamically linked .NET application; on `distroless/static` it cannot execute at all. CI builds the image and runs a conversion inside it on every push.
 
 ## Creating a GitHub App
 

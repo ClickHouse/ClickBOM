@@ -284,6 +284,18 @@ jobs:
           fi
           grep -q "S3_BUCKET is required" out.log || { cat out.log; exit 1; }
 
+      - name: 🧪 Binary withholds a rejected Slack webhook URL
+        run: |
+          set -euo pipefail
+          # The webhook URL is a credential: a rejected value must be named but
+          # never echoed, in the shipped distroless binary as much as in tests.
+          if docker run --rm -e SLACK_WEBHOOK_URL=https://example.com/services/MARKER clickbom:test > out.log 2>&1; then
+            echo "expected clickbom to fail with an invalid SLACK_WEBHOOK_URL"; cat out.log; exit 1
+          fi
+          grep -q "invalid SLACK_WEBHOOK_URL" out.log || { cat out.log; exit 1; }
+          if grep -q "MARKER" out.log; then echo "webhook URL leaked into the log"; cat out.log; exit 1; fi
+
+
   # Preflight: only run the E2E job when the required secrets are actually
   # configured on the repo. Without this, the E2E job fails on any fork/contrib
   # push (or any repo that hasn't set TEST_S3_BUCKET / AWS_* secrets) with a
@@ -346,6 +358,10 @@ jobs:
           S3_KEY: test-e2e-${{ github.sha }}.json
           SBOM_SOURCE: github
           SBOM_FORMAT: cyclonedx
+          # Optional: when the repository defines TEST_SLACK_WEBHOOK_URL the run
+          # posts a real message linked to this job; empty means no notification.
+          SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_WEBHOOK_URL }}
+          CLICKBOM_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
 
   # Benchmarks
   benchmark:

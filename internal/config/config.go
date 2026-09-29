@@ -2,8 +2,10 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ClickHouse/ClickBOM/internal/validation"
 )
@@ -73,6 +75,9 @@ type Config struct {
 
 	// License mapping
 	LicenseMappingFile string
+
+	// Notifications
+	SlackWebhookURL string // Slack incoming webhook; a credential, never logged
 }
 
 // LoadConfig loads configuration from environment variables.
@@ -141,6 +146,9 @@ func LoadConfig() (*Config, error) {
 		Exclude:            os.Getenv("EXCLUDE"),
 		Debug:              debug,
 		LicenseMappingFile: getEnvOrDefault("LICENSE_MAPPING_FILE", "/app/license-mappings.json"),
+
+		// Notifications
+		SlackWebhookURL: os.Getenv("SLACK_WEBHOOK_URL"),
 	}
 
 	// Sanitize inputs
@@ -342,6 +350,15 @@ func (c *Config) Sanitize() error {
 	if err := c.sanitizeURLs(); err != nil {
 		return err
 	}
+
+	// The Slack webhook is a credential, so it has its own validator whose
+	// error never echoes the value (SanitizeURL quotes the URL it rejects).
+	if c.SlackWebhookURL != "" {
+		c.SlackWebhookURL, err = validation.SanitizeSlackWebhookURL(c.SlackWebhookURL)
+		if err != nil {
+			return err
+		}
+	}
 	if err := c.sanitizeUUIDs(); err != nil {
 		return err
 	}
@@ -389,4 +406,82 @@ func (c *Config) Sanitize() error {
 	c.ClickHousePassword = validation.SanitizeString(c.ClickHousePassword, 500)
 
 	return nil
+}
+
+// sensitiveEnvVars lists every environment variable whose value the README
+// marks Sensitive, plus the AWS credentials that arrive as job env rather than
+// as inputs. Keep it in sync with the README input tables: these values are
+// what the Slack notifier redacts from error text before posting.
+var sensitiveEnvVars = []string{
+	"GITHUB_TOKEN",
+	"MEND_EMAIL", "MEND_ORG_UUID", "MEND_USER_KEY",
+	"MEND_PROJECT_UUID", "MEND_PRODUCT_UUID", "MEND_ORG_SCOPE_UUID", "MEND_PROJECT_UUIDS",
+	"WIZ_AUTH_ENDPOINT", "WIZ_API_ENDPOINT", "WIZ_CLIENT_ID", "WIZ_CLIENT_SECRET", "WIZ_REPORT_ID",
+	"TRIVY_ECR_EXTERNAL_ID",
+	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+	"CLICKHOUSE_URL", "CLICKHOUSE_PASSWORD",
+	"SLACK_WEBHOOK_URL",
+}
+
+// SecretsFromEnv returns the raw values of every sensitive environment
+// variable. The one list-valued variable, MEND_PROJECT_UUIDS, contributes the
+// whole value and each comma-separated element, because validation errors
+// echo a single entry. It needs no Config, so it also serves runs whose
+// configuration failed to load, and it should be called early: Trivy's
+// AssumeRole rewrites the AWS_* variables mid-run.
+func SecretsFromEnv() []string {
+	var out []string
+	for _, name := range sensitiveEnvVars {
+		v := os.Getenv(name)
+		out = appendNonEmpty(out, v)
+		if name == "MEND_PROJECT_UUIDS" {
+			out = appendNonEmpty(out, strings.Split(v, ",")...)
+		}
+	}
+	return out
+}
+
+// SensitiveEnvVars returns a copy of the sensitive variable names so tests and
+// tooling can isolate them.
+func SensitiveEnvVars() []string {
+	return append([]string(nil), sensitiveEnvVars...)
+}
+
+// Secrets returns every configuration value that must never appear in a
+// notification: the sanitized sensitive fields (which may differ from the raw
+// input) plus the raw environment values they came from. AWSAccessKeyID and
+// AWSSecretAccessKey are not listed because LoadConfig never populates them;
+// SecretsFromEnv covers the job's AWS credentials.
+func (c *Config) Secrets() []string {
+	out := appendNonEmpty(nil,
+		c.GitHubToken,
+		c.MendEmail, c.MendOrgUUID, c.MendUserKey,
+		c.MendProjectUUID, c.MendProductUUID, c.MendOrgScopeUUID,
+		c.WizAuthEndpoint, c.WizAPIEndpoint, c.WizClientID, c.WizClientSecret, c.WizReportID,
+		c.TrivyECRExternalID,
+		c.ClickHouseURL, c.ClickHousePassword,
+		c.SlackWebhookURL,
+	)
+	out = appendNonEmpty(out, strings.Split(c.MendProjectUUIDs, ",")...)
+	if c.ClickHousePassword != "" {
+		// Every ClickHouse request carries `Authorization: Basic <base64>`; an
+		// intermediary that echoes request headers would leak that spelling.
+		out = append(out, base64.StdEncoding.EncodeToString([]byte(c.ClickHouseUsername+":"+c.ClickHousePassword)))
+	}
+	return append(out, SecretsFromEnv()...)
+}
+
+// SlackWebhookURLFromEnv validates SLACK_WEBHOOK_URL on its own, for the path
+// where LoadConfig has already rejected the configuration as a whole.
+func SlackWebhookURLFromEnv() (string, error) {
+	return validation.SanitizeSlackWebhookURL(os.Getenv("SLACK_WEBHOOK_URL"))
+}
+
+func appendNonEmpty(out []string, values ...string) []string {
+	for _, v := range values {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }

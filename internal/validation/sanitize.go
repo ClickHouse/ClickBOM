@@ -2,7 +2,9 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"unicode"
@@ -253,4 +255,54 @@ func removeControlChars(s string) string {
 		}
 	}
 	return result.String()
+}
+
+// slackWebhookHosts is the closed set of hosts a Slack incoming webhook may
+// point at (hooks.slack-gov.com is GovSlack). The webhook URL is a credential
+// and everything ClickBOM posts to it would otherwise be deliverable to an
+// arbitrary host, so no other host is accepted.
+var slackWebhookHosts = map[string]bool{
+	"hooks.slack.com":     true,
+	"hooks.slack-gov.com": true,
+}
+
+// slackWebhookPathPrefix is the path every Slack *incoming webhook* shares.
+// Workflow Builder webhook triggers (/triggers/, /workflows/) live on the same
+// host but accept only flat key/value variables, so ClickBOM's Block Kit
+// payload would be rejected at run time; they are refused here instead.
+const slackWebhookPathPrefix = "/services/"
+
+// errInvalidSlackWebhookURL is returned for every malformed or disallowed
+// SLACK_WEBHOOK_URL. It deliberately never quotes the offending value: the URL
+// is a secret and this message ends up in the job log.
+var errInvalidSlackWebhookURL = errors.New("invalid SLACK_WEBHOOK_URL: must be a Slack incoming webhook URL of the form https://hooks.slack.com/services/... (value withheld because it is a secret)")
+
+// SanitizeSlackWebhookURL validates a Slack incoming webhook URL and returns
+// it in canonical form (lower-case host). It fails closed: control characters,
+// credentials, ports, query strings, fragments and path traversal are rejected
+// rather than stripped, and unlike SanitizeURL the error never includes the
+// input.
+func SanitizeSlackWebhookURL(raw string) (string, error) {
+	cleaned := strings.TrimSpace(raw)
+	if cleaned == "" || strings.IndexFunc(cleaned, unicode.IsControl) >= 0 {
+		return "", errInvalidSlackWebhookURL
+	}
+	u, err := url.Parse(cleaned)
+	if err != nil || u.Scheme != "https" || u.Opaque != "" || u.User != nil {
+		return "", errInvalidSlackWebhookURL
+	}
+	// u.Host keeps an explicit port, so "hooks.slack.com:443" is rejected too.
+	host := strings.ToLower(u.Host)
+	if !slackWebhookHosts[host] {
+		return "", errInvalidSlackWebhookURL
+	}
+	if u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return "", errInvalidSlackWebhookURL
+	}
+	if !strings.HasPrefix(u.Path, slackWebhookPathPrefix) || len(u.Path) == len(slackWebhookPathPrefix) ||
+		strings.Contains(u.Path, "..") || strings.Contains(u.Path, "//") {
+		return "", errInvalidSlackWebhookURL
+	}
+	u.Host = host
+	return u.String(), nil
 }

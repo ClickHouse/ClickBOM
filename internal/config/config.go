@@ -18,6 +18,12 @@ const (
 	SourceTrivy  = "trivy"
 )
 
+// SLACK_NOTIFY_ON values: post every outcome, or failures only.
+const (
+	SlackNotifyAlways    = "always"
+	SlackNotifyOnFailure = "failure"
+)
+
 // Config holds the application configuration.
 type Config struct {
 	// GitHub
@@ -78,6 +84,7 @@ type Config struct {
 
 	// Notifications
 	SlackWebhookURL string // Slack incoming webhook; a credential, never logged
+	SlackNotifyOn   string // SlackNotifyAlways or SlackNotifyOnFailure
 }
 
 // LoadConfig loads configuration from environment variables.
@@ -149,6 +156,7 @@ func LoadConfig() (*Config, error) {
 
 		// Notifications
 		SlackWebhookURL: os.Getenv("SLACK_WEBHOOK_URL"),
+		SlackNotifyOn:   getEnvOrDefault("SLACK_NOTIFY_ON", SlackNotifyAlways),
 	}
 
 	// Sanitize inputs
@@ -358,6 +366,17 @@ func (c *Config) Sanitize() error {
 		if err != nil {
 			return err
 		}
+	}
+	// SLACK_NOTIFY_ON is a closed set. It is not sensitive, so the rejected
+	// value may be quoted. Empty (a Config built without LoadConfig) means
+	// always, which is also the action.yml default.
+	switch strings.ToLower(strings.TrimSpace(c.SlackNotifyOn)) {
+	case "", SlackNotifyAlways:
+		c.SlackNotifyOn = SlackNotifyAlways
+	case SlackNotifyOnFailure:
+		c.SlackNotifyOn = SlackNotifyOnFailure
+	default:
+		return fmt.Errorf("invalid SLACK_NOTIFY_ON: %q (must be always or failure)", c.SlackNotifyOn)
 	}
 	if err := c.sanitizeUUIDs(); err != nil {
 		return err

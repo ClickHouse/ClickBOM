@@ -46,11 +46,12 @@ func run() error {
 
 	ctx := context.Background()
 
-	// Every outcome of the run, success or failure, is reported once. A failed
-	// notification is only logged: it must never change the exit status.
+	// Every outcome of the run is reported once, unless slack-notify-on is
+	// "failure" and the run succeeded. A failed notification is only logged:
+	// it must never change the exit status.
 	notifier := newSlackNotifier(cfg.SlackWebhookURL)
 	err = execute(ctx, cfg)
-	notifyOutcome(ctx, notifier, notify.Event{
+	reportOutcome(ctx, cfg, notifier, notify.Event{
 		Run:      notify.RunContextFromEnv(),
 		Summary:  buildSummary(cfg),
 		Err:      err,
@@ -487,6 +488,27 @@ var newSlackNotifier = notify.NewSlackNotifier
 // attempts with capped back-off could otherwise hold the job for ~105 s. A
 // variable so tests can shorten it.
 var notificationTimeout = 2 * time.Minute
+
+// shouldNotify reports whether a finished run is posted: every failure, and a
+// success unless SLACK_NOTIFY_ON is "failure". An empty value (a Config built
+// without LoadConfig) counts as "always". Configuration failures never pass
+// through here: notifyConfigFailure posts them regardless of the switch.
+func shouldNotify(cfg *config.Config, err error) bool {
+	return err != nil || cfg.SlackNotifyOn != config.SlackNotifyOnFailure
+}
+
+// reportOutcome applies the slack-notify-on switch in front of notifyOutcome.
+// A suppressed success is logged only when a webhook is configured, so runs
+// without Slack stay quiet.
+func reportOutcome(ctx context.Context, cfg *config.Config, notifier *notify.SlackNotifier, ev notify.Event) {
+	if shouldNotify(cfg, ev.Err) {
+		notifyOutcome(ctx, notifier, ev)
+		return
+	}
+	if notifier != nil {
+		logger.Info("Slack notification skipped: the run succeeded and slack-notify-on is %q", cfg.SlackNotifyOn)
+	}
+}
 
 // notifyOutcome posts ev and logs, but never returns, a delivery failure.
 func notifyOutcome(ctx context.Context, notifier *notify.SlackNotifier, ev notify.Event) {

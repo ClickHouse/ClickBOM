@@ -495,6 +495,71 @@ func TestNotifyConfigFailure_PostsRedactedFailure(t *testing.T) {
 	}
 }
 
+func TestShouldNotify(t *testing.T) {
+	failed := errors.New("boom")
+	tests := []struct {
+		name string
+		mode string
+		err  error
+		want bool
+	}{
+		{"always posts a success", config.SlackNotifyAlways, nil, true},
+		{"always posts a failure", config.SlackNotifyAlways, failed, true},
+		{"failure skips a success", config.SlackNotifyOnFailure, nil, false},
+		{"failure posts a failure", config.SlackNotifyOnFailure, failed, true},
+		{"an unset switch counts as always", "", nil, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldNotify(&config.Config{SlackNotifyOn: tc.mode}, tc.err); got != tc.want {
+				t.Errorf("shouldNotify(%q, %v) = %v, want %v", tc.mode, tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestReportOutcome_HonoursNotifyOn(t *testing.T) {
+	calls := 0
+	var posted string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		body, _ := io.ReadAll(r.Body)
+		posted = string(body)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	notifier := notify.NewSlackNotifier(srv.URL + "/services/T/B/X")
+	logs := captureLogs(t)
+	ctx := context.Background()
+	cfg := &config.Config{SlackWebhookURL: "https://hooks.slack.com/services/T/B/X", SlackNotifyOn: config.SlackNotifyOnFailure}
+
+	reportOutcome(ctx, cfg, notifier, notify.Event{})
+	if calls != 0 {
+		t.Fatalf("a success with slack-notify-on=failure was posted: %s", posted)
+	}
+	if !strings.Contains(logs.String(), "[INFO]") || !strings.Contains(logs.String(), "Slack notification skipped") {
+		t.Errorf("the suppressed success must be logged at Info: %q", logs.String())
+	}
+
+	reportOutcome(ctx, cfg, notifier, notify.Event{Err: errors.New("boom")})
+	if calls != 1 || !strings.Contains(posted, "ClickBOM failed") || !strings.Contains(posted, "boom") {
+		t.Errorf("a failure with slack-notify-on=failure must be posted: calls=%d body=%s", calls, posted)
+	}
+
+	cfg.SlackNotifyOn = config.SlackNotifyAlways
+	reportOutcome(ctx, cfg, notifier, notify.Event{})
+	if calls != 2 || !strings.Contains(posted, "ClickBOM succeeded") {
+		t.Errorf("a success with slack-notify-on=always must be posted: calls=%d body=%s", calls, posted)
+	}
+
+	// Without a webhook there is nothing to suppress, so nothing is logged.
+	logs.Reset()
+	reportOutcome(ctx, &config.Config{SlackNotifyOn: config.SlackNotifyOnFailure}, nil, notify.Event{})
+	if logs.Len() != 0 {
+		t.Errorf("no webhook: expected no log output, got %q", logs.String())
+	}
+}
+
 func TestNotifyOutcome_NilNotifierIsNoop(t *testing.T) {
 	logs := captureLogs(t)
 	notifyOutcome(context.Background(), nil, notify.Event{})

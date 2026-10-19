@@ -16,7 +16,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
 
       - name: 📦 Download dependencies
@@ -63,7 +63,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
 
       - name: 📦 Install CycloneDX CLI
@@ -143,7 +143,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
 
       - name: 🔍 Run golangci-lint
@@ -189,7 +189,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
 
       - name: 🏗️ Build for ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -335,7 +335,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
 
       - name: 🏗️ Build
@@ -376,7 +376,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
 
       - name: ⚡ Run benchmarks
@@ -402,7 +402,7 @@ jobs:
       - name: 🔧 Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
 
       - name: 🔍 Run Trivy vulnerability scanner

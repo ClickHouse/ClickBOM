@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792407905107,
+  "lastUpdate": 1792435866862,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -8640,6 +8640,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "143006 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "672efa462c7115bd848b2f7eaf8fcfd36fa58a96",
+          "message": "Align CI Go toolchain with Docker builder\n\nCo-authored-by: juliojimenez <648113+juliojimenez@users.noreply.github.com>",
+          "timestamp": "2026-10-19T18:48:06Z",
+          "tree_id": "26864ee6e9033a7385b59ff07d2147dec10de014",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/672efa462c7115bd848b2f7eaf8fcfd36fa58a96"
+        },
+        "date": 1792435866107,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8473,
+            "unit": "ns/op\t     896 B/op\t       7 allocs/op",
+            "extra": "142353 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8473,
+            "unit": "ns/op",
+            "extra": "142353 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 896,
+            "unit": "B/op",
+            "extra": "142353 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "142353 times\n4 procs"
           }
         ]
       }

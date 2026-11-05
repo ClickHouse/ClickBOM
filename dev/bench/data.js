@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793876738830,
+  "lastUpdate": 1793877067563,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -9552,6 +9552,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "144085 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@clickhouse.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "576cdbd1ee0a11ee0258f74cd33a6ff9a1f58e56",
+          "message": "docs: pin examples to v2.3.0 and bump image version labels (#149)\n\nPrepare the v2.3.0 release (next tag after v2.2.0):\n\n- README: the eleven workflow examples now pin `ClickHouse/ClickBOM@v2.3.0`\n  instead of `@main`, and the \"pin a tag\" example in the Versioning note\n  moves from v2.0.0 to v2.3.0.\n- Dockerfile: both `version` labels move from 2.2.0 to 2.3.0, as in the\n  v2.1.0 and v2.2.0 release commits.\n- CLAUDE.md: the consumer note said ClickHouse/sbom pins v2.0.0; it pins\n  v2.2.0 in all four workflows today.\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-11-05T06:10:16-05:00",
+          "tree_id": "130591ff484e02a0b36d04e4ec4bdbd354afd9e1",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/576cdbd1ee0a11ee0258f74cd33a6ff9a1f58e56"
+        },
+        "date": 1793877067036,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8460,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "138775 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8460,
+            "unit": "ns/op",
+            "extra": "138775 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "138775 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "138775 times\n4 procs"
           }
         ]
       }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793872635322,
+  "lastUpdate": 1793873339869,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -9264,6 +9264,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "141123 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "81497e02d8f949bbed03e78bb7cb8673901f62d2",
+          "message": "Bump golang from 1.27.2-alpine3.24 to 1.27.3-alpine3.24 (#140)\n\n* Bump golang from 1.27.2-alpine3.24 to 1.27.3-alpine3.24\n\nBumps golang from 1.27.2-alpine3.24 to 1.27.3-alpine3.24.\n\n---\nupdated-dependencies:\n- dependency-name: golang\n  dependency-version: 1.27.3-alpine3.24\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\n\n* Align CI Go toolchain with Docker builder (1.27.3)\n\nCopilot review on #140: the Dockerfile builder moved to golang:1.27.3-alpine3.24\nbut every actions/setup-go step in .github/workflows/tests.yml still selected\n1.27.2, so tests and govulncheck ran on a different toolchain than the shipped\nbinary. The test_security job failed on GO-2026-6809 (crypto/x509, fixed in\ngo1.27.3), reachable via internal/storage/s3.go:205 (io.Copy ->\nx509.Certificate.Verify).\n\n- Bump the seven go-version pins from 1.27.2 to 1.27.3.\n- Update the lockstep note in CLAUDE.md, which still said 1.27.1.\n\nVerified locally with go1.27.3 and govulncheck v1.9.0: \"No vulnerabilities found.\"\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\n\n---------\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Julio Jimenez <julio@julioj.com>\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-11-05T05:08:20-05:00",
+          "tree_id": "5e136e811573e4d9bb7ba6d735950ea32d798253",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/81497e02d8f949bbed03e78bb7cb8673901f62d2"
+        },
+        "date": 1793873338799,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 6039,
+            "unit": "ns/op\t     896 B/op\t       7 allocs/op",
+            "extra": "191232 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 6039,
+            "unit": "ns/op",
+            "extra": "191232 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 896,
+            "unit": "B/op",
+            "extra": "191232 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "191232 times\n4 procs"
           }
         ]
       }

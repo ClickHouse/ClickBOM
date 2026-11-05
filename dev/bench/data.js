@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793618082499,
+  "lastUpdate": 1793872635322,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -9216,6 +9216,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "199696 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "julio@julioj.com",
+            "name": "Julio Jimenez",
+            "username": "juliojimenez"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "63c25f0d079ad8b5409308b10c7fd628dd382dc3",
+          "message": "Align CI Go toolchain with Docker builder (1.27.3)\n\nCopilot review on #140: the Dockerfile builder moved to golang:1.27.3-alpine3.24\nbut every actions/setup-go step in .github/workflows/tests.yml still selected\n1.27.2, so tests and govulncheck ran on a different toolchain than the shipped\nbinary. The test_security job failed on GO-2026-6809 (crypto/x509, fixed in\ngo1.27.3), reachable via internal/storage/s3.go:205 (io.Copy ->\nx509.Certificate.Verify).\n\n- Bump the seven go-version pins from 1.27.2 to 1.27.3.\n- Update the lockstep note in CLAUDE.md, which still said 1.27.1.\n\nVerified locally with go1.27.3 and govulncheck v1.9.0: \"No vulnerabilities found.\"\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-11-05T04:56:26-05:00",
+          "tree_id": "5e136e811573e4d9bb7ba6d735950ea32d798253",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/63c25f0d079ad8b5409308b10c7fd628dd382dc3"
+        },
+        "date": 1793872634817,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8225,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "141123 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8225,
+            "unit": "ns/op",
+            "extra": "141123 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "141123 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "141123 times\n4 procs"
           }
         ]
       }

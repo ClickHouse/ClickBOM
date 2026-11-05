@@ -4,7 +4,7 @@
 
 Downloads SBOMs from GitHub, Mend, and Wiz, or generates them from container images with Trivy. Normalizes between CycloneDX and SPDX, optionally merges SBOMs stored in S3, uploads the result to S3 and ClickHouse, and can report the outcome of each run to Slack.
 
-> **Versioning.** `v1.0.x` tags are the retired bash implementation. The Go implementation is released as `v2.x` tags (`v2.0.0` and later); pin a tag, for example `ClickHouse/ClickBOM@v2.0.0`, and bump it to pick up fixes. Never pin to a feature branch — branches are deleted after merge and the workflow fails with `Unable to resolve action`.
+> **Versioning.** `v1.0.x` tags are the retired bash implementation. The Go implementation is released as `v2.x` tags (`v2.0.0` and later); pin a tag, for example `ClickHouse/ClickBOM@v2.3.0`, and bump it to pick up fixes. Never pin to a feature branch — branches are deleted after merge and the workflow fails with `Unable to resolve action`.
 
 - [Inputs](#inputs)
   - [GitHub](#github)
@@ -181,7 +181,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           s3-bucket: my-sbom-bucket
@@ -222,7 +222,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           s3-bucket: my-sbom-bucket
@@ -274,7 +274,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           sbom-format: spdxjson
@@ -337,7 +337,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           s3-bucket: my-sbom-bucket
@@ -399,7 +399,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           s3-bucket: my-sbom-bucket
@@ -439,7 +439,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           s3-bucket: my-sbom-bucket
@@ -491,7 +491,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Merge Production SBOMs Only
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           s3-bucket: my-sbom-bucket
@@ -544,7 +544,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM from Mend
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
@@ -593,7 +593,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM from Wiz
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           s3-bucket: my-sbom-bucket
           s3-key: clickbom.json
@@ -638,7 +638,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload SBOM from Container Image
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           s3-bucket: my-sbom-bucket
           s3-key: clickhouse-keeper.json
@@ -661,7 +661,7 @@ Any of the examples above can report to Slack by adding `slack-webhook-url`. Cre
 ```yaml
       - name: Upload SBOM
         id: clickbom
-        uses: ClickHouse/ClickBOM@main
+        uses: ClickHouse/ClickBOM@v2.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           s3-bucket: my-sbom-bucket

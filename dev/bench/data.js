@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794827603199,
+  "lastUpdate": 1795431971952,
   "repoUrl": "https://github.com/ClickHouse/ClickBOM",
   "entries": {
     "Benchmark": [
@@ -10032,6 +10032,54 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "131820 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "af6581ec96d4d9230d46cdf7a18ac4fbdf3c4a3e",
+          "message": "Bump golang from 1.27.3-alpine3.24 to 1.27.4-alpine3.24\n\nBumps golang from 1.27.3-alpine3.24 to 1.27.4-alpine3.24.\n\n---\nupdated-dependencies:\n- dependency-name: golang\n  dependency-version: 1.27.4-alpine3.24\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-11-23T11:05:20Z",
+          "tree_id": "ca4eda6a32bbdcb45fdf2cd73829b4c3edd92039",
+          "url": "https://github.com/ClickHouse/ClickBOM/commit/af6581ec96d4d9230d46cdf7a18ac4fbdf3c4a3e"
+        },
+        "date": 1795431971190,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDetectSBOMFormat",
+            "value": 8706,
+            "unit": "ns/op\t     897 B/op\t       7 allocs/op",
+            "extra": "134524 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - ns/op",
+            "value": 8706,
+            "unit": "ns/op",
+            "extra": "134524 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - B/op",
+            "value": 897,
+            "unit": "B/op",
+            "extra": "134524 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDetectSBOMFormat - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "134524 times\n4 procs"
           }
         ]
       }
